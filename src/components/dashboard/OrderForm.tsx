@@ -484,7 +484,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                     Place Order
                 </button>
             </div>
-            <div className="space-y-4 border-b border-neutral-500/30 pb-4">
+            <div className="space-y-4">
                 <div>Margin Usage</div>
                 <div className="flex flex-col space-y-1">
                     {marginUsage.map((type, index) => (

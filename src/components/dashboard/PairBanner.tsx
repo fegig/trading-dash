@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Dropdown from '../common/Dropdown';
 import { formatLength } from '../../util/formatCurrency';
+import { saveItem } from '../../util';
 
 export interface MarketData {
     PRICE: number;
@@ -38,19 +39,22 @@ const PairBanner = ({setSymbol}: {setSymbol: (symbol: MarketData) => void}) => {
                 const data = await response.json();
                 const rawData = data.RAW[selectedPair.base][selectedPair.quote];
                 setMarketData(rawData);
-                setSymbol({
-                    BASE: selectedPair.base,
-                    QUOTE: selectedPair.quote,
-                    PRICE: rawData.PRICE,
-                    CHANGEPCT24HOUR: rawData.CHANGEPCT24HOUR,
-                    MARKET: rawData.MARKET,
-                    MKTCAP: rawData.MKTCAP,
-                    SUPPLY: rawData.SUPPLY,
-                    HIGH24HOUR: rawData.HIGH24HOUR,
-                    LOW24HOUR: rawData.LOW24HOUR,
-                    VOLUME24HOUR: rawData.VOLUME24HOUR,
-                    FUNDING: rawData.FUNDING
-                });
+               const symbols = {
+                BASE: selectedPair.base,
+                QUOTE: selectedPair.quote,
+                PRICE: rawData.PRICE,
+                CHANGEPCT24HOUR: rawData.CHANGEPCT24HOUR,
+                MARKET: rawData.MARKET,
+                MKTCAP: rawData.MKTCAP,
+                SUPPLY: rawData.SUPPLY,
+                HIGH24HOUR: rawData.HIGH24HOUR,
+                LOW24HOUR: rawData.LOW24HOUR,
+                VOLUME24HOUR: rawData.VOLUME24HOUR,
+                FUNDING: rawData.FUNDING
+            };
+                setSymbol(symbols);
+                saveItem('symbols', JSON.stringify(symbols));
+
 
 
 
