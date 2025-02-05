@@ -30,14 +30,14 @@ const Dropdown = <T,>({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-40"
+                            className="fixed inset-0 z-[999]"
                             onClick={onClose}
                         />
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="gradient-background bg-neutral-950 !absolute  right-0 mt-2 z-50  !p-2 min-w-[80px]"
+                            className="gradient-background bg-neutral-950 !absolute  right-0 mt-2 z-[9999]  !p-2 min-w-[80px]"
                         >
                             {items.map((item, index) => (
                                 <div key={index} className='w-full'>{renderItem(item)}</div>

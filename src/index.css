@@ -13,7 +13,7 @@ html, body {
 select, input, textarea {
   border-radius: 0.5rem;
   outline: none;
-  @apply border border-gray-200 py-2 px-4 transition-all duration-300 ease-in-out;
+  @apply  py-2 px-4 transition-all duration-300 ease-in-out;
 }
 
 
@@ -22,7 +22,7 @@ select, input, textarea {
 }
 
 select:focus, input:focus, textarea:focus {
-  @apply border-neutral-300 border;
+  @apply outline-0;
 }
 
 i {

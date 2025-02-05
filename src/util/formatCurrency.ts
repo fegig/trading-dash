@@ -20,6 +20,16 @@ export const formatNumber = (value: number, decimals?: number) => {
 };
 
 
+export const formatLength = (value: number) => {
+    
+    if (value >= 1e9) {
+        return formatNumber(value / 1e9, 2) + 'B';
+    } else if (value >= 1e6) {
+        return formatNumber(value / 1e6, 2) + 'M';
+    }
+    return formatNumber(value, 0);
+}
+
 
 export const formatPercentage = (value: number) => {
     return new Intl.NumberFormat('en-US', {

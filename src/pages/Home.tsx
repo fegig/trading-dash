@@ -1,6 +1,7 @@
 import OrderBook from '../components/dashboard/OrderBook';
 import OrderForm from '../components/dashboard/OrderForm';
 import ChartArea from '../components/dashboard/ChartArea';
+import PairBanner from '../components/dashboard/PairBanner';
 
 
 const Home = () => {
@@ -11,9 +12,7 @@ const Home = () => {
    
             <div className='col-span-8 space-y-4'>
 
-                <div className='gradient-background'>
-                    
-                </div>
+            <PairBanner />
             <ChartArea />
             </div>
          
