@@ -84,7 +84,7 @@ function OrderBook() {
     };
 
     return (
-        <div className="gradient-background ">
+        <div className="gradient-background  w-full">
             <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-bold">Order Book</h3>
                 <div className="flex items-center space-x-4">

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Dropdown from '../common/Dropdown';
 import { formatLength } from '../../util/formatCurrency';
 
-interface MarketData {
+export interface MarketData {
     PRICE: number;
     MKTCAP: number;
     CHANGEPCT24HOUR: number;
@@ -11,8 +11,11 @@ interface MarketData {
     LOW24HOUR: number;
     VOLUME24HOUR: number;
     FUNDING: number;
-    MARKET: string
+    MARKET: string;
+    BASE?: string;
+    QUOTE?: string;
 }
+
 
 const AVAILABLE_PAIRS = [
     { base: 'BTC', quote: 'USDT' },
@@ -21,7 +24,7 @@ const AVAILABLE_PAIRS = [
     // Add more pairs as needed
 ];
 
-const PairBanner = () => {
+const PairBanner = ({setSymbol}: {setSymbol: (symbol: MarketData) => void}) => {
     const [selectedPair, setSelectedPair] = useState(AVAILABLE_PAIRS[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [marketData, setMarketData] = useState<MarketData | null>(null);
@@ -33,7 +36,25 @@ const PairBanner = () => {
                     `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${selectedPair.base}&tsyms=${selectedPair.quote}`
                 );
                 const data = await response.json();
-                setMarketData(data.RAW[selectedPair.base][selectedPair.quote]);
+                const rawData = data.RAW[selectedPair.base][selectedPair.quote];
+                setMarketData(rawData);
+                setSymbol({
+                    BASE: selectedPair.base,
+                    QUOTE: selectedPair.quote,
+                    PRICE: rawData.PRICE,
+                    CHANGEPCT24HOUR: rawData.CHANGEPCT24HOUR,
+                    MARKET: rawData.MARKET,
+                    MKTCAP: rawData.MKTCAP,
+                    SUPPLY: rawData.SUPPLY,
+                    HIGH24HOUR: rawData.HIGH24HOUR,
+                    LOW24HOUR: rawData.LOW24HOUR,
+                    VOLUME24HOUR: rawData.VOLUME24HOUR,
+                    FUNDING: rawData.FUNDING
+                });
+
+
+
+
 
             } catch (error) {
                 console.error('Error fetching market data:', error);
