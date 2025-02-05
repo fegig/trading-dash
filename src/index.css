@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@import "@flaticon/flaticon-uicons/css/all/all";
+@import "tailwindcss";
+
+
+
+html, body {
+  font-family: 'Outfit', sans-serif;
+  font-smooth: antialiased;
+  scroll-behavior: smooth;
+}
+
+select, input, textarea {
+  border-radius: 0.5rem;
+  outline: none;
+  @apply border border-gray-200 py-2 px-4 transition-all duration-300 ease-in-out;
+}
+
+
+.gradient-background{
+  @apply relative backdrop-blur-md bg-gradient-to-b from-neutral-500/10 to-neutral-950/10 border border-neutral-200/5  p-4 rounded-lg shadow-lg;
+}
+
+select:focus, input:focus, textarea:focus {
+  @apply border-neutral-300 border;
+}
+
+i {
+  @apply flex items-center justify-center;
+}
+
+button {
+  @apply outline-none transition-all duration-300 ease-in-out;
+}
+
+.scrollBar{
+  @apply overflow-y-auto   [&::-webkit-scrollbar]:w-2  [&::-webkit-scrollbar-track]:bg-gray-100  [&::-webkit-scrollbar-thumb]:bg-gray-300  [&::-webkit-scrollbar-thumb]:rounded-full  hover:[&::-webkit-scrollbar-thumb]:bg-gray-400
+}
