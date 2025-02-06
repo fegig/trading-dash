@@ -36,7 +36,7 @@ i {
 }
 
 button {
-  @apply outline-none transition-all duration-300 ease-in-out;
+  @apply outline-none transition-all duration-300 ease-in-out cursor-pointer;
 }
 
 .scrollBar{

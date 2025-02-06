@@ -4,7 +4,7 @@ import { MarketData } from "./PairBanner";
 import { errorToast, successToast } from "../../components/common/sweetAlerts";
 import Switch from "../common/SwitchOption";
 
-type TradingType = 'isolated' | 'multiplied';
+type TradingType = 'isolated' | 'cross';
 type LongShort = 'long' | 'short';
 type OrderType = 'market' | 'limit' | 'stop';
 
@@ -258,7 +258,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                             className="w-full outline-0 border-0 px-3 py-2 text-neutral-500 capitalize text-xs text-center"
                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTradingType(e.target.value as TradingType)}
                         >
-                            {['isolated', 'multiplied'].map((type) => (
+                            {['isolated', 'cross'].map((type) => (
                                 <option value={type} key={type}>{type}</option>
                             ))}
                         </select>

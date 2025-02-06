@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Dropdown from '../common/Dropdown';
 import { formatLength } from '../../util/formatCurrency';
 import { saveItem } from '../../util';
@@ -30,46 +30,47 @@ const PairBanner = ({setSymbol}: {setSymbol: (symbol: MarketData) => void}) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [marketData, setMarketData] = useState<MarketData | null>(null);
 
-    useEffect(() => {
-        const fetchMarketData = async () => {
-            try {
-                const response = await fetch(
-                    `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${selectedPair.base}&tsyms=${selectedPair.quote}`
-                );
-                const data = await response.json();
-                const rawData = data.RAW[selectedPair.base][selectedPair.quote];
-                setMarketData(rawData);
-               const symbols = {
-                BASE: selectedPair.base,
-                QUOTE: selectedPair.quote,
-                PRICE: rawData.PRICE,
-                CHANGEPCT24HOUR: rawData.CHANGEPCT24HOUR,
-                MARKET: rawData.MARKET,
-                MKTCAP: rawData.MKTCAP,
-                SUPPLY: rawData.SUPPLY,
-                HIGH24HOUR: rawData.HIGH24HOUR,
-                LOW24HOUR: rawData.LOW24HOUR,
-                VOLUME24HOUR: rawData.VOLUME24HOUR,
-                FUNDING: rawData.FUNDING
-            };
-                setSymbol(symbols);
-                saveItem('symbols', JSON.stringify(symbols));
-
-
-
-
-
-
-            } catch (error) {
-                console.error('Error fetching market data:', error);
-            }
+    const fetchMarketData = useCallback(async () => {
+        try {
+            const response = await fetch(
+                `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${selectedPair.base}&tsyms=${selectedPair.quote}`
+            );
+            const data = await response.json();
+            const rawData = data.RAW[selectedPair.base][selectedPair.quote];
+            setMarketData(rawData);
+           const symbols = {
+            BASE: selectedPair.base,
+            QUOTE: selectedPair.quote,
+            PRICE: rawData.PRICE,
+            CHANGEPCT24HOUR: rawData.CHANGEPCT24HOUR,
+            MARKET: rawData.MARKET,
+            MKTCAP: rawData.MKTCAP,
+            SUPPLY: rawData.SUPPLY,
+            HIGH24HOUR: rawData.HIGH24HOUR,
+            LOW24HOUR: rawData.LOW24HOUR,
+            VOLUME24HOUR: rawData.VOLUME24HOUR,
+            FUNDING: rawData.FUNDING
         };
+            setSymbol(symbols);
+            saveItem('symbols', JSON.stringify(symbols));
 
+
+
+
+
+
+        } catch (error) {
+            console.error('Error fetching market data:', error);
+        }
+    },[selectedPair]);
+
+    useEffect(() => {
+    
         fetchMarketData();
         const interval = setInterval(fetchMarketData, 30000); // Update every 30 seconds
 
         return () => clearInterval(interval);
-    }, [selectedPair]);
+    }, [fetchMarketData]);
 
     const handlePairSelect = (pair: typeof AVAILABLE_PAIRS[0]) => {
         setSelectedPair(pair);

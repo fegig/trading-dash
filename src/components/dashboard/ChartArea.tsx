@@ -1,10 +1,49 @@
-import { useState } from "react";
-import TradingViewWidget from "../common/TradingViewWidget";
+import { useEffect, useState } from "react";
+import { CoinData, CoinReturn, getCoinById } from "../../services/CryptoService";
+import CustomChartWidget from "../common/CustomChartWidget";
 
+type  Filters = '1H' | '1D' |'1W' | '1M' |  '1Y'
 function ChartArea() {
     const [activeTab, setActiveTab] = useState('depth');
-    const [timeFilter, setTimeFilter] = useState('1D');
+    const [timeFilter, setTimeFilter] = useState<Filters>('1H');
+    const [graphData, setGraphData] = useState<CoinReturn>()
+    const [isLoading, setIsLoading] = useState<boolean>(true)
+    const [filteredData, setFilteredData] = useState<CoinData[]>([])
 
+
+    useEffect(()=>{
+        const getCoin =async ()=>{
+            const list  = await getCoinById()
+            setGraphData(list)
+            setFilteredData(list.hChanges)
+            setIsLoading(false)
+            console.log(list);    
+        }
+
+        getCoin()
+    },[])
+
+    const changeGraph = (filter: Filters) => {
+        setIsLoading(true); // Set loading state immediately
+        setTimeFilter(filter);
+        
+        // Use setTimeout to allow the loading state to render before heavy computation
+        setTimeout(() => {
+            const newData = (() => {
+                switch (filter) {
+                    case "1H": return graphData?.hChanges;
+                    case "1D": return graphData?.dChanges;
+                    case "1W": return graphData?.dChanges;
+                    case "1M": return graphData?.mChanges;
+                    case "1Y": return graphData?.yChanges;
+                    default: return [];
+                }
+            })();
+            
+            setFilteredData(newData || []);
+            setIsLoading(false);
+        }, 0);
+    }
   return (
     <div className="gradient-background">
     <div className="flex justify-between items-center mb-4">
@@ -24,10 +63,10 @@ function ChartArea() {
             ))}
         </div>
         <div className="flex space-x-2 gradient-background !rounded-full !p-0 ">
-            {['1D', '1W', '1M', '3M', '1Y'].map((filter) => (
+            {(['1H', '1D', '1W', '1M', '1Y'] as const).map((filter) => (
                 <button
                     key={filter}
-                    onClick={() => setTimeFilter(filter)}
+                    onClick={() => changeGraph(filter)}
                     className={`px-3 text-xs py-1 rounded-full text-neutral-400 ${timeFilter === filter
                             ? 'bg-green-500 text-neutral-950'
                             : 'hover:bg-neutral-800'
@@ -40,8 +79,15 @@ function ChartArea() {
             ))}
         </div>
     </div>
-    <div className="h-[300px] bg-gray-900 rounded">
-        <TradingViewWidget />
+    <div className="  rounded p-4">
+        {filteredData && (
+            <CustomChartWidget 
+            setIsLoading={setIsLoading}
+            isLoading ={isLoading}
+                data={filteredData} 
+                timeFilter={timeFilter}
+            />
+        )}
     </div>
 </div>
   )
