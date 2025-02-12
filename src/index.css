@@ -40,17 +40,17 @@ button {
 }
 
 .scrollBar{
-  @apply overflow-y-auto   [&::-webkit-scrollbar]:w-2  [&::-webkit-scrollbar-track]:bg-gray-100  [&::-webkit-scrollbar-thumb]:bg-gray-300  [&::-webkit-scrollbar-thumb]:rounded-full  hover:[&::-webkit-scrollbar-thumb]:bg-gray-400
+  @apply overflow-y-auto   [&::-webkit-scrollbar]:w-2  [&::-webkit-scrollbar-track]:bg-neutral-900  [&::-webkit-scrollbar-thumb]:bg-neutral-700  [&::-webkit-scrollbar-thumb]:rounded-full  hover:[&::-webkit-scrollbar-thumb]:bg-neutral-500
 }
 
 .scrollBar::-webkit-scrollbar-thumb{
-  @apply bg-neutral-500/50
+  @apply bg-green-500/50
 }
 
 .scrollBar::-webkit-scrollbar-thumb:hover{
-  @apply bg-neutral-500/70
+  @apply bg-green-500/70
 }
 
 .scrollBar::-webkit-scrollbar-thumb:active{
-  @apply bg-neutral-500/90
+  @apply bg-green-500/90
 }

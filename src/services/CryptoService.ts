@@ -76,7 +76,6 @@ export interface CoinReturn{
 
 const API_KEY = "14f7bea0a9c7286dd68d0f5483346e50658b4343db0b9c1993aae5feed931297";
 const BASE_URL = "https://min-api.cryptocompare.com/data";
-const CURRENCY = "USD";
 
 
 
@@ -104,9 +103,9 @@ const processHistoricalData = (data: HistoricalData[]): CoinData[] => {
   }));
 };
 
-const getHistoricalData = async (symbol: string, endpoint: string, limit: number): Promise<CoinData[]> => {
+const getHistoricalData = async (base: string, quote: string, endpoint: string, limit: number): Promise<CoinData[]> => {
   const response = await fetchApi<ApiResponse<HistoricalData>>(
-    `${endpoint}?fsym=${symbol}&tsym=${CURRENCY}&limit=${limit}`
+    `${endpoint}?fsym=${base}&tsym=${quote}&limit=${limit}`
   );
   return processHistoricalData(response.Data.Data);
 };
@@ -121,17 +120,16 @@ const getCoinFromDB = async () => {
   };
 };
 
-const getCoinById = async () => {
+const getCoinById = async (base: string, quote: string) => {
   const coin = await getCoinFromDB();
   if (!coin) {
     throw new Error("Coin not found");
   }
 
-  const priceResponse = await fetchApi<ApiResponse<PriceData>>(
-    `/pricemultifull?fsyms=${coin.coinShort}&tsyms=${CURRENCY}`
+  const priceResponse = await fetchApi<ApiResponse<PriceData>>(`/pricemultifull?fsyms=${base}&tsyms=${quote}`
   );
 
-  const coinInfo = priceResponse.RAW?.[coin.coinShort][CURRENCY];
+  const coinInfo = priceResponse.RAW?.[base][quote];
   if (!coinInfo) {
     throw new Error("Price data not found for coin");
   }
@@ -154,11 +152,11 @@ const getCoinById = async () => {
   };
 
   const [hourly, daily, weekly, monthly, yearly] = await Promise.all([
-    getHistoricalData(coin.coinShort, "/v2/histominute", 60),
-    getHistoricalData(coin.coinShort, "/v2/histominute", 1440),
-    getHistoricalData(coin.coinShort, "/v2/histohour", 168),
-    getHistoricalData(coin.coinShort, "/v2/histohour", 730),
-    getHistoricalData(coin.coinShort, "/v2/histoday", 365),
+    getHistoricalData(base, quote, "/v2/histominute", 60),
+    getHistoricalData(base, quote, "/v2/histohour", 24),
+    getHistoricalData(base, quote, "/v2/histohour", 168),
+    getHistoricalData(base, quote, "/v2/histoday", 30),
+    getHistoricalData(base, quote, "/v2/histoday", 365),
   ]);
 
   return {

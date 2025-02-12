@@ -1,20 +1,16 @@
 import { useState } from 'react';
 import { formatCurrency, formatNumber } from '../../util/formatCurrency';
 import DepthSelector from './DepthSelector';
+import { MarketData } from './PairBanner';
 
 interface OrderBookEntry {
     price: number;
     quantity: number;
 }
 
-interface MarketData {
-    price: number;
-    change24h: number;
-}
 
-function OrderBook() {
-    const [symbol] = useState('BTC');
-    const [crossSymbol] = useState('USDT');
+
+function OrderBook({symbol}: {symbol: MarketData}) {
     const asks: OrderBookEntry[] = [
         { price: 43300.75, quantity: 0.3150 },
         { price: 43275.50, quantity: 1.1200 },
@@ -42,8 +38,8 @@ function OrderBook() {
     ];
 
     const marketData: MarketData = {
-        price: 43150.75,
-        change24h: 2.45
+        PRICE: 43150.75,
+        CHANGEPCT24HOUR: 2.45
     };
 
     const [depth, setDepth] = useState(10);
@@ -98,9 +94,9 @@ function OrderBook() {
 
         
             <div className="grid grid-cols-3 gap-2 text-[10px] text-gray-400 mb-2">
-                <div>Price ({crossSymbol})</div>
-                <div className="text-right">Size ({symbol})</div>
-                <div className="text-right">Sum ({crossSymbol})</div>
+                <div>Price ({symbol.QUOTE})</div>
+                <div className="text-right">Size ({symbol.QUOTE})</div>
+                <div className="text-right">Sum ({symbol.QUOTE})</div>
             </div>
 
             <div className="space-y-1">
@@ -135,11 +131,11 @@ function OrderBook() {
                 <div className="flex justify-between items-center">
                     <span className="text-green-500 font-medium flex items-center space-x-1">
                         <i className="fi fi-rr-caret-up"></i>
-                        {formatCurrency(marketData.price, 'USD')}
+                        {formatCurrency(marketData.PRICE || 0, 'USD')}
                     </span>
 
-                    <span className={`text-xs ${marketData.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {marketData.change24h >= 0 ? '+' : ''}{marketData.change24h.toFixed(2)}%
+                    <span className={`text-xs ${marketData.CHANGEPCT24HOUR && marketData.CHANGEPCT24HOUR >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {marketData.CHANGEPCT24HOUR && marketData.CHANGEPCT24HOUR >= 0 ? '+' : ''}{marketData.CHANGEPCT24HOUR?.toFixed(2)}%
                     </span>
                 </div>
 

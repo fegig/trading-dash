@@ -146,7 +146,7 @@ function OrderForm({ symbol }: OrderFormProps) {
             { name: 'Margin', value: marginRequired.toFixed(2), unit: symbol?.QUOTE },
             { name: 'Max Position Amount', value: maxPosition.toFixed(2), unit: symbol?.QUOTE }
         ]);
-    }, [amount, leverage, orderPrice, orderType, longShort, symbol]);
+    }, [amount, leverage, orderPrice, orderType, longShort, marginUsage, symbol]);
 
     // Update margin usage calculations
     useEffect(() => {
