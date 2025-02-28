@@ -70,7 +70,10 @@ function MiniTradeHistorySelector({historyType, setHistoryType }:MiniTradeHistor
         </div>
     </div>
         <div>
-            other pairs
+            <button className=" gradient-background !rounded-lg !p-2 text-xs text-neutral-500 hover:text-neutral-400 flex items-center gap-2">
+                <i className="fi fi-rr-exchange text-sm"></i>
+                <span className="text-xs">All Orders</span>
+            </button>
         </div>
        </div>
     
@@ -244,7 +247,7 @@ const MiniTradeHistory = () => {
                                 <img src={`https://assets.coincap.io/assets/icons/${trade.quote.toLowerCase()}@2x.png`} alt={trade.quote} className="w-4 h-4 rounded-full" />
 
                                 </div>
-                            <span className="text-sm uppercase">{trade.base}-{trade.quote}</span>
+                            <span className="text-xs uppercase">{trade.base}-{trade.quote}</span>
                             <span className={`text-[10px] capitalize bg-gradient-to-r  
                                                 ${trade.status === 'open' ? ' from-blue-500/10  to-transparent text-blue-600' : 
                                                 trade.status === 'pending' ? 'from-yellow-500/10 to-transparent text-yellow-600' : 
@@ -259,28 +262,28 @@ const MiniTradeHistory = () => {
 
                                     {item === 'Type' ? trade.type && (
                                         <>
-                                        <span className="text-neutral-400">{item}</span>
-                                        <span className={` capitalize text-base ${trade.type === 'long' ? 'text-green-500' : 'text-red-500'} `}>{trade.type}</span>
+                                        <span className="text-neutral-400 text-[10px]">{item}</span>
+                                        <span className={` capitalize text-xs ${trade.type === 'long' ? 'text-green-500' : 'text-red-500'} `}>{trade.type}</span>
                                         </>
                                     ) : item === 'Size' ? trade.size && (
                                         <>
-                                        <span className="text-neutral-400">{item} ({trade.base})</span>
-                                        <span className="text-neutral-300 capitalize text-base">{trade.size}</span>
+                                        <span className="text-neutral-400 text-[10px]">{item} ({trade.base})</span>
+                                        <span className="text-neutral-300 capitalize text-xs">{trade.size}</span>
                                         </>
                                     ) : item === 'Entry Price' ? trade.entryPrice && (
                                         <>
-                                        <span className="text-neutral-400">{item}</span>
-                                        <span className="text-neutral-300 capitalize text-base">{formatNumber(trade.entryPrice)}</span>
+                                        <span className="text-neutral-400 text-[10px]">{item}</span>
+                                        <span className="text-neutral-300 capitalize text-xs">{formatNumber(trade.entryPrice)}</span>
                                         </>
                                     ): item === 'Margin' ? trade.margin && (
                                         <>
-                                        <span className="text-neutral-400">{item} <span className="italic ">({trade.marginType})</span></span>
-                                        <span className="text-neutral-300 capitalize text-base">{formatNumber(trade.margin)}</span>
+                                        <span className="text-neutral-400 text-[10px]">{item} <span className="italic ">({trade.marginType})</span></span>
+                                        <span className="text-neutral-300 capitalize text-xs">{formatNumber(trade.margin)}</span>
                                         </>
                                     ) : item === 'Margin Usage' ? trade.marginPercentage && (
                                         <>
-                                        <span className="text-neutral-400">Margin <span className="italic ">(Usage)</span></span>
-                                        <span className="text-neutral-300 capitalize text-base">{trade.marginPercentage}%</span>
+                                        <span className="text-neutral-400 text-[10px]">Margin <span className="italic ">(Usage)</span></span>
+                                        <span className="text-neutral-300 capitalize text-xs">{trade.marginPercentage}%</span>
                                         </>
                                     )  : null}
                                 </div>

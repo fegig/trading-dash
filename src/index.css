@@ -39,18 +39,22 @@ button {
   @apply outline-none transition-all duration-300 ease-in-out cursor-pointer;
 }
 
-.scrollBar{
+html, body, .scrollBar{
   @apply overflow-y-auto   [&::-webkit-scrollbar]:w-2  [&::-webkit-scrollbar-track]:bg-neutral-900  [&::-webkit-scrollbar-thumb]:bg-neutral-700  [&::-webkit-scrollbar-thumb]:rounded-full  hover:[&::-webkit-scrollbar-thumb]:bg-neutral-500
 }
 
-.scrollBar::-webkit-scrollbar-thumb{
+html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb, .scrollBar::-webkit-scrollbar-thumb{
   @apply bg-green-500/50
 }
 
-.scrollBar::-webkit-scrollbar-thumb:hover{
+html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, .scrollBar::-webkit-scrollbar-thumb:hover{
   @apply bg-green-500/70
 }
 
-.scrollBar::-webkit-scrollbar-thumb:active{
+html::-webkit-scrollbar-thumb:active, body::-webkit-scrollbar-thumb:active, .scrollBar::-webkit-scrollbar-thumb:active{
   @apply bg-green-500/90
+}
+
+.smooth{
+  @apply transition-all duration-300
 }

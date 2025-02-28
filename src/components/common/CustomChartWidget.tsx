@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import ReactApexChart from 'react-apexcharts';
 import { CoinData } from '../../services/CryptoService';
 import { ApexOptions } from 'apexcharts';
+import { ChartType } from '../../types/chat';
 
 interface CustomChartWidgetProps {
     data: CoinData[];
@@ -9,12 +10,13 @@ interface CustomChartWidgetProps {
     onDataPointHover?: (price: number, timestamp: number) => void;
     isLoading: boolean;
     setIsLoading: (option:boolean)=>void
+    chartType: ChartType
+    setChartType: (option:ChartType)=>void
 }
 
-type ChartType = 'candlestick' | 'line';
 
-const CustomChartWidget = ({ data, isLoading , setIsLoading}: CustomChartWidgetProps) => {
-    const [chartType, setChartType] = useState<ChartType>('candlestick');
+
+const CustomChartWidget = ({ data, isLoading ,  chartType}: CustomChartWidgetProps) => {
 
     const chartData = useMemo(() => {
         if (!data || data.length === 0) return [];
@@ -167,15 +169,6 @@ const CustomChartWidget = ({ data, isLoading , setIsLoading}: CustomChartWidgetP
         },
     }), [chartType]);
 
-    const handleChartTypeChange = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            setChartType(prev => prev === 'candlestick' ? 'line' : 'candlestick');
-            setTimeout(() => {
-                setIsLoading(false);
-            }, 300); 
-        }, 200);
-    };
 
     if (isLoading) {
         return (
@@ -187,16 +180,7 @@ const CustomChartWidget = ({ data, isLoading , setIsLoading}: CustomChartWidgetP
 
     return (
         <div className="w-full h-full">
-            <div className="flex justify-end mb-4">
-                <button
-                    onClick={handleChartTypeChange}
-                    className=" gradient-background transition-colors flex items-center gap-2 text-xs !p-2"
-                    aria-label={`Switch to ${chartType === 'candlestick' ? 'line' : 'candlestick'} chart`}
-                >
-                    <i className={`fi fi-rr-${chartType === 'candlestick' ? 'chart-line-up' : 'chart-candlestick'}`}></i>
-                    {chartType === 'candlestick' ? 'Line' : 'Candlestick'}
-                </button>
-            </div>
+          
             <ReactApexChart
             
                 options={options}
