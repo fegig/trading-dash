@@ -1,13 +1,9 @@
-export const formatCurrency = (value: number, currency: 'NGN' | 'USD') => {
-    if (currency === 'NGN') {
-        return `₦${value.toLocaleString('en-US')}`;
-    }
-
+export const formatCurrency = (value: number, currency: string | undefined = "USD", decimals: number = 2) => {
     const formatter = new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
     });
     return formatter.format(value);
 };

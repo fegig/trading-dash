@@ -16,11 +16,9 @@ function Header() {
   return (
     <header className="border-b border-gray-800 px-4 md:px-6 py-3 md:py-4 relative z-40">
       <div className="flex items-center justify-between">
-        <div className="flex items-center">
+        <div className="flex items-center space-x-4 ">
           <h1 className="text-xl md:text-2xl font-bold text-green-400">BlockTrade</h1>
-        </div>
-
-        <nav className="hidden md:flex space-x-6">
+          <nav className="hidden md:flex space-x-6">
           {tabs.map((item, i) => (
             <NavLink
               to={`${item.path}`}
@@ -32,6 +30,9 @@ function Header() {
             </NavLink>
           ))}
         </nav>
+        </div>
+
+       
 
         {/* Mobile Menu Button */}
         <div className="flex items-center space-x-3">

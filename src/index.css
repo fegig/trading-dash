@@ -1,8 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
 @import "@flaticon/flaticon-uicons/css/all/all";
 @import "tailwindcss";
-
-
+@plugin 'tailwind-scrollbar';
 
 html, body {
   font-family: 'Outfit', sans-serif;

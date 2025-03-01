@@ -12,7 +12,7 @@ export interface CoinData {
   change24hrs: number;
 }
 
-interface CoinBio {
+export interface CoinBio {
   coinId: string;
   coinName: string;
   coinShort: string;
