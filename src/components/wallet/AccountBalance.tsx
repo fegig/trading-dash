@@ -19,7 +19,7 @@ function AccountBalance({ userCoins }: { userCoins: UserCoinsProps[] }) {
 
     const totalBalance = calculateTotalBalance();
     return (
-        <div className="gradient-background p-4 rounded-lg flex flex-col  space-y-4 min-w-sm">
+        <div className="gradient-background rounded-lg flex flex-col  space-y-4 min-w-sm max-md:min-w-xs">
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                      <i className="fi fi-rr-wallet"></i>

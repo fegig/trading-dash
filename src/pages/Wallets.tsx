@@ -80,7 +80,7 @@ function Wallets() {
     return (
         <div className="relative">
             <main className="p-6">
-                <div className='space-x-4  flex max-md:flex-wrap items-center'>
+                <div className='gap-4  flex max-md:flex-wrap items-center'>
                     <div className="flex">
                         <AccountBalance userCoins={userCoins} />
                     </div>

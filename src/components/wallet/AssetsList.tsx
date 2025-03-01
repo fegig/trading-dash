@@ -63,8 +63,8 @@ function AssetsList({ userCoins }: { userCoins: UserCoinsProps[] }) {
             </div>
             <div className="flex justify-between items-center gap-2 mt-2">
                 <button className="flex-1 rounded-full gradient-background !p-2 !py-1 hover:bg-neutral-800/50 smooth flex items-center justify-center space-x-1 text-xs">
-                    <i className="fi fi-rr-shopping-cart text-neutral-500"></i>
-                    <span>Buy</span>
+                    <i className="fi fi-rr-arrow-down text-neutral-500"></i>
+                    <span>Receive</span>
                 </button>
                 <button className="flex-1 rounded-full gradient-background !p-2 !py-1 hover:bg-neutral-800/50 smooth flex items-center justify-center space-x-1 text-xs">
                     <i className="fi fi-rr-paper-plane text-neutral-500"></i>
