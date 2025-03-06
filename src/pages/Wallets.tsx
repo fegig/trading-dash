@@ -1,5 +1,6 @@
 import AccountBalance from "../components/wallet/AccountBalance"
 import AssetsList from "../components/wallet/AssetsList"
+import TransactionHistory from "../components/wallet/TransactionHistory";
 import { UserCoinsProps } from "../types/wallet"
 import { useRef } from 'react';
 
@@ -109,8 +110,16 @@ function Wallets() {
                                 <i className="fi fi-rr-angle-right text-neutral-300"></i>
                             </button>
                         </div>
+
+
                     </div>
                 </div>
+
+
+{/* Transaction cards */}
+  <div className='gap-4  items-center mt-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6'>
+  <TransactionHistory />
+  </div>
 
             </main>
 

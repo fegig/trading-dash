@@ -234,7 +234,7 @@ const MiniTradeHistory = () => {
         <>
             <MiniTradeHistorySelector historyType={historyType} setHistoryType={setHistoryType}/>
 
-            <div className="max-h-[250px] overflow-y-auto scrollBar">
+            <div className="max-h-[250px] overflow-y-auto scrollbar-none">
                 <div className="flex flex-col space-y-4 pb-4 z-0">
                     {filteredHistory.map((trade) => (
           

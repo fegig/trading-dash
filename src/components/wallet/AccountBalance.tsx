@@ -189,7 +189,7 @@ function AccountBalance({ userCoins }: { userCoins: UserCoinsProps[] }) {
 
                 <div className="mt-3 pt-3 border-t border-neutral-800">
                     <div className="text-xs text-neutral-400 mb-2">Top Movers</div>
-                    <div className="flex flex-wrap gap-2 justify-evenly">
+                    <div className="flex  gap-1 justify-around">
                         {(() => {
                             const coinsWithChanges = userCoins
                                 .map(coin => ({

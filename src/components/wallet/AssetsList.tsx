@@ -4,7 +4,7 @@ import { formatCurrency, formatNumber } from "../../util/formatCurrency"
 function AssetsList({ userCoins }: { userCoins: UserCoinsProps[] }) {
     return (
         userCoins.map((coin) => (
-        <div className="gradient-background p-4 rounded-lg flex flex-col  space-y-4 min-w-sm max-md:min-w-xs" key={coin.walletId}>
+        <div className="gradient-background p-4 rounded-lg flex flex-col  space-y-4 min-w-sm max-md:min-w-2xs" key={coin.walletId}>
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <img src={`https://assets.coincap.io/assets/icons/${coin.coinShort.toLowerCase()}@2x.png`} alt={coin.coinShort} className="w-4 h-4" />
@@ -19,7 +19,7 @@ function AssetsList({ userCoins }: { userCoins: UserCoinsProps[] }) {
             </div>
 
             <div className="flex items-center space-x-2 justify-between">
-                <div className="text-xl font-bold">{formatNumber(coin.userBalance, 4)} {coin.coinShort}</div>
+                <div className="md:text-xl text-base font-bold">{formatNumber(coin.userBalance, 4)} {coin.coinShort}</div>
                 <div className="text-xs text-neutral-400">1{coin.coinShort} = {formatCurrency(parseFloat(coin.price), "USD")} USD</div>
             </div>
             

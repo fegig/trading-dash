@@ -3,9 +3,9 @@ import { CoinData, CoinReturn, getCoinById } from "../../services/CryptoService"
 import CustomChartWidget from "../common/CustomChartWidget";
 import { MarketData } from "./PairBanner";
 import Modal from "../common/Modal";
-import { ChartType } from "../../types/chat";
+import { ChartType, Filters } from "../../types/chat";
 
-type Filters = '1H' | '1D' | '1W' | '1M' | '1Y'
+
 
 function ChartArea({ symbol }: { symbol: MarketData }) {
     const [activeTab, setActiveTab] = useState('depth');
