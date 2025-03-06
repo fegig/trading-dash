@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import Dropdown from '../common/Dropdown';
 import { formatLength } from '../../util/formatCurrency';
 import { saveItem } from '../../util/storage';
 import Modal from '../common/Modal';
@@ -71,12 +70,6 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
             };
             setSymbol(symbols);
             saveItem('symbols', JSON.stringify(symbols));
-
-
-
-
-
-
         } catch (error) {
             console.error('Error fetching market data:', error);
         }
@@ -85,7 +78,7 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
     useEffect(() => {
 
         fetchMarketData();
-        const interval = setInterval(fetchMarketData, 30000); // Update every 30 seconds
+        const interval = setInterval(fetchMarketData, 30000);
 
         return () => clearInterval(interval);
     }, [fetchMarketData]);
@@ -139,63 +132,30 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
                     <div className='border-r-0 md:border-r border-neutral-700/30 space-y-1 px-0 md:px-4 w-full md:w-auto'>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
-                                <Dropdown
-                                    isOpen={isDropdownOpen}
-                                    onClose={() => setIsDropdownOpen(false)}
-                                    trigger={
-                                        <button
-                                            onClick={() => setIsDropdownOpen(true)}
-                                            className="flex items-center space-x-2 hover:opacity-80"
-                                        >
-                                            <div className="flex items-center -space-x-1">
-                                                <img src={`https://assets.coincap.io/assets/icons/${selectedPair.base.toLowerCase()}@2x.png`} alt={selectedPair.base} className="w-4 h-4 rounded-full" />
-                                                <img src={`https://assets.coincap.io/assets/icons/${selectedPair.quote.toLowerCase()}@2x.png`} alt={selectedPair.quote} className="w-4 h-4 rounded-full" />
-                                            </div>
-                                            <span className="text-sm font-bold">
-                                                {selectedPair.base}-{selectedPair.quote}
-                                            </span>
-                                            <i className={`fi fi-rr-angle-down text-xs ${isDropdownOpen ? 'rotate-180' : ''} transition-all duration-300`} />
-                                        </button>
-                                    }
-                                    items={AVAILABLE_PAIRS}
-                                    renderItem={(pair) => (
-                                        <button
-                                            onClick={() => handlePairSelect(pair)}
-                                            className="w-full text-left px-4 py-3 hover:bg-neutral-800/50 rounded-lg flex items-center justify-between group smooth"
-                                        >
-                                            <div className="flex items-center space-x-3">
-                                                <div className="flex items-center -space-x-1">
-                                                    <img
-                                                        src={`https://assets.coincap.io/assets/icons/${pair.base.toLowerCase()}@2x.png`}
-                                                        alt={pair.base}
-                                                        className="w-6 h-6 rounded-full z-10"
-                                                    />
-                                                    <img
-                                                        src={`https://assets.coincap.io/assets/icons/${pair.quote.toLowerCase()}@2x.png`}
-                                                        alt={pair.quote}
-                                                        className="w-6 h-6 rounded-full"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium">
-                                                        {pair.base}-{pair.quote}
-                                                    </span>
-                                                    <span className="text-xs text-neutral-500">
-                                                        {pair.base} / {pair.quote}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <i className="fi fi-rr-angle-right text-neutral-500 opacity-0 group-hover:opacity-100 smooth" />
-                                        </button>
-                                    )}
-                                />
+                                <button
+                                    onClick={() => setIsDropdownOpen(true)}
+                                    className="flex items-center space-x-2 hover:opacity-80"
+                                    aria-label="Select trading pair"
+                                    tabIndex={0}
+                                >
+                                    <div className="flex items-center -space-x-1">
+                                        <img src={`https://assets.coincap.io/assets/icons/${selectedPair.base.toLowerCase()}@2x.png`} alt={selectedPair.base} className="w-4 h-4 rounded-full" />
+                                        <img src={`https://assets.coincap.io/assets/icons/${selectedPair.quote.toLowerCase()}@2x.png`} alt={selectedPair.quote} className="w-4 h-4 rounded-full" />
+                                    </div>
+                                    <span className="text-sm font-bold">
+                                        {selectedPair.base}-{selectedPair.quote}
+                                    </span>
+                                    <i className="fi fi-rr-angle-down text-xs transition-all duration-300" />
+                                </button>
+
+
                                 <span className={`text-sm font-medium ${marketData.CHANGEPCT24HOUR && marketData.CHANGEPCT24HOUR >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                     ${marketData.PRICE?.toLocaleString()}
                                 </span>
                             </div>
-                            
+
                             {/* Mobile info button */}
-                            <button 
+                            <button
                                 className="md:hidden !p-2 hover:bg-neutral-800/50 !rounded-full smooth gradient-background  "
                                 onClick={() => setIsModalOpen(true)}
                             >
@@ -254,12 +214,56 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
                 </div>
             </div>
 
-            <Modal 
-                isOpen={isModalOpen} 
+            <Modal
+                isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={`${selectedPair.base}-${selectedPair.quote} Market Data`}
             >
                 <MarketDataContent />
+            </Modal>
+            <Modal
+                isOpen={isDropdownOpen}
+                onClose={() => setIsDropdownOpen(false)}
+                title="Select Trading Pair"
+            >
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto scrollbar-none">
+                    {AVAILABLE_PAIRS.map((pair) => (
+                        <button
+                            key={`${pair.base}-${pair.quote}`}
+                            onClick={() => {
+                                handlePairSelect(pair);
+                                setIsDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-neutral-800/50 rounded-lg flex items-center justify-between group smooth"
+                            aria-label={`Select ${pair.base}-${pair.quote} pair`}
+                            tabIndex={0}
+                        >
+                            <div className="flex items-center space-x-3">
+                                <div className="flex items-center -space-x-1">
+                                    <img
+                                        src={`https://assets.coincap.io/assets/icons/${pair.base.toLowerCase()}@2x.png`}
+                                        alt={pair.base}
+                                        className="w-6 h-6 rounded-full z-10"
+                                    />
+                                    <img
+                                        src={`https://assets.coincap.io/assets/icons/${pair.quote.toLowerCase()}@2x.png`}
+                                        alt={pair.quote}
+                                        className="w-6 h-6 rounded-full"
+                                    />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-medium">
+                                        {pair.base}-{pair.quote}
+                                    </span>
+                                    <span className="text-xs text-neutral-500">
+                                        {pair.base} / {pair.quote}
+                                    </span>
+                                </div>
+                            </div>
+                            <i className="fi fi-rr-angle-right text-neutral-500 opacity-0 group-hover:opacity-100 smooth" />
+                        </button>
+                    ))}
+                </div>
             </Modal>
         </>
     );

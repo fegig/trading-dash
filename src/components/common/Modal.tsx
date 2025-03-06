@@ -72,7 +72,7 @@ const Modal: React.FC<ModalProps> = ({
                             <div className="w-12 h-1 bg-neutral-700 rounded-full my-2"></div>
                         </div>
                     )}
-                    <h3 className="font-medium">{title || 'Modal'}</h3>
+                    <h3 className="font-medium">{title || ''}</h3>
                     <button
                         onClick={onClose}
                         className="p-1 hover:bg-neutral-800 rounded-full smooth"

@@ -1,4 +1,5 @@
 export interface UserCoinsProps  {
+    walletAddress:string,
     userBalance:number
     coinName:string,
     coinShort:string,
