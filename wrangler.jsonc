@@ -3,7 +3,7 @@
     "name": "trading-dash",
     "compatibility_date": "2025-10-27",
     "compatibility_flags": ["nodejs_compat"],
-    "main": "src/index.ts",
+    "main": "dist/index.html",
     "assets": {
         "not_found_handling": "single-page-application"
     }
