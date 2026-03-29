@@ -120,7 +120,7 @@ function AccountBalance({ userCoins }: { userCoins: UserCoinsProps[] }) {
                 </div>
             </div>
 
-            <div className="mt-4 !p-3 gradient-background rounded-xl">
+            <div className="mt-4 p-3! gradient-background rounded-xl">
                 <div className="flex justify-between items-center">
                     <div className="flex flex-col">
                         <span className="text-[10px] text-neutral-400">24h Profit/Loss</span>
@@ -204,7 +204,7 @@ function AccountBalance({ userCoins }: { userCoins: UserCoinsProps[] }) {
                                 const isPositive = coin.changePercentage >= 0;
 
                                 return (
-                                    <div key={coin.coinId} className="flex items-center gap-1 gradient-background rounded-lg !px-2 !py-1">
+                                    <div key={coin.coinId} className="flex items-center gap-1 gradient-background rounded-lg px-2! py-1!">
                                         <img
                                             src={`https://assets.coincap.io/assets/icons/${coin.coinShort.toLowerCase()}@2x.png`}
                                             alt={coin.coinShort}

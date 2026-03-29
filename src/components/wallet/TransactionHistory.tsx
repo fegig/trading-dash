@@ -90,7 +90,7 @@ function TransactionHistory() {
 
         setIsLoading(true);
 
-        const currentTime = Math.floor(Date.now() / 1000);
+        const currentTime = Math.floor(new Date().getTime() / 1000);
         const filterTransactions = () => {
             let filterTimestamp = currentTime;
 
@@ -141,7 +141,7 @@ function TransactionHistory() {
         <div className=' col-span-full md:col-span-2 lg:col-span-4 gradient-background rounded-lg p-4 space-y-4 my-4 max-h-[400px] overflow-y-auto scrollbar-none'>
             <div className='text-sm font-medium'>Transaction History</div>
             <div className='flex items-center gap-2 w-full justify-end'>
-                <div className=" flex  gradient-background !rounded-full !p-0 justify-between items-center ">
+                <div className=" flex  gradient-background rounded-full! p-0! justify-between items-center ">
                     {filters.map((filter) => (
                         <button
                             key={filter}

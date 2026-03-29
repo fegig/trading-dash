@@ -156,7 +156,7 @@ function Footer() {
   return (
     <>
       {/* Desktop Footer */}
-      <footer className="!fixed bottom-0 w-full gradient-background !py-2 z-10">
+      <footer className="fixed! bottom-0 w-full gradient-background py-2! z-10">
         {/* Desktop View */}
         <div className="hidden md:flex space-x-6 animate-scroll px-4">
           <div className="flex items-center space-x-2 text-xs text-neutral-500">

@@ -1,3 +1,4 @@
+import { Link } from "react-router"
 import AccountBalance from "../components/wallet/AccountBalance"
 import AssetsList from "../components/wallet/AssetsList"
 import TransactionHistory from "../components/wallet/TransactionHistory";
@@ -86,6 +87,17 @@ function Wallets() {
     return (
         <div className="relative">
             <main className="p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                    <h1 className="text-xl font-bold text-neutral-100">Wallet</h1>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                        <Link to="/trade-center" className="gradient-background px-3! py-2! rounded-lg text-neutral-400 hover:text-green-400">
+                            Trade Center
+                        </Link>
+                        <Link to="/dashboard" className="gradient-background px-3! py-2! rounded-lg text-neutral-400 hover:text-green-400">
+                            Dashboard
+                        </Link>
+                    </div>
+                </div>
                 <div className='gap-4  flex max-md:flex-wrap items-center'>
                     <div className="flex">
                         <AccountBalance userCoins={userCoins} />
@@ -101,7 +113,7 @@ function Wallets() {
                         <div className=" pointer-events-none flex justify-center items-center gap-4 mt-2 max-md:hidden">
                             <button
                                 onClick={scrollLeft}
-                                className="  z-10 w-8 h-8 flex items-center justify-center !rounded-full gradient-background hover:bg-neutral-700/50 transition-all pointer-events-auto"
+                                className="  z-10 w-8 h-8 flex items-center justify-center rounded-full! gradient-background hover:bg-neutral-700/50 transition-all pointer-events-auto"
                                 aria-label="Scroll left"
                             >
                                 <i className="fi fi-rr-angle-left text-neutral-300"></i>
@@ -109,7 +121,7 @@ function Wallets() {
 
                             <button
                                 onClick={scrollRight}
-                                className="  z-10 w-8 h-8 flex items-center justify-center !rounded-full gradient-background hover:bg-neutral-700 transition-all pointer-events-auto"
+                                className="  z-10 w-8 h-8 flex items-center justify-center rounded-full! gradient-background hover:bg-neutral-700 transition-all pointer-events-auto"
                                 aria-label="Scroll right"
                             >
                                 <i className="fi fi-rr-angle-right text-neutral-300"></i>

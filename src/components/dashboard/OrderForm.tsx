@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { formatLength } from "../../util/formatCurrency";
 import { MarketData } from "./PairBanner";
 import { errorToast, successToast } from "../../components/common/sweetAlerts";
@@ -90,22 +90,6 @@ function OrderForm({ symbol }: OrderFormProps) {
     const [amount, setAmount] = useState('100');
     const [postOnly, setPostOnly] = useState(false);
 
-    const [details, setDetails] = useState<Detail[]>([
-        { name: 'Commission', value: '0.1%', unit: symbol?.QUOTE },
-        { name: 'Av Liquidation Price', value: '10000', unit: symbol?.QUOTE },
-        { name: 'Margin', value: '100 ', unit: symbol?.QUOTE },
-        { name: 'Max Position Amount', value: '1000 ', unit: symbol?.QUOTE }
-    ]);
-
-    const [marginUsage, setMarginUsage] = useState<MarginUsage[]>([
-        { name: 'Margin Balance', value: '101200', unit: symbol?.QUOTE },
-        { name: 'USDT Wallet balance', value: '100000', unit: symbol?.QUOTE },
-        { name: 'USDT Wallet usage', value: '10%', unit: symbol?.QUOTE },
-        { name: 'Max Cross Margin', value: '+300', unit: symbol?.QUOTE },
-        { name: 'Unrealized PnL', value: '+12%', unit: symbol?.QUOTE },
-        { name: 'Free Margin', value: '90000', unit: symbol?.QUOTE }
-    ]);
-
     // Add new state for TP/SL
     const [takeProfitPrice, setTakeProfitPrice] = useState('');
     const [stopLossPrice, setStopLossPrice] = useState('');
@@ -129,41 +113,40 @@ function OrderForm({ symbol }: OrderFormProps) {
         setLeverage(value);
     };
 
-    // Update details calculation when relevant values change
-    useEffect(() => {
-        const price = orderType === 'market' ? symbol?.PRICE || 0 : Number(orderPrice);
-        // const leverageNum = Number(leverage) || 1;
-        // const amountNum = Number(amount);
-
-        const commission = calculateCommission(amount, price.toString(), 0);
-        const liquidationPrice = calculateLiquidationPrice(price.toString(), leverage, longShort);
-        const marginRequired = calculateMargin(amount, leverage);
-        const maxPosition = calculateMaxPosition(Number(marginUsage[0].value), leverage);
-
-        setDetails([
-            { name: 'Commission', value: commission.toFixed(2), unit: symbol?.QUOTE },
-            { name: 'Av Liquidation Price', value: liquidationPrice.toFixed(2), unit: symbol?.QUOTE },
-            { name: 'Margin', value: marginRequired.toFixed(2), unit: symbol?.QUOTE },
-            { name: 'Max Position Amount', value: maxPosition.toFixed(2), unit: symbol?.QUOTE }
-        ]);
-    }, [amount, leverage, orderPrice, orderType, longShort, marginUsage, symbol]);
-
-    // Update margin usage calculations
-    useEffect(() => {
-        const walletBalance = 100000; // This should come from your wallet state
-        const marginBalance = walletBalance + (walletBalance * 0.012); // Including unrealized PnL
+    const { marginUsage, details } = useMemo(() => {
+        const walletBalance = 100000;
+        const marginBalance = walletBalance + walletBalance * 0.012;
         const walletUsage = (Number(amount) / walletBalance) * 100;
         const freeMargin = marginBalance - calculateMargin(amount, leverage);
 
-        setMarginUsage([
+        const marginUsageRows: MarginUsage[] = [
             { name: 'Margin Balance', value: marginBalance.toFixed(2), unit: symbol?.QUOTE },
             { name: 'USDT Wallet balance', value: walletBalance.toFixed(2), unit: symbol?.QUOTE },
             { name: 'USDT Wallet usage', value: `${walletUsage.toFixed(1)}%`, unit: symbol?.QUOTE },
             { name: 'Max Cross Margin', value: '+300', unit: symbol?.QUOTE },
             { name: 'Unrealized PnL', value: '+12%', unit: symbol?.QUOTE },
             { name: 'Free Margin', value: freeMargin.toFixed(2), unit: symbol?.QUOTE },
-        ]);
-    }, [amount, leverage, symbol]);
+        ];
+
+        const rawPrice = orderType === 'market' ? symbol?.PRICE ?? 0 : Number(orderPrice);
+        const priceNum = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0;
+        const priceStr = priceNum.toString();
+        const levStr = leverage === '' ? '1' : leverage;
+
+        const commission = calculateCommission(amount, priceStr, 0);
+        const liquidationPrice = calculateLiquidationPrice(priceStr, levStr, longShort);
+        const marginRequired = calculateMargin(amount, levStr);
+        const maxPosition = calculateMaxPosition(marginBalance, levStr);
+
+        const detailRows: Detail[] = [
+            { name: 'Commission', value: commission.toFixed(2), unit: symbol?.QUOTE },
+            { name: 'Av Liquidation Price', value: liquidationPrice.toFixed(2), unit: symbol?.QUOTE },
+            { name: 'Margin', value: marginRequired.toFixed(2), unit: symbol?.QUOTE },
+            { name: 'Max Position Amount', value: maxPosition.toFixed(2), unit: symbol?.QUOTE },
+        ];
+
+        return { marginUsage: marginUsageRows, details: detailRows };
+    }, [amount, leverage, orderPrice, orderType, longShort, symbol]);
 
     // Update place order handler
     const handlePlaceOrder = (): void => {
@@ -179,7 +162,7 @@ function OrderForm({ symbol }: OrderFormProps) {
             stopPrice: orderType === 'stop' ? Number(triggerPrice) : undefined,
             takeProfit: takeProfitPrice ? Number(takeProfitPrice) : undefined,
             stopLoss: stopLossPrice ? Number(stopLossPrice) : undefined,
-            timestamp: Date.now(),
+            timestamp: new Date().getTime(),
         };
 
         // Validate order
@@ -252,7 +235,7 @@ function OrderForm({ symbol }: OrderFormProps) {
             <div className="border-b border-neutral-500/30 space-y-4 pb-4">
 
 
-                <div className="flex items-center justify-between gradient-background !rounded-full !p-0">
+                <div className="flex items-center justify-between gradient-background rounded-full! p-0!">
                     <div className="flex-1 max-w-[50%]">
                         <select
                             className="w-full outline-0 border-0 px-3 py-2 text-neutral-500 capitalize text-xs text-center"
@@ -274,7 +257,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                     </div>
                 </div>
 
-                <div className="flex  gradient-background !p-0 !rounded-full">
+                <div className="flex  gradient-background p-0! rounded-full!">
                     {
                         ['long', 'short'].map((type) => (
                             <button className={`flex-1 capitalize text-neutral-500 py-2 text-xs  transition-all rounded-full ${longShort === type ? 'bg-green-500 text-neutral-950' : 'text-neutral-500'}`}
@@ -288,7 +271,7 @@ function OrderForm({ symbol }: OrderFormProps) {
 
                 </div>
 
-                <div className="flex gradient-background !p-0 !rounded-full">
+                <div className="flex gradient-background p-0! rounded-full!">
                     {
                         ['market', 'limit', 'stop'].map((type) => (
                             <button className={`flex-1  capitalize text-neutral-500 py-2 text-xs rounded-full  transition-all ${orderType === type ? 'bg-green-500 text-neutral-950' : 'text-neutral-500'}`}
@@ -308,7 +291,7 @@ function OrderForm({ symbol }: OrderFormProps) {
 
                     <div className="flex-1 max-w-[50%] space-y-2">
                         <label className="text-sm text-neutral-500">Trigger Price</label>
-                        <div className="gradient-background !p-0 ">
+                        <div className="gradient-background p-0! ">
                             <input
                                 type="number"
                                 placeholder="0"
@@ -324,7 +307,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                     </div>
                     <div className="flex-1 max-w-[50%]  space-y-2">
                         <label className="text-sm text-neutral-500">Order Price</label>
-                        <div className="gradient-background !p-0 ">
+                        <div className="gradient-background p-0! ">
                             <input
                                 type="number"
                                 placeholder="0"
@@ -343,7 +326,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                 </div>
                 <div className="flex-1   space-y-2">
                     <label className="text-sm text-neutral-500">Leverage</label>
-                    <div className="gradient-background !p-0 flex items-center justify-between ">
+                    <div className="gradient-background p-0! flex items-center justify-between ">
                         <input
                             type="number"
                             placeholder="2"
@@ -374,7 +357,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                     </div>
 
 
-                    <div className="gradient-background !p-0 flex items-center justify-between ">
+                    <div className="gradient-background p-0! flex items-center justify-between ">
                         <input
                             type="number"
                             placeholder="100"
@@ -400,7 +383,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                 <div className={`flex items-center justify-between space-x-2 transition-all duration-300 ${tpslEnabled ? 'flex' : 'hidden'}`}>
                     <div className="flex-1 max-w-[50%] space-y-2">
                         <label className="text-sm text-neutral-500">Take Profit</label>
-                        <div className="gradient-background !p-0">
+                        <div className="gradient-background p-0!">
 
 
 
@@ -418,7 +401,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                     </div>
                     <div className="flex-1 max-w-[50%] space-y-2">
                         <label className="text-sm text-neutral-500">Stop Loss</label>
-                        <div className="gradient-background !p-0">
+                                <div className="gradient-background p-0!">
                             <input
                                 type="number"
                                 placeholder="0"
@@ -435,7 +418,7 @@ function OrderForm({ symbol }: OrderFormProps) {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                         <div className="text-xs text-neutral-500">TIF</div>
-                        <select className="w-full text-white font-medium text-xs text-left py-2 rounded-full !p-0">
+                        <select className="w-full text-white font-medium text-xs text-left py-2 rounded-full p-0!">
                             <option value="GTC">GTC</option>
                             <option value="IOC">IOC</option>
                             <option value="FOK">FOK</option>

@@ -6,6 +6,8 @@ interface ModalProps {
     title?: string;
     children: ReactNode;
     className?: string;
+    /** Right-edge panel (e.g. mobile nav) — full height, slides from right */
+    variant?: 'center' | 'drawer';
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -13,7 +15,8 @@ const Modal: React.FC<ModalProps> = ({
     onClose,
     title,
     children,
-    className = ''
+    className = '',
+    variant = 'center',
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
     const isBottomSheet = className.includes('bottom-0');
@@ -60,27 +63,39 @@ const Modal: React.FC<ModalProps> = ({
 
     if (!isOpen) return null;
 
+    const isDrawer = variant === 'drawer';
+
     return (
-        <div className={`  fixed inset-0 z-50 flex ${isBottomSheet ? 'items-end' : 'items-center'} justify-center bg-black/70 backdrop-blur-sm`}>
+        <div
+            className={`fixed inset-0 z-50 flex bg-black/70 backdrop-blur-sm ${
+                isBottomSheet ? 'items-end justify-center' : isDrawer ? 'items-stretch justify-end' : 'items-center justify-center'
+            }`}
+        >
             <div
                 ref={modalRef}
-                className={`bg-neutral-900 scrollBar rounded-xl shadow-xl w-[90%] max-w-md max-h-[90vh] overflow-auto smooth ${className}`}
+                className={`bg-neutral-900 scrollBar shadow-xl smooth flex flex-col ${
+                    isDrawer
+                        ? `h-full max-h-dvh w-[min(100%,20rem)] sm:w-88 rounded-none rounded-l-2xl border-l border-neutral-800 overflow-hidden ${className}`
+                        : `rounded-xl w-[90%] max-w-md max-h-[90vh] overflow-auto ${className}`
+                }`}
             >
-                <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+                <div className={`flex items-center justify-between shrink-0 p-4 border-b border-neutral-800 ${isDrawer ? 'bg-neutral-950/80' : ''}`}>
                     {isBottomSheet && (
                         <div className="absolute left-0 right-0 top-0 flex justify-center">
                             <div className="w-12 h-1 bg-neutral-700 rounded-full my-2"></div>
                         </div>
                     )}
-                    <h3 className="font-medium">{title || ''}</h3>
+                    <h3 className="font-medium text-neutral-100">{title || ''}</h3>
                     <button
+                        type="button"
                         onClick={onClose}
                         className="p-1 hover:bg-neutral-800 rounded-full smooth"
+                        aria-label="Close"
                     >
                         <i className="fi fi-rr-cross text-neutral-500" />
                     </button>
                 </div>
-                <div className="p-4">
+                <div className={`min-h-0 flex-1 flex flex-col ${isDrawer ? 'p-4 overflow-y-auto' : 'p-4 overflow-auto'}`}>
                     {children}
                 </div>
             </div>

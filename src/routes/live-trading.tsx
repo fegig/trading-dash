@@ -6,7 +6,8 @@ import { useState } from 'react';
 import MiniTradeHistory from '../components/dashboard/MiniTradeHistory';
 import Modal from '../components/common/Modal';
 
-const Home = () => {
+/** Live spot trading — chart, order book, order form */
+function LiveTrading() {
  const [symbol, setSymbol] = useState<MarketData | null>(null);
  const [isOrderBookModalOpen, setIsOrderBookModalOpen] = useState(false);
  const [isOrderFormModalOpen, setIsOrderFormModalOpen] = useState(false);
@@ -32,7 +33,6 @@ const Home = () => {
                 </div>
             </main>
 
-            {/* Mobile Floating Action Buttons */}
             <div className="fixed bottom-14 right-4 flex flex-col space-y-3 z-20 lg:hidden">
                 <button 
                     onClick={() => setIsOrderFormModalOpen(true)}
@@ -51,7 +51,6 @@ const Home = () => {
                 </button>
             </div>
 
-            {/* Order Book Modal (Bottom Sheet Style) */}
             <Modal
                 isOpen={isOrderBookModalOpen}
                 onClose={() => setIsOrderBookModalOpen(false)}
@@ -68,7 +67,6 @@ const Home = () => {
                 </div>
             </Modal>
 
-            {/* Order Form Modal (Bottom Sheet Style) */}
             <Modal
                 isOpen={isOrderFormModalOpen}
                 onClose={() => setIsOrderFormModalOpen(false)}
@@ -83,4 +81,4 @@ const Home = () => {
     );
 };
 
-export default Home;
+export default LiveTrading;

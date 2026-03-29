@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { formatLength } from '../../util/formatCurrency';
 import { saveItem } from '../../util/storage';
 import Modal from '../common/Modal';
@@ -17,6 +17,60 @@ export interface MarketData {
     QUOTE?: string;
 }
 
+/** CryptoCompare pricemultifull RAW entry */
+type CryptoCompareRaw = {
+    PRICE: number;
+    CHANGEPCT24HOUR?: number;
+    MARKET?: string;
+    MKTCAP?: number;
+    SUPPLY?: number;
+    HIGH24HOUR?: number;
+    LOW24HOUR?: number;
+    VOLUME24HOUR?: number;
+    FUNDING?: number;
+};
+
+type PriceMultiFullResponse = {
+    RAW?: Record<string, Record<string, CryptoCompareRaw>>;
+};
+
+
+function MarketDataContent({ data }: { data: MarketData }) {
+    return (
+        <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+                <p className="text-[10px] text-neutral-500">Market Cap</p>
+                <p className="font-medium text-sm">
+                    ${formatLength(data.MKTCAP || 0)}
+                </p>
+            </div>
+            <div className="space-y-1">
+                <p className="text-[10px] text-neutral-500">Supply</p>
+                <p className="font-medium text-sm">
+                    {formatLength(data.SUPPLY || 0)}
+                </p>
+            </div>
+            <div className="space-y-1">
+                <p className="text-[10px] text-neutral-500">24h Change</p>
+                <p className={`font-medium text-sm ${data.CHANGEPCT24HOUR && data.CHANGEPCT24HOUR >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {data.CHANGEPCT24HOUR?.toFixed(2)}%
+                </p>
+            </div>
+            <div className="space-y-1">
+                <p className="text-[10px] text-neutral-500">24h High/Low</p>
+                <p className="font-medium text-sm">
+                    ${formatLength(data.HIGH24HOUR || 0)} / ${formatLength(data.LOW24HOUR || 0)}
+                </p>
+            </div>
+            <div className="space-y-1 col-span-2">
+                <p className="text-[10px] text-neutral-500">24h Volume</p>
+                <p className="font-medium text-sm">
+                    ${formatLength(data.VOLUME24HOUR || 0)}
+                </p>
+            </div>
+        </div>
+    );
+}
 
 const AVAILABLE_PAIRS = [
     // USDT Pairs (Tether)
@@ -47,41 +101,53 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
     const [marketData, setMarketData] = useState<MarketData | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const fetchMarketData = useCallback(async () => {
-        try {
-            const response = await fetch(
-                `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${selectedPair.base}&tsyms=${selectedPair.quote}`
-            );
-            const data = await response.json();
-            const rawData = data.RAW[selectedPair.base][selectedPair.quote];
-            setMarketData(rawData);
-            const symbols = {
-                BASE: selectedPair.base,
-                QUOTE: selectedPair.quote,
-                PRICE: rawData.PRICE,
-                CHANGEPCT24HOUR: rawData.CHANGEPCT24HOUR,
-                MARKET: rawData.MARKET,
-                MKTCAP: rawData.MKTCAP,
-                SUPPLY: rawData.SUPPLY,
-                HIGH24HOUR: rawData.HIGH24HOUR,
-                LOW24HOUR: rawData.LOW24HOUR,
-                VOLUME24HOUR: rawData.VOLUME24HOUR,
-                FUNDING: rawData.FUNDING
-            };
-            setSymbol(symbols);
-            saveItem('symbols', JSON.stringify(symbols));
-        } catch (error) {
-            console.error('Error fetching market data:', error);
-        }
-    }, [selectedPair, setSymbol]);
-
     useEffect(() => {
+        let cancelled = false;
 
-        fetchMarketData();
-        const interval = setInterval(fetchMarketData, 30000);
+        async function load() {
+            try {
+                const response = await fetch(
+                    `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${selectedPair.base}&tsyms=${selectedPair.quote}`
+                );
+                if (cancelled) return;
+                const data = (await response.json()) as PriceMultiFullResponse;
+                const rawData = data.RAW?.[selectedPair.base]?.[selectedPair.quote];
+                if (!rawData || cancelled) return;
 
-        return () => clearInterval(interval);
-    }, [fetchMarketData]);
+                setMarketData(rawData);
+                const symbols: MarketData = {
+                    BASE: selectedPair.base,
+                    QUOTE: selectedPair.quote,
+                    PRICE: rawData.PRICE,
+                    CHANGEPCT24HOUR: rawData.CHANGEPCT24HOUR,
+                    MARKET: rawData.MARKET,
+                    MKTCAP: rawData.MKTCAP,
+                    SUPPLY: rawData.SUPPLY,
+                    HIGH24HOUR: rawData.HIGH24HOUR,
+                    LOW24HOUR: rawData.LOW24HOUR,
+                    VOLUME24HOUR: rawData.VOLUME24HOUR,
+                    FUNDING: rawData.FUNDING,
+                };
+                setSymbol(symbols);
+                saveItem('symbols', JSON.stringify(symbols));
+            } catch (error) {
+                console.error('Error fetching market data:', error);
+            }
+        }
+
+        const startTimer = window.setTimeout(() => {
+            void load();
+        }, 0);
+        const interval = window.setInterval(() => {
+            void load();
+        }, 30000);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(startTimer);
+            window.clearInterval(interval);
+        };
+    }, [selectedPair, setSymbol]);
 
     const handlePairSelect = (pair: typeof AVAILABLE_PAIRS[0]) => {
         setSelectedPair(pair);
@@ -89,41 +155,6 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
     };
 
     if (!marketData) return null;
-
-    const MarketDataContent = () => (
-        <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-                <p className="text-[10px] text-neutral-500">Market Cap</p>
-                <p className="font-medium text-sm">
-                    ${formatLength(marketData.MKTCAP || 0)}
-                </p>
-            </div>
-            <div className="space-y-1">
-                <p className="text-[10px] text-neutral-500">Supply</p>
-                <p className="font-medium text-sm">
-                    {formatLength(marketData.SUPPLY || 0)}
-                </p>
-            </div>
-            <div className="space-y-1">
-                <p className="text-[10px] text-neutral-500">24h Change</p>
-                <p className={`font-medium text-sm ${marketData.CHANGEPCT24HOUR && marketData.CHANGEPCT24HOUR >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {marketData.CHANGEPCT24HOUR?.toFixed(2)}%
-                </p>
-            </div>
-            <div className="space-y-1">
-                <p className="text-[10px] text-neutral-500">24h High/Low</p>
-                <p className="font-medium text-sm">
-                    ${formatLength(marketData.HIGH24HOUR || 0)} / ${formatLength(marketData.LOW24HOUR || 0)}
-                </p>
-            </div>
-            <div className="space-y-1 col-span-2">
-                <p className="text-[10px] text-neutral-500">24h Volume</p>
-                <p className="font-medium text-sm">
-                    ${formatLength(marketData.VOLUME24HOUR || 0)}
-                </p>
-            </div>
-        </div>
-    );
 
     return (
         <>
@@ -156,7 +187,7 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
 
                             {/* Mobile info button */}
                             <button
-                                className="md:hidden !p-2 hover:bg-neutral-800/50 !rounded-full smooth gradient-background  "
+                                className="md:hidden p-2! hover:bg-neutral-800/50 rounded-full! smooth gradient-background"
                                 onClick={() => setIsModalOpen(true)}
                             >
                                 <i className="fi fi-rr-info text-neutral-500" />
@@ -219,7 +250,7 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
                 onClose={() => setIsModalOpen(false)}
                 title={`${selectedPair.base}-${selectedPair.quote} Market Data`}
             >
-                <MarketDataContent />
+                <MarketDataContent data={marketData} />
             </Modal>
             <Modal
                 isOpen={isDropdownOpen}

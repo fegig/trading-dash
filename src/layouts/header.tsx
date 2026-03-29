@@ -1,95 +1,44 @@
-import { NavLink } from "react-router"
+import { Link } from "react-router"
 import { useState } from "react"
-import Modal from "../components/common/Modal"
-
-const tabs = [
-    {name: 'Trade', path: '/'},
-    {name: 'Portfolio', path: '/portfolio'},
-    {name: 'Wallet', path: '/wallet'},
-    {name: 'Affiliate', path: '/affiliate'},
-    {name: 'More', path: '/more'},
-]
+import { MobileNavDrawer } from "./MobileNavDrawer"
 
 function Header() {
-  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false)
 
   return (
-    <header className="border-b border-gray-800 px-4 md:px-6 py-3 md:py-4 relative z-40">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4 ">
-          <h1 className="text-xl md:text-2xl font-bold text-green-400">BlockTrade</h1>
-          <nav className="hidden md:flex space-x-6">
-          {tabs.map((item, i) => (
-            <NavLink
-              to={`${item.path}`}
-              className={({ isActive }) => isActive ? "text-green-400" : "text-gray-400 hover:text-gray-300"
-              }
-              key={i}
-            >
-              {item.name}
-            </NavLink>
-          ))}
-        </nav>
+    <header className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center border-b border-neutral-800 bg-neutral-950/95 backdrop-blur-md px-4 md:px-6">
+      <div className="max-w-[1920px] mx-auto w-full flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-xl gradient-background text-neutral-300 hover:text-green-400 border border-neutral-800/80 shrink-0"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open navigation menu"
+            aria-expanded={navOpen}
+          >
+            <i className="fi fi-rr-menu-burger text-lg" />
+          </button>
+
+          <Link
+            to="/dashboard"
+            className="text-xl md:text-2xl font-bold text-green-400 shrink-0 tracking-tight hover:text-green-300 transition-colors"
+          >
+            BlockTrade
+          </Link>
         </div>
 
-       
-
-        {/* Mobile Menu Button */}
-        <div className="flex items-center space-x-3">
-          <button 
-            className="md:hidden gradient-background !p-2 !rounded-full text-neutral-400 flex items-center space-x-2"
-            onClick={() => setIsMenuModalOpen(true)}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            className="gradient-background p-2! rounded-full! text-neutral-400 hover:text-green-400 transition-colors"
+            aria-label="Account"
           >
-           <span className="text-xs">{tabs.find(item => item.path === window.location.pathname)?.name}</span>
-           <i className="fi fi-rr-angle-down text-xs"></i>
+            <i className="fi fi-rr-user" />
           </button>
-        
-            <button 
-              className="w-full gradient-background text-xs text-left !p-2 !rounded-full flex items-center space-x-3  text-neutral-400"
-              onClick={() => setIsMenuModalOpen(false)}
-            >
-              <i className="fi fi-rr-user" />
-           
-            </button>
-            <button 
-              className="w-full gradient-background text-xs text-left !p-2 !rounded-full flex items-center space-x-3  text-neutral-400"
-              onClick={() => setIsMenuModalOpen(false)}
-            >
-              <i className="fi fi-rr-power" />
-              
-            </button>
-        
         </div>
       </div>
 
-      {/* Mobile Navigation Modal */}
-      <Modal
-        isOpen={isMenuModalOpen}
-        onClose={() => setIsMenuModalOpen(false)}
-        title="Menu"
-      >
-        <div className="grid grid-cols-1 gap-2">
-          {tabs.map((item, i) => (
-            <NavLink
-              to={`${item.path}`}
-              className={({ isActive }) => 
-                `w-full gradient-background text-xs text-left px-4 !py-2 rounded-lg flex items-center justify-between ${
-                  isActive 
-                    ? 'bg-green-500/10 text-green-500 border border-green-500/20'
-                    : 'hover:bg-neutral-800/50 text-neutral-400'
-                }`
-              }
-              key={i}
-              onClick={() => setIsMenuModalOpen(false)}
-            >
-              <span>{item.name}</span>
-              <i className={`fi ${item.path === window.location.pathname ? 'fi-rr-check text-green-500' : 'fi-rr-angle-right text-neutral-500 opacity-0 group-hover:opacity-100 smooth'}`} />
-            </NavLink>
-          ))}
-          
-         
-        </div>
-      </Modal>
+      <MobileNavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
     </header>
   )
 }

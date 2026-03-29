@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { CoinData, CoinReturn, getCoinById } from "../../services/CryptoService";
 import CustomChartWidget from "../common/CustomChartWidget";
 import { MarketData } from "./PairBanner";
@@ -16,16 +16,32 @@ function ChartArea({ symbol }: { symbol: MarketData }) {
     const [isTabModalOpen, setIsTabModalOpen] = useState(false);
     const [chartType, setChartType] = useState<ChartType>('line');
 
-    const getCoin = useCallback(async () => {
-        const list = await getCoinById(symbol.BASE || "BTC", symbol.QUOTE || "USDT")
-        setGraphData(list)
-        setFilteredData(list.hChanges)
-        setIsLoading(false)
-    }, [symbol])
-
     useEffect(() => {
-        getCoin()
-    }, [getCoin])
+        let cancelled = false
+        const timer = window.setTimeout(() => {
+            void (async () => {
+                setIsLoading(true)
+                try {
+                    const list = await getCoinById(
+                        symbol.BASE || "BTC",
+                        symbol.QUOTE || "USDT"
+                    )
+                    if (cancelled || !list) return
+                    setGraphData(list)
+                    setFilteredData(list.hChanges ?? [])
+                } catch (error) {
+                    console.error("Error fetching coin data:", error)
+                } finally {
+                    if (!cancelled) setIsLoading(false)
+                }
+            })()
+        }, 0)
+
+        return () => {
+            cancelled = true
+            window.clearTimeout(timer)
+        }
+    }, [symbol.BASE, symbol.QUOTE])
 
     const changeGraph = (filter: Filters) => {
         setIsLoading(true);
@@ -90,7 +106,7 @@ function ChartArea({ symbol }: { symbol: MarketData }) {
                 {/* Mobile Tabs Button */}
                 <div className="md:hidden flex items-center">
                     <button
-                        className="!px-3 text-xs lg:text-sm !rounded-full gradient-background !p-1.5  flex items-center space-x-2"
+                            className="px-3! text-xs lg:text-sm rounded-full! gradient-background p-1.5!  flex items-center space-x-2"
                         onClick={() => setIsTabModalOpen(true)}
                     >
                         <span className="capitalize text-xs text-neutral-400">{activeTab}</span>
@@ -99,7 +115,7 @@ function ChartArea({ symbol }: { symbol: MarketData }) {
                 </div>
                 
 
-                <div className=" flex space-x-2 gradient-background !rounded-full !p-0 justify-between items-center "> 
+                <div className=" flex space-x-2 gradient-background rounded-full! p-0! justify-between items-center "> 
                      <button
                         onClick={handleChartTypeChange}
                         className="px-3 text-xs py-1.5 rounded-full  bg-green-500 text-neutral-950"
@@ -146,7 +162,7 @@ function ChartArea({ symbol }: { symbol: MarketData }) {
                         <button
                             key={tab}
                             onClick={() => handleTabChange(tab.toLowerCase())}
-                            className={`gradient-background w-full text-left  text-xs px-4 !py-2 rounded-lg flex items-center justify-between ${activeTab === tab.toLowerCase()
+                            className={`gradient-background w-full text-left  text-xs px-4 py-2! rounded-lg flex items-center justify-between ${activeTab === tab.toLowerCase()
                                     ? 'bg-green-500/10 text-green-500 border border-green-500/20'
                                     : 'hover:bg-neutral-800/50 text-neutral-400 '
                                 }`}

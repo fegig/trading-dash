@@ -1,20 +1,21 @@
 import { useState } from "react"
+import { Link } from "react-router"
 import Dropdown from "../common/Dropdown"
 import Switch from "../common/SwitchOption"
 import { formatNumber } from "../../util/formatCurrency"
 
 type HistoryType = {
-    open:boolean,
-    completed:boolean,
-    pending:boolean,
-    canceled:boolean
+    open: boolean,
+    completed: boolean,
+    pending: boolean,
+    canceled: boolean
 }
 type MiniTradeHistorySelectorProps = {
     historyType: HistoryType,
     setHistoryType: React.Dispatch<React.SetStateAction<HistoryType>>
 }
 
-function MiniTradeHistorySelector({historyType, setHistoryType }:MiniTradeHistorySelectorProps) {
+function MiniTradeHistorySelector({ historyType, setHistoryType }: MiniTradeHistorySelectorProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
 
@@ -34,49 +35,52 @@ function MiniTradeHistorySelector({historyType, setHistoryType }:MiniTradeHistor
     }
 
     return (
-<div className="flex justify-between items-center">
-    <div className="gradient-background !p-2 rounded-lg relative z-50">
-        <div className="flex items-center gap-4 justify-between ">
-            <Dropdown
-                isOpen={isDropdownOpen}
-                onClose={() => setIsDropdownOpen(false)}
-                trigger={
-                    <button
-                        onClick={() => setIsDropdownOpen(true)}
-                        className="flex items-center justify-between hover:opacity-80 w-32"
-                    >   
-                        <span className="text-xs font-medium capitalize truncate">{getActiveTypesText()}</span>
-                        <i className={`fi fi-rr-angle-down text-xs ${isDropdownOpen ? 'rotate-180' : ''} transition-all duration-300 ml-2 flex-shrink-0`} />
-                    </button>
-                }
-                items={[
-                    { key: 'open', label: 'Open' },
-                    { key: 'pending', label: 'Pending' },
-                    { key: 'canceled', label: 'Canceled' },
-                    { key: 'completed', label: 'Completed' }
-                ]}
-                renderItem={(item) => (
-                    <div 
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-neutral-800 rounded cursor-pointer"
-                    >
-                        <Switch
-                            isOn={historyType[item.key as keyof HistoryType]}
-                            onToggle={() => handleTypeToggle(item.key as keyof HistoryType)}
-                        />
-                        <span className="capitalize text-xs">{item.label}</span>
-                    </div>
-                )}
-            />
+        <div className="flex justify-between items-center">
+            <div className="gradient-background p-2! rounded-lg relative z-50">
+                <div className="flex items-center gap-4 justify-between ">
+                    <Dropdown
+                        isOpen={isDropdownOpen}
+                        onClose={() => setIsDropdownOpen(false)}
+                        trigger={
+                            <button
+                                onClick={() => setIsDropdownOpen(true)}
+                                className="flex items-center justify-between hover:opacity-80 w-32"
+                            >
+                                <span className="text-xs font-medium capitalize truncate">{getActiveTypesText()}</span>
+                                <i className={`fi fi-rr-angle-down text-xs ${isDropdownOpen ? 'rotate-180' : ''} transition-all duration-300 ml-2 shrink-0`} />
+                            </button>
+                        }
+                        items={[
+                            { key: 'open', label: 'Open' },
+                            { key: 'pending', label: 'Pending' },
+                            { key: 'canceled', label: 'Canceled' },
+                            { key: 'completed', label: 'Completed' }
+                        ]}
+                        renderItem={(item) => (
+                            <div
+                                className="flex items-center gap-2 px-4 py-2 hover:bg-neutral-800 rounded cursor-pointer"
+                            >
+                                <Switch
+                                    isOn={historyType[item.key as keyof HistoryType]}
+                                    onToggle={() => handleTypeToggle(item.key as keyof HistoryType)}
+                                />
+                                <span className="capitalize text-xs">{item.label}</span>
+                            </div>
+                        )}
+                    />
+                </div>
+            </div>
+            <div>
+                <Link
+                    to="/trades"
+                    className="gradient-background rounded-lg! p-2! text-xs text-neutral-500 hover:text-green-400 flex items-center gap-2 transition-colors"
+                >
+                    <i className="fi fi-rr-exchange text-sm"></i>
+                    <span className="text-xs">All trades</span>
+                </Link>
+            </div>
         </div>
-    </div>
-        <div>
-            <button className=" gradient-background !rounded-lg !p-2 text-xs text-neutral-500 hover:text-neutral-400 flex items-center gap-2">
-                <i className="fi fi-rr-exchange text-sm"></i>
-                <span className="text-xs">All Orders</span>
-            </button>
-        </div>
-       </div>
-    
+
     )
 }
 
@@ -221,7 +225,7 @@ const MiniTradeHistory = () => {
         canceled: true,
         completed: true
     })
-    
+
     const filteredHistory = TradeHistory.filter(trade => {
         if (trade.status === 'completed' && historyType.completed) return true;
         if (trade.status === 'open' && historyType.open) return true;
@@ -229,133 +233,133 @@ const MiniTradeHistory = () => {
         if (trade.status === 'canceled' && historyType.canceled) return true;
         return false;
     });
-    
+
     return (
         <>
-            <MiniTradeHistorySelector historyType={historyType} setHistoryType={setHistoryType}/>
+            <MiniTradeHistorySelector historyType={historyType} setHistoryType={setHistoryType} />
 
             <div className="max-h-[250px] overflow-y-auto scrollbar-none">
                 <div className="flex flex-col space-y-4 pb-4 z-0">
                     {filteredHistory.map((trade) => (
-          
-                    <div key={trade.id} className="flex items-center justify-between gradient-background p-4 rounded-lg">
-                        <div className="flex flex-col gap-2 basis-3/5">
 
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center -space-x-1">
-                                <img src={`https://assets.coincap.io/assets/icons/${trade.base.toLowerCase()}@2x.png`} alt={trade.base} className="w-4 h-4 rounded-full" />
-                                <img src={`https://assets.coincap.io/assets/icons/${trade.quote.toLowerCase()}@2x.png`} alt={trade.quote} className="w-4 h-4 rounded-full" />
+                        <div key={trade.id} className="flex items-center justify-between gradient-background p-4 rounded-lg">
+                            <div className="flex flex-col gap-2 basis-3/5">
 
-                                </div>
-                            <span className="text-xs uppercase">{trade.base}-{trade.quote}</span>
-                            <span className={`text-[10px] capitalize bg-gradient-to-r  
-                                                ${trade.status === 'open' ? ' from-blue-500/10  to-transparent text-blue-600' : 
-                                                trade.status === 'pending' ? 'from-yellow-500/10 to-transparent text-yellow-600' : 
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center -space-x-1">
+                                        <img src={`https://assets.coincap.io/assets/icons/${trade.base.toLowerCase()}@2x.png`} alt={trade.base} className="w-4 h-4 rounded-full" />
+                                        <img src={`https://assets.coincap.io/assets/icons/${trade.quote.toLowerCase()}@2x.png`} alt={trade.quote} className="w-4 h-4 rounded-full" />
+
+                                    </div>
+                                    <span className="text-xs uppercase">{trade.base}-{trade.quote}</span>
+                                    <span className={`text-[10px] capitalize bg-linear-to-r  
+                                                ${trade.status === 'open' ? ' from-blue-500/10  to-transparent text-blue-600' :
+                                            trade.status === 'pending' ? 'from-yellow-500/10 to-transparent text-yellow-600' :
                                                 trade.status === 'completed' ? 'from-green-500/10 to-transparent text-green-600' :
-                                                'from-red-500/10 to-transparent text-red-600'} px-2 py-1 rounded-full`}>{trade.status}</span>
-                        </div>
-                        <div className="grid grid-cols-5 space-x-8 text-xs flex-wrap">
-
-                            {['Type', 'Size','Entry Price', 'Margin', 'Margin Usage'].map((item) => (
-                                <div key={item} className="flex flex-col space-y-3 justify-between">
-                                  
-
-                                    {item === 'Type' ? trade.type && (
-                                        <>
-                                        <span className="text-neutral-400 text-[10px]">{item}</span>
-                                        <span className={` capitalize text-xs ${trade.type === 'long' ? 'text-green-500' : 'text-red-500'} `}>{trade.type}</span>
-                                        </>
-                                    ) : item === 'Size' ? trade.size && (
-                                        <>
-                                        <span className="text-neutral-400 text-[10px]">{item} ({trade.base})</span>
-                                        <span className="text-neutral-300 capitalize text-xs">{trade.size}</span>
-                                        </>
-                                    ) : item === 'Entry Price' ? trade.entryPrice && (
-                                        <>
-                                        <span className="text-neutral-400 text-[10px]">{item}</span>
-                                        <span className="text-neutral-300 capitalize text-xs">{formatNumber(trade.entryPrice)}</span>
-                                        </>
-                                    ): item === 'Margin' ? trade.margin && (
-                                        <>
-                                        <span className="text-neutral-400 text-[10px]">{item} <span className="italic ">({trade.marginType})</span></span>
-                                        <span className="text-neutral-300 capitalize text-xs">{formatNumber(trade.margin)}</span>
-                                        </>
-                                    ) : item === 'Margin Usage' ? trade.marginPercentage && (
-                                        <>
-                                        <span className="text-neutral-400 text-[10px]">Margin <span className="italic ">(Usage)</span></span>
-                                        <span className="text-neutral-300 capitalize text-xs">{trade.marginPercentage}%</span>
-                                        </>
-                                    )  : null}
+                                                    'from-red-500/10 to-transparent text-red-600'} px-2 py-1 rounded-full`}>{trade.status}</span>
                                 </div>
-                            ))}
+                                <div className="grid grid-cols-5 space-x-8 text-xs flex-wrap">
 
-                        </div>
+                                    {['Type', 'Size', 'Entry Price', 'Margin', 'Margin Usage'].map((item) => (
+                                        <div key={item} className="flex flex-col space-y-3 justify-between">
 
+
+                                            {item === 'Type' ? trade.type && (
+                                                <>
+                                                    <span className="text-neutral-400 text-[10px]">{item}</span>
+                                                    <span className={` capitalize text-xs ${trade.type === 'long' ? 'text-green-500' : 'text-red-500'} `}>{trade.type}</span>
+                                                </>
+                                            ) : item === 'Size' ? trade.size && (
+                                                <>
+                                                    <span className="text-neutral-400 text-[10px]">{item} ({trade.base})</span>
+                                                    <span className="text-neutral-300 capitalize text-xs">{trade.size}</span>
+                                                </>
+                                            ) : item === 'Entry Price' ? trade.entryPrice && (
+                                                <>
+                                                    <span className="text-neutral-400 text-[10px]">{item}</span>
+                                                    <span className="text-neutral-300 capitalize text-xs">{formatNumber(trade.entryPrice)}</span>
+                                                </>
+                                            ) : item === 'Margin' ? trade.margin && (
+                                                <>
+                                                    <span className="text-neutral-400 text-[10px]">{item} <span className="italic ">({trade.marginType})</span></span>
+                                                    <span className="text-neutral-300 capitalize text-xs">{formatNumber(trade.margin)}</span>
+                                                </>
+                                            ) : item === 'Margin Usage' ? trade.marginPercentage && (
+                                                <>
+                                                    <span className="text-neutral-400 text-[10px]">Margin <span className="italic ">(Usage)</span></span>
+                                                    <span className="text-neutral-300 capitalize text-xs">{trade.marginPercentage}%</span>
+                                                </>
+                                            ) : null}
                                         </div>
+                                    ))}
 
-                        <div className="flex flex-col w-full basis-2/5">
-                            <div className="mt-4 relative h-6 mx-4">
-                                <div className="absolute w-full h-[2px] bg-neutral-800 top-1/2 -translate-y-1/2">
-                                    {/* Price Markers Container */}
-                                    <div className="relative w-full h-full">
-                                        {/* Stop Loss Marker */}
-                                        <div className="absolute left-0 flex flex-col items-center">
-                                            <div className="absolute top-2 whitespace-nowrap text-center">
-                                                <span className="block text-[10px] text-neutral-400">SL</span>
-                                                <span className="block text-[10px] text-red-500">${formatNumber(trade.sl)}</span>
+                                </div>
+
+                            </div>
+
+                            <div className="flex flex-col w-full basis-2/5">
+                                <div className="mt-4 relative h-6 mx-4">
+                                    <div className="absolute w-full h-[2px] bg-neutral-800 top-1/2 -translate-y-1/2">
+                                        {/* Price Markers Container */}
+                                        <div className="relative w-full h-full">
+                                            {/* Stop Loss Marker */}
+                                            <div className="absolute left-0 flex flex-col items-center">
+                                                <div className="absolute top-2 whitespace-nowrap text-center">
+                                                    <span className="block text-[10px] text-neutral-400">SL</span>
+                                                    <span className="block text-[10px] text-red-500">${formatNumber(trade.sl)}</span>
+                                                </div>
+                                                <div className="absolute h-3 w-[2px] bg-red-500 top-1/2 -translate-y-1/2" />
                                             </div>
-                                            <div className="absolute h-3 w-[2px] bg-red-500 top-1/2 -translate-y-1/2" />
-                                        </div>
 
-                                        {/* Entry Price Marker */}
-                                        <div 
-                                            className="absolute flex flex-col items-center"
-                                            style={{ left: `${((trade.entryPrice - trade.sl) / (trade.tp - trade.sl)) * 100}%` }}
-                                        >
-                                            <div className="absolute top-2 whitespace-nowrap text-center">
-                                                <span className="block text-[10px] text-neutral-400">Entry</span>
-                                                <span className="block text-[10px]">${formatNumber(trade.entryPrice)}</span>
+                                            {/* Entry Price Marker */}
+                                            <div
+                                                className="absolute flex flex-col items-center"
+                                                style={{ left: `${((trade.entryPrice - trade.sl) / (trade.tp - trade.sl)) * 100}%` }}
+                                            >
+                                                <div className="absolute top-2 whitespace-nowrap text-center">
+                                                    <span className="block text-[10px] text-neutral-400">Entry</span>
+                                                    <span className="block text-[10px]">${formatNumber(trade.entryPrice)}</span>
+                                                </div>
+                                                <div className="absolute h-4 w-[2px] bg-white top-1/2 -translate-y-1/2" />
                                             </div>
-                                            <div className="absolute h-4 w-[2px] bg-white top-1/2 -translate-y-1/2" />
-                                        </div>
 
-                                        {/* Current Price Marker */}
-                                        <div 
-                                            className="absolute flex flex-col items-center"
-                                            style={{ left: `${((trade.marketPrice - trade.sl) / (trade.tp - trade.sl)) * 100}%` }}
-                                        >
-                                            <div className="absolute -top-10 whitespace-nowrap text-center">
-                                                <span className="block text-[10px] text-neutral-400">Current</span>
-                                                <span className={`block text-[10px] ${trade.type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
-                                                    ${formatNumber(trade.marketPrice)}
-                                                </span>
+                                            {/* Current Price Marker */}
+                                            <div
+                                                className="absolute flex flex-col items-center"
+                                                style={{ left: `${((trade.marketPrice - trade.sl) / (trade.tp - trade.sl)) * 100}%` }}
+                                            >
+                                                <div className="absolute -top-10 whitespace-nowrap text-center">
+                                                    <span className="block text-[10px] text-neutral-400">Current</span>
+                                                    <span className={`block text-[10px] ${trade.type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
+                                                        ${formatNumber(trade.marketPrice)}
+                                                    </span>
+                                                </div>
+                                                <div className={`absolute h-4 w-[2px] ${trade.type === 'long' ? 'bg-green-500' : 'bg-red-500'} top-1/2 -translate-y-1/2`} />
                                             </div>
-                                            <div className={`absolute h-4 w-[2px] ${trade.type === 'long' ? 'bg-green-500' : 'bg-red-500'} top-1/2 -translate-y-1/2`} />
-                                        </div>
 
-                                        {/* Take Profit Marker */}
-                                        <div className="absolute right-0 flex flex-col items-center">
-                                            <div className="absolute top-2 whitespace-nowrap text-center">
-                                                <span className="block text-[10px] text-neutral-400">TP</span>
-                                                <span className="block text-[10px] text-green-500">${formatNumber(trade.tp)}</span>
+                                            {/* Take Profit Marker */}
+                                            <div className="absolute right-0 flex flex-col items-center">
+                                                <div className="absolute top-2 whitespace-nowrap text-center">
+                                                    <span className="block text-[10px] text-neutral-400">TP</span>
+                                                    <span className="block text-[10px] text-green-500">${formatNumber(trade.tp)}</span>
+                                                </div>
+                                                <div className="absolute h-3 w-[2px] bg-green-500 top-1/2 -translate-y-1/2" />
                                             </div>
-                                            <div className="absolute h-3 w-[2px] bg-green-500 top-1/2 -translate-y-1/2" />
-                                        </div>
 
-                                        {/* Progress Fill */}
-                                        <div 
-                                            className={`absolute h-full ${trade.type === 'long' ? 'bg-green-500/50' : 'bg-red-500/50'}`}
-                                            style={{ 
-                                                left: `${((trade.entryPrice - trade.sl) / (trade.tp - trade.sl)) * 100}%`,
-                                                width: `${((trade.marketPrice - trade.entryPrice) / (trade.tp - trade.sl)) * 100}%`
-                                            }}
-                                        />
+                                            {/* Progress Fill */}
+                                            <div
+                                                className={`absolute h-full ${trade.type === 'long' ? 'bg-green-500/50' : 'bg-red-500/50'}`}
+                                                style={{
+                                                    left: `${((trade.entryPrice - trade.sl) / (trade.tp - trade.sl)) * 100}%`,
+                                                    width: `${((trade.marketPrice - trade.entryPrice) / (trade.tp - trade.sl)) * 100}%`
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
                 </div>
             </div>
         </>
