@@ -25,7 +25,7 @@ export function MarketingSurface({
   return (
     <div
       className={joinClasses(
-        'relative overflow-hidden rounded-[28px] border border-neutral-800/80 bg-neutral-950/70 shadow-[0_28px_70px_-40px_rgba(0,0,0,0.82)] backdrop-blur-xl',
+        'relative overflow-hidden rounded-3xl bg-neutral-950/70  backdrop-blur-xl',
         className
       )}
     >
@@ -49,11 +49,13 @@ export function MarketingEyebrow({ children }: { children: ReactNode }) {
 export function MarketingSectionHeading({
   eyebrow,
   title,
+  titleClassName,
   description,
   action,
 }: {
   eyebrow?: string
   title: string
+  titleClassName?: string
   description?: string
   action?: ReactNode
 }) {
@@ -61,7 +63,7 @@ export function MarketingSectionHeading({
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="max-w-3xl">
         {eyebrow ? <MarketingEyebrow>{eyebrow}</MarketingEyebrow> : null}
-        <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-50 md:text-3xl">
+        <h2 className={joinClasses("mt-4 text-2xl font-semibold tracking-tight text-neutral-50 md:text-3xl", titleClassName)}>
           {title}
         </h2>
         {description ? <p className="mt-3 text-sm leading-6 text-neutral-500">{description}</p> : null}

@@ -26,7 +26,7 @@ export default function LandingHeader() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-60 border-b border-neutral-800/80 bg-neutral-950/88 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-304 items-center justify-between gap-4 px-4 py-4 md:px-6">
+      <div className="mx-auto flex  items-center justify-between gap-4 px-4 py-4 md:px-6">
         <Link to="/" className="flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-2xl bg-green-500/10 text-green-300 ring-1 ring-green-500/20">
             <i className="fi fi-rr-chart-candlestick text-lg" />
