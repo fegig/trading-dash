@@ -14,6 +14,15 @@ export type TradingBotPlan = {
   markets: string[]
   cadence: string
   guardrails: string[]
+  /** Billing period for subscription; defaults to 30 in store if omitted. */
+  subscriptionDays?: number
+}
+
+export type BotSubscription = {
+  botId: string
+  subscribedAt: number
+  expiresAt: number
+  lifetimePnlUsd: number
 }
 
 export type CopyTraderProfile = {
@@ -36,6 +45,8 @@ export type CopyAllocation = {
   traderId: string
   amount: number
   startedAt: number
+  expiresAt: number
+  lifetimePnlUsd: number
 }
 
 export type InvestmentProduct = {

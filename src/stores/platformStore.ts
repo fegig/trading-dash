@@ -2,19 +2,21 @@ import { create } from 'zustand'
 import * as platformService from '../services/platformService'
 import { useWalletStore } from './walletStore'
 import type {
+  BotSubscription,
   CopyAllocation,
   CopyTraderProfile,
   InvestmentPosition,
   InvestmentProduct,
   TradingBotPlan,
 } from '../types/platform'
+import { DEFAULT_SUBSCRIPTION_DAYS, isSubscriptionActive, subscriptionPeriodSeconds } from '../util/subscription'
 
 type PlatformState = {
   bots: TradingBotPlan[]
   copyTraders: CopyTraderProfile[]
   copyAllocations: CopyAllocation[]
   investments: InvestmentProduct[]
-  ownedBotIds: string[]
+  botSubscriptions: BotSubscription[]
   followingTraderIds: string[]
   investmentPositions: InvestmentPosition[]
   loading: boolean
@@ -36,7 +38,7 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
   copyTraders: [],
   copyAllocations: [],
   investments: [],
-  ownedBotIds: [],
+  botSubscriptions: [],
   followingTraderIds: [],
   investmentPositions: [],
   loading: false,
@@ -47,23 +49,30 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
   loadCatalog: async (force = false) => {
     if (!force && (get().loading || get().loaded)) return
     set({ loading: true })
-    const [bots, copyTraders, copyAllocations, investments, ownedBotIds, followingTraderIds, investmentPositions] =
-      await Promise.all([
-        platformService.getTradingBots(),
-        platformService.getCopyTraders(),
-        platformService.getCopyAllocations(),
-        platformService.getInvestmentProducts(),
-        platformService.getOwnedBotIds(),
-        platformService.getFollowingTraderIds(),
-        platformService.getInvestmentPositions(),
-      ])
+    const [
+      bots,
+      copyTraders,
+      copyAllocations,
+      investments,
+      botSubscriptions,
+      followingTraderIds,
+      investmentPositions,
+    ] = await Promise.all([
+      platformService.getTradingBots(),
+      platformService.getCopyTraders(),
+      platformService.getCopyAllocations(),
+      platformService.getInvestmentProducts(),
+      platformService.getBotSubscriptions(),
+      platformService.getFollowingTraderIds(),
+      platformService.getInvestmentPositions(),
+    ])
 
     set({
       bots,
       copyTraders,
       copyAllocations,
       investments,
-      ownedBotIds,
+      botSubscriptions,
       followingTraderIds,
       investmentPositions,
       loading: false,
@@ -77,10 +86,14 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
   selectTrader: (traderId) => set({ selectedTraderId: traderId }),
   selectInvestment: (investmentId) => set({ selectedInvestmentId: investmentId }),
   purchaseBot: (botId) => {
-    const { bots, ownedBotIds } = get()
+    const { bots, botSubscriptions } = get()
     const bot = bots.find((item) => item.id === botId)
     if (!bot) return { ok: false, message: 'Bot not found.' }
-    if (ownedBotIds.includes(botId)) return { ok: false, message: 'This bot is already active.' }
+    const now = Math.floor(Date.now() / 1000)
+    const hasActive = botSubscriptions.some(
+      (sub) => sub.botId === botId && isSubscriptionActive(sub.expiresAt, now)
+    )
+    if (hasActive) return { ok: false, message: 'This bot already has an active subscription.' }
 
     const walletResult = useWalletStore
       .getState()
@@ -88,7 +101,15 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
 
     if (!walletResult.ok) return walletResult
 
-    set((state) => ({ ownedBotIds: [...state.ownedBotIds, botId] }))
+    const days = bot.subscriptionDays ?? DEFAULT_SUBSCRIPTION_DAYS
+    const subscribedAt = now
+    const newSub: BotSubscription = {
+      botId,
+      subscribedAt,
+      expiresAt: subscribedAt + subscriptionPeriodSeconds(days),
+      lifetimePnlUsd: 0,
+    }
+    set((state) => ({ botSubscriptions: [...state.botSubscriptions, newSub] }))
     return { ok: true, message: `${bot.name} is now active on your account.` }
   },
   followTrader: (traderId, amount) => {
@@ -108,19 +129,24 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
 
     if (!walletResult.ok) return walletResult
 
-    const startedAt = Math.floor(Date.now() / 1000)
+    const now = Math.floor(Date.now() / 1000)
+    const period = subscriptionPeriodSeconds(DEFAULT_SUBSCRIPTION_DAYS)
     let totalAllocation = amount
     set((state) => {
       const existing = state.copyAllocations.find((allocation) => allocation.traderId === traderId)
       if (existing) {
         const nextAmount = Number((existing.amount + amount).toFixed(2))
         totalAllocation = nextAmount
+        // Renewal: extend subscription from current expiry or now, whichever is later.
+        const nextExpiresAt = Math.max(now, existing.expiresAt) + period
         return {
           followingTraderIds: state.followingTraderIds.includes(traderId)
             ? state.followingTraderIds
             : [...state.followingTraderIds, traderId],
           copyAllocations: state.copyAllocations.map((allocation) =>
-            allocation.traderId === traderId ? { ...allocation, amount: nextAmount } : allocation
+            allocation.traderId === traderId
+              ? { ...allocation, amount: nextAmount, expiresAt: nextExpiresAt }
+              : allocation
           ),
         }
       }
@@ -129,7 +155,16 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
         followingTraderIds: state.followingTraderIds.includes(traderId)
           ? state.followingTraderIds
           : [...state.followingTraderIds, traderId],
-        copyAllocations: [...state.copyAllocations, { traderId, amount, startedAt }],
+        copyAllocations: [
+          ...state.copyAllocations,
+          {
+            traderId,
+            amount,
+            startedAt: now,
+            expiresAt: now + period,
+            lifetimePnlUsd: 0,
+          },
+        ],
       }
     })
 

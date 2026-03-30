@@ -20,7 +20,6 @@ export const navGroups: NavGroup[] = [
     title: 'Trade',
     items: [
       { label: 'Live trading', path: '/live-trading', iconClass: 'fi-rs-chart-candlestick', end: true },
-      { label: 'Trade Center', path: '/trade-center', iconClass: 'fi-rs-apps' },
       { label: 'Copy trading', path: '/copy-trading', iconClass: 'fi-rs-clone' },
       { label: 'Trading bot', path: '/trading-bot', iconClass: 'fi-rs-robot' },
     ],

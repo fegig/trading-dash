@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router'
 import { toast } from 'react-toastify'
 import { useShallow } from 'zustand/react/shallow'
-import GradientBadge from '../components/common/GradientBadge'
+import GradientBadge from '@/components/common/GradientBadge'
 import {
   investmentCategoryTone,
   keywordTone,
   riskTone,
-} from '../components/common/gradientBadgeTones'
-import PageHero from '../components/common/PageHero'
-import { usePlatformStore, useWalletStore } from '../stores'
-import type { InvestmentCategory } from '../types/platform'
-import { formatCurrency } from '../util/formatCurrency'
+} from '@/components/common/gradientBadgeTones'
+import PageHero from '@/components/common/PageHero'
+import { usePlatformStore, useWalletStore } from '@/stores'
+import type { InvestmentCategory } from '@/types/platform'
+import { formatCurrency } from '@/util/formatCurrency'
+import { estimatePositionRoi } from '@/util/investmentRoi'
 
 const investmentCategories: Array<'All' | InvestmentCategory> = [
   'All',
@@ -28,9 +28,9 @@ function formatTerm(termDays: number) {
 
 function MetricPanel({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
-      <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">{label}</div>
-      <div className={`mt-2 text-sm font-semibold ${accent ?? 'text-neutral-100'}`}>{value}</div>
+    <div className="">
+      <div className="text-[8px]  tracking-[0.16em] text-neutral-500">{label}</div>
+      <div className={`mt-2 text-xs font-semibold ${accent ?? 'text-neutral-100'}`}>{value}</div>
     </div>
   )
 }
@@ -93,6 +93,18 @@ export default function InvestmentsPage() {
   const currentPosition =
     investmentPositions.find((position) => position.productId === selectedInvestment?.id) ?? null
 
+  const runningPositions = useMemo(() => {
+    const nowSec = Math.floor(Date.now() / 1000)
+    return investmentPositions
+      .map((position) => {
+        const product = investments.find((item) => item.id === position.productId)
+        if (!product) return null
+        const roi = estimatePositionRoi(product, position, nowSec)
+        return { position, product, roi }
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+  }, [investmentPositions, investments])
+
   const handleInvest = () => {
     if (!selectedInvestment) return
     const result = investProduct(selectedInvestment.id, Number(amount || selectedInvestment.minAmount))
@@ -108,10 +120,8 @@ export default function InvestmentsPage() {
       <PageHero
         backTo="/wallet"
         backLabel="Back to Wallet"
-        eyebrow="Investment Desk"
         title="Short-term, long-term, and retirement mandates"
-        description="Each investment mandate is funded from the fiat wallet, surfaced through the shared store, and structured like a real allocation desk rather than a crypto-only placeholder. That gives us a cleaner production path for managed products."
-        iconClass="fi fi-rs-chart-pie"
+        description="Each investment mandate is funded from the fiat wallet, surfaced through the shared store, and structured like a real allocation desk rather than a crypto-only placeholder. That gives us a cleaner production path for managed products."  
         stats={[
           { label: 'Active Positions', value: `${investmentPositions.length} mandates` },
           { label: 'Capital Deployed', value: formatCurrency(investedCapital, 'USD') },
@@ -121,26 +131,88 @@ export default function InvestmentsPage() {
           },
           { label: 'Top Yield', value: maxApy },
         ]}
-        actions={
-          <>
-            <Link
-              to="/wallet"
-              className="rounded-full bg-green-500/15 px-4 py-2 text-sm text-green-300 hover:bg-green-500/25 transition-colors"
-            >
-              Move funds into cash wallet
-            </Link>
-            <Link
-              to="/dashboard"
-              className="rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-2 text-sm text-neutral-300 hover:text-green-400 transition-colors"
-            >
-              Portfolio overview
-            </Link>
-          </>
-        }
+
       />
 
+      {runningPositions.length > 0 ? (
+        <section className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Portfolio</div>
+            <h2 className="text-lg font-semibold text-neutral-100 mt-1">Running investments</h2>
+            <p className="text-xs text-neutral-500 mt-1">
+              Estimated accrued return from APY and time in mandate (indicative only).
+            </p>
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {runningPositions.map(({ position, product, roi }) => (
+              <div
+                key={position.productId}
+                className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2"
+              >
+                <div className="font-semibold text-neutral-100">{product.name}</div>
+                <div className="text-xs text-neutral-500">{product.category}</div>
+                <div className="flex flex-wrap justify-between gap-2 text-xs pt-2 border-t border-neutral-800/80">
+                  <span className="text-neutral-500">Deployed</span>
+                  <span className="text-sky-300">{formatCurrency(position.amount, 'USD')}</span>
+                </div>
+                <div className="flex flex-wrap justify-between gap-2 text-xs">
+                  <span className="text-neutral-500">Est. gain</span>
+                  <span className="text-green-300">+{formatCurrency(roi.gainUsd, 'USD')}</span>
+                </div>
+                <div className="flex flex-wrap justify-between gap-2 text-xs">
+                  <span className="text-neutral-500">Est. ROI</span>
+                  <span className="text-green-300">+{roi.roiPct.toFixed(2)}%</span>
+                </div>
+                <div className="text-[10px] text-neutral-600">
+                  Since{' '}
+                  {new Date(position.startedAt * 1000).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto scrollbar-none">
+            <table className="w-full min-w-[640px] text-sm border-separate border-spacing-0">
+              <thead>
+                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-800">
+                  <th className="pb-3 font-medium">Mandate</th>
+                  <th className="pb-3 font-medium">Category</th>
+                  <th className="pb-3 font-medium">Deployed</th>
+                  <th className="pb-3 font-medium">Est. gain</th>
+                  <th className="pb-3 font-medium">Est. ROI</th>
+                  <th className="pb-3 font-medium">Since</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runningPositions.map(({ position, product, roi }) => (
+                  <tr key={position.productId} className="border-b border-neutral-800/60">
+                    <td className="py-3 pr-3 font-medium text-neutral-100">{product.name}</td>
+                    <td className="py-3 pr-3 text-xs text-neutral-400">{product.category}</td>
+                    <td className="py-3 pr-3 text-sky-300">{formatCurrency(position.amount, 'USD')}</td>
+                    <td className="py-3 pr-3 text-green-300">+{formatCurrency(roi.gainUsd, 'USD')}</td>
+                    <td className="py-3 pr-3 text-green-300">+{roi.roiPct.toFixed(2)}%</td>
+                    <td className="py-3 text-neutral-500 text-xs">
+                      {new Date(position.startedAt * 1000).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
       <div className="gradient-background rounded-2xl border border-neutral-800/80 p-4">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           {investmentCategories.map((category) => (
             <button
               key={category}
@@ -156,10 +228,10 @@ export default function InvestmentsPage() {
                   setAmount(String(nextItems[0].minAmount))
                 }
               }}
-              className={`rounded-full px-4 py-2 text-sm transition-all ${
+              className={`rounded-full px-3 py-1! text-xs transition-all ${
                 selectedCategory === category
-                  ? 'bg-gradient-to-r from-green-500/18 via-green-500/10 to-transparent text-green-300 ring-1 ring-inset ring-green-500/18'
-                  : 'border border-neutral-800 bg-neutral-950/70 text-neutral-500 hover:text-neutral-300'
+                  ? 'bg-linear-to-r from-green-500/18 via-green-500/10 to-transparent text-green-300 '
+                  : ' text-neutral-500 hover:text-neutral-300'
               }`}
             >
               {category}
@@ -168,7 +240,7 @@ export default function InvestmentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_26rem] gap-6">
+      <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_26rem] gap-6">
         <div className="space-y-4">
           {visibleInvestments.map((investment) => {
             const activePosition = investmentPositions.find(
@@ -194,29 +266,23 @@ export default function InvestmentsPage() {
                     <div className="max-w-3xl">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-lg font-semibold text-neutral-100">{investment.name}</span>
-                        <GradientBadge tone={investmentCategoryTone(investment.category)} size="xs">
+                        <GradientBadge tone={investmentCategoryTone(investment.category)} size="xxs">
                           {investment.category}
                         </GradientBadge>
-                        <GradientBadge tone={keywordTone(investment.vehicle)} size="xs">
+                        <GradientBadge tone={keywordTone(investment.vehicle)} size="xxs">
                           {investment.vehicle}
                         </GradientBadge>
-                        <GradientBadge tone={riskTone(investment.risk)} size="xs">
+                        <GradientBadge tone={riskTone(investment.risk)} size="xxs">
                           {investment.risk} risk
                         </GradientBadge>
                       </div>
                       <p className="mt-2 text-sm text-neutral-500">{investment.subtitle}</p>
-                      <p className="mt-3 text-sm text-neutral-400">{investment.description}</p>
+                      <p className="mt-3 text-xs text-neutral-400">{investment.description}</p>
                     </div>
 
-                    <div className="lg:max-w-xs">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
-                        Investment Objective
-                      </div>
-                      <p className="mt-2 text-sm text-neutral-300">{investment.objective}</p>
-                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                     <MetricPanel label="Yield" value={`${investment.apy}% APY`} accent="text-green-300" />
                     <MetricPanel label="Term" value={formatTerm(investment.termDays)} />
                     <MetricPanel label="Minimum" value={formatCurrency(investment.minAmount, 'USD')} />
@@ -229,13 +295,6 @@ export default function InvestmentsPage() {
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {investment.focus.map((focus) => (
-                      <GradientBadge key={focus} tone={keywordTone(focus)} size="xs">
-                        {focus}
-                      </GradientBadge>
-                    ))}
-                  </div>
                 </div>
               </button>
             )
@@ -249,7 +308,7 @@ export default function InvestmentsPage() {
           ) : null}
         </div>
 
-        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky top-6 h-fit">
+        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky  h-fit self-start">
           {selectedInvestment ? (
             <>
               <div>

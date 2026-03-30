@@ -6,9 +6,9 @@ import {
   tradeDirectionTone,
   tradeStatusTone,
 } from '../common/gradientBadgeTones'
-import type { TradePosition } from '../../types/trade'
-import { formatCurrency, formatNumber } from '../../util/formatCurrency'
-import { formatDateWithTime } from '../../util/time'
+import type { TradePosition } from '@/types/trade'
+import { formatCurrency, formatNumber } from '@/util/formatCurrency'
+import { formatDateWithTime } from '@/util/time'
 
 function clamp(value: number) {
   return Math.max(0, Math.min(100, value))
@@ -29,9 +29,9 @@ function LabelValue({
   accent?: string
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 px-4 py-3">
-      <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">{label}</div>
-      <div className={`text-sm font-semibold mt-2 ${accent ?? 'text-neutral-100'}`}>{value}</div>
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 px-4 py-2">
+      <div className="text-[8px] tracking-[0.16em] text-neutral-500">{label}</div>
+      <div className={`text-xs font-semibold mt-1 ${accent ?? 'text-neutral-100'}`}>{value}</div>
     </div>
   )
 }
@@ -58,7 +58,7 @@ export function TradePreviewPanel({ trade }: { trade: TradePosition | null }) {
   const fillWidth = Math.max(2, Math.abs(marketPosition - entryPosition))
 
   return (
-    <div className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5">
+    <div className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky top-0">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
@@ -67,18 +67,18 @@ export function TradePreviewPanel({ trade }: { trade: TradePosition | null }) {
                 symbol={trade.base}
                 name={trade.base}
                 iconUrl={`https://assets.coincap.io/assets/icons/${trade.base.toLowerCase()}@2x.png`}
-                sizeClassName="w-9 h-9"
+                sizeClassName="w-8 h-8"
               />
               <AssetAvatar
                 symbol={trade.quote}
                 name={trade.quote}
                 iconUrl={`https://assets.coincap.io/assets/icons/${trade.quote.toLowerCase()}@2x.png`}
-                sizeClassName="w-9 h-9"
+                sizeClassName="w-8 h-8"
               />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-neutral-100">{trade.pair}</h2>
-              <p className="text-sm text-neutral-500 mt-1">{trade.strategy}</p>
+              <h2 className="text-lg font-semibold text-neutral-100">{trade.pair}</h2>
+              <p className="text-xs text-neutral-500 ">{trade.strategy}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-4">
@@ -122,7 +122,7 @@ export function TradePreviewPanel({ trade }: { trade: TradePosition | null }) {
         <LabelValue label="Execution Venue" value={trade.executionVenue} />
       </div>
 
-      <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+      <div className="rounded-2xl gradient-background p-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-neutral-200">Risk Map</h3>

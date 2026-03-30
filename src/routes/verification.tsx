@@ -61,10 +61,8 @@ export default function VerificationPage() {
       <PageHero
         backTo="/dashboard"
         backLabel="Back to Dashboard"
-        eyebrow="Compliance Profile"
         title="Verification shaped for the rest of the platform"
         description="KYC now looks and behaves like part of the trading system: clear unlocks, real document states, enhanced-tier progress, and a layout that matches the rest of the product instead of a generic checklist."
-        iconClass="fi fi-rs-shield-check"
         stats={[
           { label: 'Account Status', value: statusLabel(verificationStatus) },
           { label: 'Daily Limit', value: overview?.dailyLimit ?? 'Loading' },
@@ -88,15 +86,15 @@ export default function VerificationPage() {
         }
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
+      <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
         <div className="space-y-6">
           <section className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-4">
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Verification Roadmap</div>
+              <div className="text-[8px]  tracking-[0.16em] text-neutral-500">Verification Roadmap</div>
               <h2 className="text-xl font-semibold text-neutral-100 mt-2">
                 {overview?.tier ?? 'Verification in progress'}
               </h2>
-              <p className="text-sm text-neutral-400 mt-2">{overview?.nextReview}</p>
+              <p className="text-xs text-neutral-400 mt-2">{overview?.nextReview}</p>
             </div>
 
             <div className="space-y-4">
@@ -118,7 +116,7 @@ export default function VerificationPage() {
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold text-neutral-100">{step.title}</h3>
+                      <h3 className="text-xs font-semibold text-neutral-100">{step.title}</h3>
                       <span
                         className={`px-3 py-1 rounded-full text-xs capitalize ${
                           step.status === 'complete'
@@ -131,10 +129,10 @@ export default function VerificationPage() {
                         {step.status}
                       </span>
                     </div>
-                    <p className="text-sm text-neutral-500 mt-2">{step.body}</p>
+                    <p className="text-xs text-neutral-500 mt-2">{step.body}</p>
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-xs text-neutral-500">{step.eta}</span>
-                      <button type="button" className="text-xs text-green-300 hover:text-green-200">
+                      <button type="button" className="text-[8px] text-green-300 hover:text-green-200">
                         {step.action}
                       </button>
                     </div>
@@ -153,16 +151,16 @@ export default function VerificationPage() {
                 <div className="w-10 h-10 rounded-2xl bg-green-500/10 text-green-300 grid place-items-center">
                   <i className={benefit.icon} />
                 </div>
-                <h3 className="text-sm font-semibold text-neutral-100 mt-4">{benefit.title}</h3>
-                <p className="text-sm text-neutral-500 mt-2">{benefit.body}</p>
+                <h3 className="text-xs font-semibold text-neutral-100 mt-4">{benefit.title}</h3>
+                <p className="text-xs text-neutral-500 mt-2">{benefit.body}</p>
               </div>
             ))}
           </section>
         </div>
 
-        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky top-6 h-fit">
+        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky  h-fit self-start">
           <div>
-            <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Documents</div>
+            <div className="text-[8px]  tracking-[0.16em] text-neutral-500">Documents</div>
             <h2 className="text-xl font-semibold text-neutral-100 mt-2">Review package</h2>
           </div>
 
@@ -180,7 +178,7 @@ export default function VerificationPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-neutral-100">{document.title}</div>
+                    <div className="text-xs font-semibold text-neutral-100">{document.title}</div>
                     <div className="text-xs text-neutral-500 mt-2">{document.subtitle}</div>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs capitalize ${documentStatusClass(document.status)}`}>
@@ -193,8 +191,8 @@ export default function VerificationPage() {
 
           {selectedDocument ? (
             <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Selected Document</div>
-              <div className="text-lg font-semibold text-neutral-100">{selectedDocument.title}</div>
+              <div className="text-[8px]  tracking-[0.16em] text-neutral-500">Selected Document</div>
+              <div className="text-xs font-semibold text-neutral-100">{selectedDocument.title}</div>
               <div className="text-sm text-neutral-400">{selectedDocument.subtitle}</div>
               <div className="flex items-center justify-between text-xs text-neutral-500">
                 <span>Last update</span>

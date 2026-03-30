@@ -1,89 +1,11 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import Dropdown from '../common/Dropdown'
-import Switch from '../common/SwitchOption'
 import TradeHistoryCard from '../trades/TradeHistoryCard'
 import TradePreviewDrawer from '../trades/TradePreviewPanel'
-import { useTradeStore, useUserStore } from '../../stores'
-import type { TradeStatus } from '../../types/trade'
+import { useTradeStore, useUserStore } from '@/stores'
+import type { HistoryType } from './TradeHistoryFilter'
+import TradeHistoryFilter from './TradeHistoryFilter'
 
-type HistoryType = Record<TradeStatus, boolean>
-
-type MiniTradeHistorySelectorProps = {
-  historyType: HistoryType
-  setHistoryType: Dispatch<SetStateAction<HistoryType>>
-}
-
-function MiniTradeHistorySelector({
-  historyType,
-  setHistoryType,
-}: MiniTradeHistorySelectorProps) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-
-  const handleTypeToggle = (key: TradeStatus) => {
-    setHistoryType((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }))
-  }
-
-  const getActiveTypesText = () => {
-    const activeTypes = Object.entries(historyType)
-      .filter(([, value]) => value)
-      .map(([key]) => key)
-      .join(', ')
-    return activeTypes || 'Select Types'
-  }
-
-  return (
-    <div className="flex justify-between items-center gap-3">
-      <div className="gradient-background p-2 rounded-lg relative z-10">
-        <Dropdown
-          isOpen={isDropdownOpen}
-          onClose={() => setIsDropdownOpen(false)}
-          trigger={
-            <button
-              type="button"
-              onClick={() => setIsDropdownOpen(true)}
-              className="flex items-center justify-between hover:opacity-80 w-36"
-            >
-              <span className="text-xs font-medium capitalize truncate">{getActiveTypesText()}</span>
-              <i
-                className={`fi fi-rr-angle-down text-xs ${
-                  isDropdownOpen ? 'rotate-180' : ''
-                } transition-all duration-300 ml-2 shrink-0`}
-              />
-            </button>
-          }
-          items={[
-            { key: 'open', label: 'Open' },
-            { key: 'pending', label: 'Pending' },
-            { key: 'canceled', label: 'Canceled' },
-            { key: 'completed', label: 'Completed' },
-          ]}
-          renderItem={(item) => (
-            <div className="flex items-center gap-2 px-4 py-2 hover:bg-neutral-800 rounded cursor-pointer">
-              <Switch
-                isOn={historyType[item.key as TradeStatus]}
-                onToggle={() => handleTypeToggle(item.key as TradeStatus)}
-              />
-              <span className="capitalize text-xs">{item.label}</span>
-            </div>
-          )}
-        />
-      </div>
-
-      <Link
-        to="/trades"
-        className="gradient-background rounded-lg px-3 py-2 text-xs text-neutral-400 hover:text-green-400 flex items-center gap-2 transition-colors"
-      >
-        <i className="fi fi-rr-exchange text-sm" />
-        <span>All trades</span>
-      </Link>
-    </div>
-  )
-}
 
 export default function MiniTradeHistory() {
   const userId = useUserStore((state) => state.user?.user_id) ?? 'demo-user'
@@ -124,7 +46,7 @@ export default function MiniTradeHistory() {
 
   return (
     <>
-      <MiniTradeHistorySelector historyType={historyType} setHistoryType={setHistoryType} />
+      <TradeHistoryFilter historyType={historyType} setHistoryType={setHistoryType} showAllTrades={true} />
 
       <div className="max-h-[310px] overflow-y-auto scrollbar-none mt-4">
         <div className="flex flex-col space-y-4 pb-4">

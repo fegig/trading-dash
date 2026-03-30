@@ -1,13 +1,14 @@
 import {
+  mockBotSubscriptions,
   mockCopyAllocations,
   mockCopyTraders,
   mockFollowingTraderIds,
   mockInvestmentPositions,
   mockInvestmentProducts,
-  mockOwnedBotIds,
   mockTradingBots,
 } from '../data/platform'
 import type {
+  BotSubscription,
   CopyAllocation,
   CopyTraderProfile,
   InvestmentPosition,
@@ -32,6 +33,10 @@ function cloneTraders(): CopyTraderProfile[] {
 
 function cloneCopyAllocations(): CopyAllocation[] {
   return mockCopyAllocations.map((allocation) => ({ ...allocation }))
+}
+
+function cloneBotSubscriptions(): BotSubscription[] {
+  return mockBotSubscriptions.map((sub) => ({ ...sub }))
 }
 
 function cloneInvestments(): InvestmentProduct[] {
@@ -61,8 +66,8 @@ export async function getCopyAllocations(): Promise<CopyAllocation[]> {
   return cloneCopyAllocations()
 }
 
-export async function getOwnedBotIds(): Promise<string[]> {
-  return [...mockOwnedBotIds]
+export async function getBotSubscriptions(): Promise<BotSubscription[]> {
+  return cloneBotSubscriptions()
 }
 
 export async function getFollowingTraderIds(): Promise<string[]> {

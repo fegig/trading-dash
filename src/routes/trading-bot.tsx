@@ -7,6 +7,7 @@ import PageHero from '../components/common/PageHero'
 import { keywordTone } from '../components/common/gradientBadgeTones'
 import { usePlatformStore, useWalletStore } from '../stores'
 import { formatCurrency } from '../util/formatCurrency'
+import { isSubscriptionActive } from '../util/subscription'
 
 function MetricCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
@@ -17,11 +18,19 @@ function MetricCard({ label, value, accent }: { label: string; value: string; ac
   )
 }
 
+function formatSubDate(ts: number) {
+  return new Date(ts * 1000).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 export default function TradingBotPage() {
-  const { bots, ownedBotIds, selectedBotId, loadCatalog, selectBot, purchaseBot } = usePlatformStore(
+  const { bots, botSubscriptions, selectedBotId, loadCatalog, selectBot, purchaseBot } = usePlatformStore(
     useShallow((state) => ({
       bots: state.bots,
-      ownedBotIds: state.ownedBotIds,
+      botSubscriptions: state.botSubscriptions,
       selectedBotId: state.selectedBotId,
       loadCatalog: state.loadCatalog,
       selectBot: state.selectBot,
@@ -39,12 +48,29 @@ export default function TradingBotPage() {
     void Promise.all([loadCatalog(), loadWallet()])
   }, [loadCatalog, loadWallet])
 
+  const nowSec = Math.floor(Date.now() / 1000)
   const fiatAsset = assets.find((asset) => asset.assetType === 'fiat')
   const selectedBot = bots.find((bot) => bot.id === selectedBotId) ?? bots[0]
   const averageWinRate = useMemo(() => {
     if (!bots.length) return 0
     return Math.round(bots.reduce((sum, bot) => sum + bot.winRate, 0) / bots.length)
   }, [bots])
+
+  const activeSubscriptions = useMemo(
+    () => botSubscriptions.filter((sub) => isSubscriptionActive(sub.expiresAt, nowSec)),
+    [botSubscriptions, nowSec]
+  )
+  const expiredSubscriptions = useMemo(
+    () => botSubscriptions.filter((sub) => !isSubscriptionActive(sub.expiresAt, nowSec)),
+    [botSubscriptions, nowSec]
+  )
+
+  const subscriptionForSelected = selectedBot
+    ? botSubscriptions.filter((sub) => sub.botId === selectedBot.id).sort((a, b) => b.expiresAt - a.expiresAt)[0]
+    : undefined
+  const selectedSubActive = subscriptionForSelected
+    ? isSubscriptionActive(subscriptionForSelected.expiresAt, nowSec)
+    : false
 
   const handlePurchase = () => {
     if (!selectedBot) return
@@ -56,6 +82,9 @@ export default function TradingBotPage() {
     }
   }
 
+  const isBotActive = (botId: string) =>
+    botSubscriptions.some((sub) => sub.botId === botId && isSubscriptionActive(sub.expiresAt, nowSec))
+
   return (
     <div className="space-y-6">
       <PageHero
@@ -66,7 +95,7 @@ export default function TradingBotPage() {
         description="Bot plans are now loaded from the service layer, purchased from the fiat wallet, and retained in the shared store so automation activation behaves like a production product workflow."
         iconClass="fi fi-rs-robot"
         stats={[
-          { label: 'Active Bots', value: `${ownedBotIds.length} running` },
+          { label: 'Active Bots', value: `${activeSubscriptions.length} running` },
           {
             label: 'Cash Available',
             value: fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable',
@@ -91,10 +120,79 @@ export default function TradingBotPage() {
         }
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
+      {botSubscriptions.length > 0 ? (
+        <section className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Subscriptions</div>
+            <h2 className="text-lg font-semibold text-neutral-100 mt-1">Active bot subscriptions</h2>
+            <p className="text-xs text-neutral-500 mt-1">Profit to date and renewal dates for running automations.</p>
+          </div>
+
+          {activeSubscriptions.length > 0 ? (
+            <div className="space-y-3">
+              {activeSubscriptions.map((sub) => {
+                const bot = bots.find((b) => b.id === sub.botId)
+                if (!bot) return null
+                return (
+                  <div
+                    key={`${sub.botId}-${sub.subscribedAt}`}
+                    className="rounded-2xl border border-green-500/20 bg-green-500/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                  >
+                    <div>
+                      <div className="font-semibold text-neutral-100">{bot.name}</div>
+                      <div className="text-xs text-neutral-500 mt-1">{bot.strategy}</div>
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-neutral-500">Profit</div>
+                        <div className="text-green-300 font-semibold">
+                          +{formatCurrency(sub.lifetimePnlUsd, 'USD')}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-neutral-500">Expires</div>
+                        <div className="text-neutral-200">{formatSubDate(sub.expiresAt)}</div>
+                      </div>
+                      <GradientBadge tone="sky" size="xs">
+                        Active
+                      </GradientBadge>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500">No active subscriptions. Purchase a plan below to deploy.</p>
+          )}
+
+          {expiredSubscriptions.length > 0 ? (
+            <div className="pt-2 border-t border-neutral-800/80">
+              <div className="text-xs text-neutral-500 mb-2">Expired</div>
+              <ul className="space-y-2">
+                {expiredSubscriptions.map((sub) => {
+                  const bot = bots.find((b) => b.id === sub.botId)
+                  return (
+                    <li
+                      key={`exp-${sub.botId}-${sub.subscribedAt}`}
+                      className="flex flex-wrap justify-between gap-2 text-xs text-neutral-500"
+                    >
+                      <span>{bot?.name ?? sub.botId}</span>
+                      <span>
+                        Ended {formatSubDate(sub.expiresAt)} · P&amp;L +{formatCurrency(sub.lifetimePnlUsd, 'USD')}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
         <div className="space-y-4">
           {bots.map((bot) => {
-            const isActive = ownedBotIds.includes(bot.id)
+            const isActive = isBotActive(bot.id)
             return (
               <button
                 key={bot.id}
@@ -135,7 +233,7 @@ export default function TradingBotPage() {
           })}
         </div>
 
-        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky top-6 h-fit">
+        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky  h-fit self-start">
           {selectedBot ? (
             <>
               <div>
@@ -152,14 +250,39 @@ export default function TradingBotPage() {
                 </div>
               </div>
 
+              {subscriptionForSelected ? (
+                <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Subscription</div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-neutral-500">Profit to date</span>
+                    <span className="font-semibold text-green-300">
+                      +{formatCurrency(subscriptionForSelected.lifetimePnlUsd, 'USD')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-neutral-500">{selectedSubActive ? 'Expires' : 'Ended'}</span>
+                    <span className="text-neutral-200">{formatSubDate(subscriptionForSelected.expiresAt)}</span>
+                  </div>
+                  <GradientBadge tone={selectedSubActive ? 'sky' : 'neutral'} size="xs">
+                    {selectedSubActive ? 'Active subscription' : 'Expired — renew to continue'}
+                  </GradientBadge>
+                </div>
+              ) : null}
+
               <div className="grid grid-cols-2 gap-3">
                 <MetricCard label="Markets" value={selectedBot.markets.join(', ')} />
                 <MetricCard label="Cadence" value={selectedBot.cadence} />
                 <MetricCard label="Price" value={formatCurrency(selectedBot.priceUsd, 'USD')} />
                 <MetricCard
                   label="Status"
-                  value={ownedBotIds.includes(selectedBot.id) ? 'Already active' : 'Ready to deploy'}
-                  accent={ownedBotIds.includes(selectedBot.id) ? 'text-sky-300' : 'text-green-300'}
+                  value={
+                    selectedSubActive
+                      ? 'Subscribed'
+                      : subscriptionForSelected
+                        ? 'Subscription ended'
+                        : 'Ready to deploy'
+                  }
+                  accent={selectedSubActive ? 'text-sky-300' : 'text-green-300'}
                 />
               </div>
 
@@ -184,10 +307,11 @@ export default function TradingBotPage() {
               <button
                 type="button"
                 onClick={handlePurchase}
-                className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
+                disabled={selectedSubActive}
+                className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-50 disabled:pointer-events-none"
               >
-                {ownedBotIds.includes(selectedBot.id)
-                  ? `${selectedBot.name} already active`
+                {selectedSubActive
+                  ? `${selectedBot.name} subscription active`
                   : `Purchase for ${formatCurrency(selectedBot.priceUsd, 'USD')}`}
               </button>
             </>

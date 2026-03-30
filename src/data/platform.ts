@@ -1,10 +1,12 @@
 import type {
+  BotSubscription,
   CopyAllocation,
   CopyTraderProfile,
   InvestmentPosition,
   InvestmentProduct,
   TradingBotPlan,
 } from '../types/platform'
+import { DEFAULT_SUBSCRIPTION_DAYS, subscriptionPeriodSeconds } from '../util/subscription'
 
 const now = Math.floor(Date.now() / 1000)
 
@@ -23,6 +25,7 @@ export const mockTradingBots: TradingBotPlan[] = [
     markets: ['BTC', 'ETH', 'SOL'],
     cadence: 'Runs continuously with spread throttling',
     guardrails: ['Daily loss cap', 'Circuit breaker', 'Session-only execution'],
+    subscriptionDays: DEFAULT_SUBSCRIPTION_DAYS,
   },
   {
     id: 'bot-trend-pilot',
@@ -38,6 +41,7 @@ export const mockTradingBots: TradingBotPlan[] = [
     markets: ['BTC', 'ETH', 'AVAX', 'BNB'],
     cadence: 'Checks structure every 15 minutes',
     guardrails: ['ATR sizing', 'News avoidance', 'Capital partitioning'],
+    subscriptionDays: DEFAULT_SUBSCRIPTION_DAYS,
   },
   {
     id: 'bot-news-sentinel',
@@ -53,6 +57,7 @@ export const mockTradingBots: TradingBotPlan[] = [
     markets: ['BTC', 'ETH', 'XRP'],
     cadence: 'Event triggers plus hourly regime checks',
     guardrails: ['Spread lockout', 'Max slip rule', 'Sentiment gate'],
+    subscriptionDays: DEFAULT_SUBSCRIPTION_DAYS,
   },
 ]
 
@@ -221,13 +226,23 @@ export const mockInvestmentProducts: InvestmentProduct[] = [
   },
 ]
 
-export const mockOwnedBotIds = ['bot-quantum-grid']
+const mayaStarted = now - subscriptionPeriodSeconds(9)
+export const mockBotSubscriptions: BotSubscription[] = [
+  {
+    botId: 'bot-quantum-grid',
+    subscribedAt: now - subscriptionPeriodSeconds(5),
+    expiresAt: now - subscriptionPeriodSeconds(5) + subscriptionPeriodSeconds(DEFAULT_SUBSCRIPTION_DAYS),
+    lifetimePnlUsd: 127.45,
+  },
+]
 export const mockFollowingTraderIds = ['trader-maya-flow']
 export const mockCopyAllocations: CopyAllocation[] = [
   {
     traderId: 'trader-maya-flow',
     amount: 800,
-    startedAt: now - 60 * 60 * 24 * 9,
+    startedAt: mayaStarted,
+    expiresAt: mayaStarted + subscriptionPeriodSeconds(DEFAULT_SUBSCRIPTION_DAYS),
+    lifetimePnlUsd: 48.2,
   },
 ]
 export const mockInvestmentPositions: InvestmentPosition[] = [

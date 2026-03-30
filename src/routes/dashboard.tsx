@@ -9,6 +9,7 @@ import PairBanner, { type MarketData } from '@/components/dashboard/PairBanner'
 import type { GradientBadgeTone } from '@/components/common/gradientBadgeTones'
 import { usePlatformStore, useTradeStore, useUserStore, useVerificationStore, useWalletStore } from '@/stores'
 import { formatCurrency, formatLength, formatNumber } from '@/util/formatCurrency'
+import { isSubscriptionActive } from '@/util/subscription'
 import { formatDateWithTime } from '@/util/time'
 
 function verificationBadge(status: string | undefined) {
@@ -140,7 +141,7 @@ export default function DashboardPage() {
   const {
     copyAllocations,
     investmentPositions,
-    ownedBotIds,
+    botSubscriptions,
     followingTraderIds,
     loading: platformLoading,
     loadCatalog,
@@ -148,7 +149,7 @@ export default function DashboardPage() {
     useShallow((state) => ({
       copyAllocations: state.copyAllocations,
       investmentPositions: state.investmentPositions,
-      ownedBotIds: state.ownedBotIds,
+      botSubscriptions: state.botSubscriptions,
       followingTraderIds: state.followingTraderIds,
       loading: state.loading,
       loadCatalog: state.loadCatalog,
@@ -222,7 +223,13 @@ export default function DashboardPage() {
     : 0
   const deploymentValue = liveTradeMargin + copyCapital + investmentCapital
   const deploymentPct = portfolioValue > 0 ? Math.round((deploymentValue / portfolioValue) * 100) : 0
-  const activePrograms = ownedBotIds.length + followingTraderIds.length + investmentPositions.length
+  const nowSec = Math.floor(Date.now() / 1000)
+  const activeBotSubscriptions = botSubscriptions.filter((sub) => isSubscriptionActive(sub.expiresAt, nowSec))
+  const activeCopySubscriptions = copyAllocations.filter((alloc) =>
+    isSubscriptionActive(alloc.expiresAt, nowSec)
+  )
+  const activePrograms =
+    activeBotSubscriptions.length + activeCopySubscriptions.length + investmentPositions.length
   const topAssets = walletAssets.slice(0, 4)
   const activeStep = steps.find((step) => step.status === 'active') ?? null
   const latestTransactions = transactions.slice(0, 4)
@@ -411,7 +418,7 @@ export default function DashboardPage() {
             <div className="mt-5 grid grid-cols-2 gap-3">
               <DashboardMetric
                 label="Automation"
-                value={`${ownedBotIds.length} active`}
+                value={`${activeBotSubscriptions.length} active`}
                 subtext="Bot plans running"
               />
               <DashboardMetric

@@ -84,7 +84,50 @@ export default function Wallets() {
       ) : (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6 items-start">
-            <AccountBalance userCoins={assets} />
+           <div>
+           <AccountBalance userCoins={assets} />
+           <section className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-neutral-100">Asset inventory</h2>
+                  <button className="rounded-full bg-neutral-900 p-2 py-1 hover:bg-neutral-800/50 smooth flex items-center space-x-2 text-xs">
+                    <i className="fi fi-rr-add text-neutral-500"></i>
+                    <span>Add Asset</span>
+                  </button>
+                </div>
+                <p className="text-sm text-neutral-500 mt-1">
+                  Review balances, then receive, send, or convert without leaving the wallet.
+                </p>
+              </div>
+
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={scrollLeft}
+                  className="  z-10 w-8 h-8 flex items-center justify-center rounded-full! gradient-background hover:bg-neutral-700/50 transition-all pointer-events-auto"
+                  aria-label="Scroll left"
+                >
+                  <i className="fi fi-rr-angle-left text-sm" />
+                </button>
+                <button
+                  type="button"
+                  onClick={scrollRight}
+                  className="  z-10 w-8 h-8 flex items-center justify-center rounded-full! gradient-background hover:bg-neutral-700/50 transition-all pointer-events-auto"
+                  aria-label="Scroll right"
+                >
+                  <i className="fi fi-rr-angle-right text-sm" />
+                </button>
+              </div>
+            </div>
+
+            <div ref={scrollContainerRef} className="overflow-x-auto scrollbar-none">
+              <div className="flex gap-4 min-w-max">
+                <AssetsList userCoins={assets} />
+              </div>
+            </div>
+          </section>
+           </div>
 
             <div className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5">
               <div>
@@ -187,41 +230,7 @@ export default function Wallets() {
             </div>
           </div>
 
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-neutral-100">Asset inventory</h2>
-                <p className="text-sm text-neutral-500 mt-1">
-                  Review balances, then receive, send, or convert without leaving the wallet.
-                </p>
-              </div>
-
-              <div className="hidden md:flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={scrollLeft}
-                  className="w-9 h-9 rounded-full gradient-background text-neutral-300 hover:text-green-400"
-                  aria-label="Scroll left"
-                >
-                  <i className="fi fi-rr-angle-left" />
-                </button>
-                <button
-                  type="button"
-                  onClick={scrollRight}
-                  className="w-9 h-9 rounded-full gradient-background text-neutral-300 hover:text-green-400"
-                  aria-label="Scroll right"
-                >
-                  <i className="fi fi-rr-angle-right" />
-                </button>
-              </div>
-            </div>
-
-            <div ref={scrollContainerRef} className="overflow-x-auto scrollbar-none">
-              <div className="flex gap-4 min-w-max">
-                <AssetsList userCoins={assets} />
-              </div>
-            </div>
-          </section>
+         
 
           <TransactionHistory transactions={transactions} />
         </>

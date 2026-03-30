@@ -17,7 +17,7 @@ select, input, textarea {
 
 
 .gradient-background{
-  @apply relative backdrop-blur-md bg-gradient-to-b from-neutral-500/10 to-neutral-950/10 border border-neutral-200/5  p-4 rounded-lg shadow-lg;
+  @apply relative backdrop-blur-md bg-linear-to-b from-neutral-500/10 to-neutral-950/10 border border-neutral-200/5  p-4 rounded-lg shadow-lg;
 }
 
 select:focus, input:focus, textarea:focus {
@@ -39,11 +39,11 @@ button {
 }
 
 html, body, .scrollBar{
-  @apply overflow-y-auto   [&::-webkit-scrollbar]:w-2  [&::-webkit-scrollbar-track]:bg-neutral-900  [&::-webkit-scrollbar-thumb]:bg-neutral-700  [&::-webkit-scrollbar-thumb]:rounded-full  hover:[&::-webkit-scrollbar-thumb]:bg-neutral-500
+  @apply overflow-y-auto [&::-webkit-scrollbar]:w-1  [&::-webkit-scrollbar-track]:bg-neutral-900  [&::-webkit-scrollbar-thumb]:bg-neutral-700  [&::-webkit-scrollbar-thumb]:rounded-full  hover:[&::-webkit-scrollbar-thumb]:bg-neutral-500
 }
 
 html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb, .scrollBar::-webkit-scrollbar-thumb{
-  @apply bg-green-500/50
+  @apply bg-neutral-700
 }
 
 html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, .scrollBar::-webkit-scrollbar-thumb:hover{

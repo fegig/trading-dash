@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
+import Pagination from '../components/common/Pagination'
 import PageHero from '../components/common/PageHero'
 import TradeHistoryCard from '../components/trades/TradeHistoryCard'
 import TradePreviewDrawer, { TradePreviewPanel } from '../components/trades/TradePreviewPanel'
 import { useTradeStore, useUserStore } from '../stores'
 import type { TradeStatus } from '../types/trade'
 import { formatCurrency } from '../util/formatCurrency'
+import TradeHistoryFilter from '@/components/dashboard/TradeHistoryFilter'
 
 type HistoryType = Record<TradeStatus, boolean>
 
@@ -17,6 +18,8 @@ const defaultFilters: HistoryType = {
   completed: true,
   failed: true,
 }
+
+const TRADES_PAGE_SIZE = 10
 
 export default function AllTradesPage() {
   const userId = useUserStore((state) => state.user?.user_id) ?? 'demo-user'
@@ -31,6 +34,7 @@ export default function AllTradesPage() {
   )
 
   const [filters, setFilters] = useState<HistoryType>(defaultFilters)
+  const [tradePage, setTradePage] = useState(1)
   const [previewOpen, setPreviewOpen] = useState(false)
 
   useEffect(() => {
@@ -40,6 +44,19 @@ export default function AllTradesPage() {
   const filteredTrades = useMemo(
     () => trades.filter((trade) => filters[trade.status]),
     [filters, trades]
+  )
+
+  useEffect(() => {
+    setTradePage(1)
+  }, [filters])
+
+  const paginatedTrades = useMemo(
+    () =>
+      filteredTrades.slice(
+        (tradePage - 1) * TRADES_PAGE_SIZE,
+        tradePage * TRADES_PAGE_SIZE
+      ),
+    [filteredTrades, tradePage]
   )
 
   const selectedTrade =
@@ -63,68 +80,23 @@ export default function AllTradesPage() {
     ]
   }, [trades])
 
-  const filterCounts = useMemo(
-    () => ({
-      open: trades.filter((trade) => trade.status === 'open').length,
-      pending: trades.filter((trade) => trade.status === 'pending').length,
-      completed: trades.filter((trade) => trade.status === 'completed').length,
-      canceled: trades.filter((trade) => trade.status === 'canceled').length,
-      failed: trades.filter((trade) => trade.status === 'failed').length,
-    }),
-    [trades]
-  )
-
   return (
     <div className="space-y-6">
       <PageHero
-        backTo="/trade-center"
-        backLabel="Back to Trade Center"
-        eyebrow="Execution Archive"
+        backTo="/live-trading"
+        backLabel="Back to Trading Desk"
         title="Trade history with setup context"
         description="Review every position with the same visual structure you use on the dashboard, then drill into full setup details, funding source, execution notes, and live risk mapping."
-        iconClass="fi fi-rr-time-past"
         stats={stats}
-        actions={
-          <>
-            <Link
-              to="/live-trading"
-              className="rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-2 text-sm text-neutral-300 hover:text-green-400 transition-colors"
-            >
-              Live trading desk
-            </Link>
-            <Link
-              to="/wallet"
-              className="rounded-full bg-green-500/15 px-4 py-2 text-sm text-green-300 hover:bg-green-500/25 transition-colors"
-            >
-              Review funding wallet
-            </Link>
-          </>
-        }
+
       />
 
-      <div className="gradient-background rounded-2xl border border-neutral-800/80 p-4">
-        <div className="flex flex-wrap gap-3">
-          {(Object.keys(filters) as TradeStatus[]).map((status) => (
-            <button
-              key={status}
-              type="button"
-              onClick={() => setFilters((prev) => ({ ...prev, [status]: !prev[status] }))}
-              className={`rounded-full px-4 py-2 text-sm capitalize border transition-colors ${
-                filters[status]
-                  ? 'border-green-500/30 bg-green-500/10 text-green-300'
-                  : 'border-neutral-800 bg-neutral-950/70 text-neutral-500'
-              }`}
-            >
-              {status} ({filterCounts[status]})
-            </button>
-          ))}
-        </div>
-      </div>
+      <TradeHistoryFilter historyType={filters} setHistoryType={setFilters} />
 
       {loading ? (
         <div className="gradient-background rounded-2xl min-h-[360px] animate-pulse" />
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
+        <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
           <div className="space-y-4">
             {filteredTrades.length === 0 ? (
               <div className="gradient-background rounded-2xl p-8 text-center text-neutral-500">
@@ -132,22 +104,30 @@ export default function AllTradesPage() {
                 <p className="text-sm">No trades match your current status filters.</p>
               </div>
             ) : (
-              filteredTrades.map((trade) => (
-                <TradeHistoryCard
-                  key={trade.tradeId}
-                  trade={trade}
-                  active={selectedTrade?.tradeId === trade.tradeId}
-                  onClick={() => {
-                    selectTrade(trade.tradeId)
-                    if (window.innerWidth < 1280) setPreviewOpen(true)
-                  }}
+              <>
+                {paginatedTrades.map((trade) => (
+                  <TradeHistoryCard
+                    key={trade.tradeId}
+                    trade={trade}
+                    active={selectedTrade?.tradeId === trade.tradeId}
+                    onClick={() => {
+                      selectTrade(trade.tradeId)
+                      if (window.innerWidth < 1280) setPreviewOpen(true)
+                    }}
+                  />
+                ))}
+                <Pagination
+                  page={tradePage}
+                  pageSize={TRADES_PAGE_SIZE}
+                  totalCount={filteredTrades.length}
+                  onPageChange={setTradePage}
                 />
-              ))
+              </>
             )}
           </div>
 
-          <div className="hidden xl:block">
-            <div className="sticky top-6">
+          <div className="hidden xl:block self-start">
+            <div className="sticky ">
               <TradePreviewPanel trade={selectedTrade} />
             </div>
           </div>

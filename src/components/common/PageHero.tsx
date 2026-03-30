@@ -9,10 +9,8 @@ type HeroStat = {
 type PageHeroProps = {
   backTo: string
   backLabel: string
-  eyebrow: string
   title: string
   description: string
-  iconClass: string
   stats?: HeroStat[]
   actions?: ReactNode
 }
@@ -20,10 +18,8 @@ type PageHeroProps = {
 export default function PageHero({
   backTo,
   backLabel,
-  eyebrow,
   title,
   description,
-  iconClass,
   stats = [],
   actions,
 }: PageHeroProps) {
@@ -39,7 +35,7 @@ export default function PageHero({
         <div className="max-w-3xl">
           <Link
             to={backTo}
-            className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-xs text-neutral-300 hover:text-green-400 transition-colors"
+            className="inline-flex items-center gap-2  gradient-background rounded-full!  text-xs px-2! py-1!  text-neutral-300 hover:text-green-400 transition-colors"
           >
             <span className="grid place-items-center w-6 h-6 rounded-full bg-green-500/10 text-green-400">
               <i className="fi fi-rr-arrow-small-left text-sm" />
@@ -47,15 +43,12 @@ export default function PageHero({
             <span>{backLabel}</span>
           </Link>
 
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-green-500/10 px-3 py-1 text-xs font-medium text-green-300">
-            <i className={`${iconClass} text-sm`} />
-            <span>{eyebrow}</span>
-          </div>
 
-          <h1 className="text-2xl md:text-4xl font-bold text-neutral-100 tracking-tight mt-4">
+
+          <h1 className="text-xl md:text-2xl font-bold text-neutral-100 tracking-tight mt-4">
             {title}
           </h1>
-          <p className="text-sm md:text-base text-neutral-400 mt-3 max-w-2xl">{description}</p>
+          <p className="text-[8px] md:text-xs text-neutral-400 mt-3 max-w-2xl">{description}</p>
 
           {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
         </div>
@@ -67,10 +60,10 @@ export default function PageHero({
                 key={stat.label}
                 className="rounded-2xl border border-neutral-800 bg-neutral-950/60 px-4 py-4"
               >
-                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+                <div className="text-[8px]  tracking-[0.16em] text-neutral-500">
                   {stat.label}
                 </div>
-                <div className="text-lg font-semibold text-neutral-100 mt-2">{stat.value}</div>
+                <div className="text-xs font-semibold text-neutral-100 mt-2">{stat.value}</div>
               </div>
             ))}
           </div>

@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { TransactionHistoryProps, TransactionTimeFilter } from '../../types/wallet'
 import { formatCurrency } from '../../util/formatCurrency'
 import GradientBadge from '../common/GradientBadge'
+import Pagination from '../common/Pagination'
+
+const TX_PAGE_SIZE = 10
 
 function MethodCell({ transaction }: { transaction: TransactionHistoryProps }) {
   return (
@@ -24,6 +27,7 @@ export default function TransactionHistory({
   transactions: TransactionHistoryProps[]
 }) {
   const [timeFilter, setTimeFilter] = useState<TransactionTimeFilter>('ALL')
+  const [txPage, setTxPage] = useState(1)
   const [renderTimestamp] = useState(() => Math.floor(Date.now() / 1000))
   const filters = ['1D', '7D', '1M', '3M', '6M', '1Y', 'ALL'] as const
 
@@ -41,6 +45,16 @@ export default function TransactionHistory({
       (transaction) => transaction.createdAt >= renderTimestamp - durationMap[timeFilter]
     )
   }, [renderTimestamp, timeFilter, transactions])
+
+  useEffect(() => {
+    setTxPage(1)
+  }, [timeFilter, transactions])
+
+  const pagedTransactions = useMemo(
+    () =>
+      filteredTransactions.slice((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE),
+    [filteredTransactions, txPage]
+  )
 
   return (
     <div className="col-span-full gradient-background rounded-2xl p-4 space-y-4 border border-neutral-800/80">
@@ -81,7 +95,7 @@ export default function TransactionHistory({
               </tr>
             </thead>
             <tbody className="text-xs border-t border-neutral-800">
-              {filteredTransactions.map((transaction) => (
+              {pagedTransactions.map((transaction) => (
                 <tr key={transaction.id} className="hover:bg-neutral-800/30 transition-colors">
                   <td className="py-3 pl-2 rounded-l-lg">
                     <MethodCell transaction={transaction} />
@@ -129,6 +143,12 @@ export default function TransactionHistory({
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={txPage}
+            pageSize={TX_PAGE_SIZE}
+            totalCount={filteredTransactions.length}
+            onPageChange={setTxPage}
+          />
         </div>
       ) : (
         <div className="flex justify-center items-center h-full w-full min-h-[180px]">

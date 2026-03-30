@@ -13,7 +13,6 @@ import VerificationPage from "./routes/verification"
 import HelpPage from "./routes/help"
 import LogoutPage from "./routes/logout"
 import LiveTrading from "./routes/live-trading"
-import TradesHubPage from "./routes/trades-hub"
 
 function App() {
   return (
@@ -23,7 +22,6 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="live-trading" element={<LiveTrading />} />
-          <Route path="trade-center" element={<TradesHubPage />} />
           <Route path="trades" element={<AllTradesPage />} />
           <Route path="wallet" element={<Wallets />} /> 
           <Route path="copy-trading" element={<CopyTradingPage />} />

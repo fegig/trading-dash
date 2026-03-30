@@ -115,7 +115,7 @@ export default function AccountBalance({ userCoins }: { userCoins: UserCoinsProp
                      <div className="flex items-center gap-3 mt-2">
                         {topCoins[0] ? (
                             <>
-                            {topCoins.filter((coin) => coin.coinShort !== 'USD').slice(0, 3).map((coin) => (
+                            {topCoins.filter((coin) => coin.coinShort !== 'USD').slice(0, 5).map((coin) => (
                                 <div className="flex  gap-1 justify-around" key={coin.coinId}>
                                     <div className="flex items-center gap-1 gradient-background rounded-lg px-2! py-1!">
                                         <img alt={coin.coinShort} className="w-4 h-4" src={coin.iconUrl} />

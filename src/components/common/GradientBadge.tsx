@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { GradientBadgeTone } from './gradientBadgeTones'
 
-type GradientBadgeSize = 'xs' | 'sm' | 'md'
+type GradientBadgeSize = 'xs' | 'sm' | 'md' | 'xxs'
 
 const toneClasses: Record<GradientBadgeTone, string> = {
   neutral:
@@ -24,6 +24,7 @@ const sizeClasses: Record<GradientBadgeSize, string> = {
   xs: 'px-2 py-1 text-[10px] leading-none',
   sm: 'px-2.5 py-1 text-[11px] leading-none',
   md: 'px-3 py-1.5 text-xs leading-none',
+  xxs: 'px-2 py-1 text-[8px] leading-none',
 }
 
 function joinClasses(...classes: Array<string | false | null | undefined>) {

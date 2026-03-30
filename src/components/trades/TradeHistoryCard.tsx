@@ -5,9 +5,9 @@ import {
   tradeDirectionTone,
   tradeStatusTone,
 } from '../common/gradientBadgeTones'
-import type { TradePosition } from '../../types/trade'
-import { formatCurrency, formatNumber } from '../../util/formatCurrency'
-import { formatDateWithTime } from '../../util/time'
+import type { TradePosition } from '@/types/trade'
+import { formatCurrency, formatNumber } from '@/util/formatCurrency'
+import { formatDateWithTime } from '@/util/time'
 
 function clamp(value: number) {
   return Math.max(0, Math.min(100, value))
@@ -80,13 +80,13 @@ export default function TradeHistoryCard({
                   symbol={trade.base}
                   name={trade.base}
                   iconUrl={`https://assets.coincap.io/assets/icons/${trade.base.toLowerCase()}@2x.png`}
-                  sizeClassName={compact ? 'w-8 h-8' : 'w-9 h-9'}
+                  sizeClassName={compact ? 'w-6 h-6' : 'w-7 h-7'}
                 />
                 <AssetAvatar
                   symbol={trade.quote}
                   name={trade.quote}
                   iconUrl={`https://assets.coincap.io/assets/icons/${trade.quote.toLowerCase()}@2x.png`}
-                  sizeClassName={compact ? 'w-8 h-8' : 'w-9 h-9'}
+                  sizeClassName={compact ? 'w-6 h-6' : 'w-7 h-7'}
                 />
               </div>
 
@@ -114,8 +114,8 @@ export default function TradeHistoryCard({
             <div className={`grid gap-3 mt-4 ${compact ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 md:grid-cols-3 xl:grid-cols-6'}`}>
               {metrics.map((metric) => (
                 <div key={metric.label}>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">{metric.label}</div>
-                  <div className={`text-sm font-medium mt-2 capitalize ${metric.className ?? 'text-neutral-200'}`}>
+                  <div className="text-[8px]  tracking-[0.16em] text-neutral-500">{metric.label}</div>
+                  <div className={`text-xs font-medium mt-2 capitalize ${metric.className ?? 'text-neutral-200'}`}>
                     {metric.value}
                   </div>
                 </div>
@@ -124,14 +124,14 @@ export default function TradeHistoryCard({
           </div>
 
           <div className="lg:text-right">
-            <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Opened</div>
-            <div className="text-sm text-neutral-200 mt-2">{formatDateWithTime(trade.entryTime)}</div>
-            <div className="text-xs text-neutral-500 mt-2">{trade.fundedWith}</div>
+            <div className="text-[8px]  tracking-[0.16em] text-neutral-500">Opened</div>
+            <div className="text-xs text-neutral-200 mt-2">{formatDateWithTime(trade.entryTime)}</div>
+            <div className="text-[8px] text-neutral-500 mt-2">{trade.fundedWith}</div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-950/50 px-4 py-4">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+        <div className="">
+          <div className="flex items-center justify-between text-[8px]  tracking-[0.16em] text-neutral-500">
             <span>SL</span>
             <span>Trade Progress</span>
             <span>TP</span>
@@ -145,15 +145,24 @@ export default function TradeHistoryCard({
             />
 
             <div className="absolute top-1/2 -translate-y-1/2" style={{ left: `${entryPosition}%` }}>
-              <div className="absolute -top-7 -translate-x-1/2 text-[10px] text-neutral-400">Entry</div>
-              <div className="absolute -translate-x-1/2 h-4 w-[2px] bg-white" />
+            <div className="absolute flex flex-col items-center">
+              <div className="absolute top-2 whitespace-nowrap text-center">
+                <span className="block text-[8px] text-neutral-400">Entry</span>
+                <span className="block text-[8px]">{formatCurrency(trade.entryPrice, 'USD')}</span>
+                </div>
+                <div className="absolute h-4 w-[2px] bg-white top-1/2 -translate-y-1/2" />
+              </div>
             </div>
 
             <div className="absolute top-1/2 -translate-y-1/2" style={{ left: `${marketPosition}%` }}>
-              <div className={`absolute -top-7 -translate-x-1/2 text-[10px] ${trade.direction === 'long' ? 'text-green-300' : 'text-rose-300'}`}>
-                Now
+            
+              <div className={`absolute -top-8 -translate-x-1/2 `}>
+               <span className="block text-[8px] text-neutral-400">Now</span>
+              <span className={`block text-[8px] ${trade.direction === 'long' ? 'text-green-300' : 'text-rose-300'} `}>{formatCurrency(trade.marketPrice, 'USD')}</span>
+         
               </div>
-              <div className={`absolute -translate-x-1/2 h-4 w-[2px] ${markerTone}`} />
+              
+              <div className={`absolute h-4 w-[2px]  top-1/2 -translate-y-1/2 ${markerTone}`} />
             </div>
           </div>
 
