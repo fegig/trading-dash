@@ -32,14 +32,14 @@ export function NavSidebarContent({ onNavigate }: Props) {
                   end={item.end}
                   onClick={() => onNavigate?.()}
                   className={({ isActive }) =>
-                    `flex items-center gap-2  rounded-lg! p-2!  text-sm font-medium transition-colors ${
+                    `flex items-center gap-2  rounded-lg! p-2!  text-sm  transition-colors ${
                       isActive
                         ? 'gradient-background text-neutral-500 hover:text-green-400'
                         : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/70 border border-transparent'
                     }`
                   }
                 >
-                  <i className={`fi ${item.iconClass} text-sm w-5 flex justify-center shrink-0 opacity-90`} />
+                  <i className={`fi ${item.iconClass} text-xs w-5 flex justify-center shrink-0 opacity-90`} />
                   <span className="leading-tight">{item.label}</span>
                 </NavLink>
               </li>

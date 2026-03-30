@@ -1,19 +1,35 @@
+import { mockWalletAssets, mockWalletTransactions } from '../data/wallet'
+import type { TransactionHistoryProps, UserCoinsProps } from '../types/wallet'
 import { get } from '../util/request'
 import { endpoints } from './endpoints'
 
-/** Placeholder — extend when wallet API is live */
-export async function getWalletAssets() {
-  try {
-    return await get(endpoints.wallet.assets)
-  } catch {
-    return null
-  }
+function cloneAssets(): UserCoinsProps[] {
+  return mockWalletAssets.map((asset) => ({ ...asset }))
 }
 
-export async function getWalletTransactions() {
+function cloneTransactions(): TransactionHistoryProps[] {
+  return mockWalletTransactions.map((transaction) => ({
+    ...transaction,
+    method: { ...transaction.method },
+  }))
+}
+
+export async function getWalletAssets(): Promise<UserCoinsProps[]> {
   try {
-    return await get(endpoints.wallet.transactions)
+    const res = await get(endpoints.wallet.assets)
+    if (Array.isArray(res)) return res as UserCoinsProps[]
   } catch {
-    return null
+    return cloneAssets()
   }
+  return cloneAssets()
+}
+
+export async function getWalletTransactions(): Promise<TransactionHistoryProps[]> {
+  try {
+    const res = await get(endpoints.wallet.transactions)
+    if (Array.isArray(res)) return res as TransactionHistoryProps[]
+  } catch {
+    return cloneTransactions()
+  }
+  return cloneTransactions()
 }

@@ -16,7 +16,7 @@ export const get = async (endpoint: string) => {
     } catch (error: unknown) {
         if (error instanceof AxiosError) {
             console.error('Error fetching data:', error.response?.data);
-            throw new Error('Failed to fetch data');
+            throw Object.assign(new Error('Failed to fetch data'), { cause: error });
         }
        
     }

@@ -1,20 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router'
-import { useUserStore } from '../../stores'
-import * as tradeService from '../../services/tradeService'
+import { useShallow } from 'zustand/react/shallow'
+import GradientBadge from '../common/GradientBadge'
+import { tradeSideTone, tradeStatusTone } from '../common/gradientBadgeTones'
+import { useTradeStore, useUserStore } from '../../stores'
 import type { ClosedTradeRow } from '../../types/trade'
 import { formatDateWithTime } from '../../util/time'
 
 function SideBadge({ side }: { side: ClosedTradeRow['option'] }) {
-  const buy = side === 'buy'
   return (
-    <span
-      className={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${
-        buy ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
-      }`}
-    >
+    <GradientBadge tone={tradeSideTone(side)} size="xs" uppercase>
       {side}
-    </span>
+    </GradientBadge>
   )
 }
 
@@ -43,23 +40,38 @@ type Props = {
 
 export default function ClosedTradesTable({ limit, showViewAll }: Props) {
   const userId = useUserStore((s) => s.user?.user_id) ?? 'demo-user'
-  const [rows, setRows] = useState<ClosedTradeRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const { trades, loading, loadTrades } = useTradeStore(
+    useShallow((state) => ({
+      trades: state.trades,
+      loading: state.loading,
+      loadTrades: state.loadTrades,
+    }))
+  )
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      const data = await tradeService.getClosedTrades(userId)
-      if (!cancelled) {
-        setRows(typeof limit === 'number' ? data.slice(0, limit) : data)
-        setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [userId, limit])
+    void loadTrades(userId)
+  }, [loadTrades, userId])
+
+  const rows = useMemo<ClosedTradeRow[]>(
+    () =>
+      trades
+        .filter((trade) => trade.status === 'completed' || trade.status === 'canceled')
+        .slice(0, typeof limit === 'number' ? limit : trades.length)
+        .map((trade) => ({
+          tradeId: trade.tradeId,
+          pair: trade.pair,
+          option: trade.option,
+          entryTime: trade.entryTime,
+          entryPrice: String(trade.entryPrice),
+          invested: String(trade.invested),
+          currency: trade.currency,
+          closingTime: trade.closingTime,
+          closingPrice: trade.closingPrice === 'pending' ? 'Pending' : String(trade.closingPrice),
+          status: trade.status,
+          roi: trade.roi === 'pending' ? 'pending' : String(trade.roi),
+        })),
+    [limit, trades]
+  )
 
   if (loading) {
     return (
@@ -125,7 +137,11 @@ export default function ClosedTradesTable({ limit, showViewAll }: Props) {
                   <div>{CellClosed(info.closingTime)}</div>
                   <div className="text-xs text-neutral-500">@{info.closingPrice}</div>
                 </td>
-                <td className="px-4 py-3 capitalize text-neutral-300">{info.status}</td>
+                <td className="px-4 py-3">
+                  <GradientBadge tone={tradeStatusTone(info.status)} size="xs">
+                    {info.status}
+                  </GradientBadge>
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums">
                   {CellRoi(info.roi, info.currency)}
                 </td>

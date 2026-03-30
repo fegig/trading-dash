@@ -1,46 +1,50 @@
-import { useEffect, useState } from 'react'
-import { useUserStore } from '../../stores'
-import * as tradeService from '../../services/tradeService'
+import { useEffect, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
+import GradientBadge from '../common/GradientBadge'
+import { tradeSideTone } from '../common/gradientBadgeTones'
+import { useTradeStore, useUserStore } from '../../stores'
 import type { OpenTradeRow } from '../../types/trade'
 import { formatDateWithTime } from '../../util/time'
 
 function SideBadge({ side }: { side: OpenTradeRow['option'] }) {
-  const buy = side === 'buy'
   return (
-    <span
-      className={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${
-        buy ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
-      }`}
-    >
+    <GradientBadge tone={tradeSideTone(side)} size="xs" uppercase>
       {side}
-    </span>
+    </GradientBadge>
   )
 }
 
 export default function OpenTradesTable({ limit = 8 }: { limit?: number }) {
   const userId = useUserStore((s) => s.user?.user_id) ?? 'demo-user'
-  const [rows, setRows] = useState<OpenTradeRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const { trades, loading, loadTrades, closeTrade } = useTradeStore(
+    useShallow((state) => ({
+      trades: state.trades,
+      loading: state.loading,
+      loadTrades: state.loadTrades,
+      closeTrade: state.closeTrade,
+    }))
+  )
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      const data = await tradeService.getOpenTrades(userId)
-      if (!cancelled) {
-        setRows(data.slice(0, limit))
-        setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [userId, limit])
+    void loadTrades(userId)
+  }, [loadTrades, userId])
 
-  const onClose = async (tradeId: string) => {
-    await tradeService.closeTrade(tradeId)
-    setRows((prev) => prev.filter((r) => r.tradeId !== tradeId))
-  }
+  const rows = useMemo<OpenTradeRow[]>(
+    () =>
+      trades
+        .filter((trade) => trade.status === 'open' || trade.status === 'pending')
+        .slice(0, limit)
+        .map((trade) => ({
+          tradeId: trade.tradeId,
+          pair: trade.pair,
+          option: trade.option,
+          entryPrice: String(trade.entryPrice),
+          entryTime: trade.entryTime,
+          invested: String(trade.invested),
+          currency: trade.currency,
+        })),
+    [limit, trades]
+  )
 
   if (loading) {
     return (
@@ -93,7 +97,7 @@ export default function OpenTradesTable({ limit = 8 }: { limit?: number }) {
                 <td className="px-4 py-3 text-right">
                   <button
                     type="button"
-                    onClick={() => onClose(info.tradeId)}
+                    onClick={() => void closeTrade(info.tradeId)}
                     className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors"
                   >
                     Close

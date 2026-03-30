@@ -1,0 +1,58 @@
+import { create } from 'zustand'
+import * as tradeService from '../services/tradeService'
+import type { TradePosition } from '../types/trade'
+
+type TradeState = {
+  trades: TradePosition[]
+  loading: boolean
+  loadedUserId: string | null
+  selectedTradeId: string | null
+  loadTrades: (userId: string, force?: boolean) => Promise<void>
+  selectTrade: (tradeId: string | null) => void
+  closeTrade: (tradeId: string) => Promise<void>
+}
+
+export const useTradeStore = create<TradeState>((set, get) => ({
+  trades: [],
+  loading: false,
+  loadedUserId: null,
+  selectedTradeId: null,
+  loadTrades: async (userId, force = false) => {
+    const { loadedUserId, loading } = get()
+    if (!force && loading) return
+    if (!force && loadedUserId === userId && get().trades.length > 0) return
+
+    set({ loading: true })
+    const trades = await tradeService.getTradePositions(userId)
+    set((state) => {
+      const stillSelected =
+        state.selectedTradeId && trades.some((trade) => trade.tradeId === state.selectedTradeId)
+      return {
+        trades,
+        loading: false,
+        loadedUserId: userId,
+        selectedTradeId: stillSelected ? state.selectedTradeId : trades[0]?.tradeId ?? null,
+      }
+    })
+  },
+  selectTrade: (tradeId) => set({ selectedTradeId: tradeId }),
+  closeTrade: async (tradeId) => {
+    await tradeService.closeTrade(tradeId)
+    const now = Math.floor(Date.now() / 1000)
+    set((state) => ({
+      trades: state.trades.map((trade) => {
+        if (trade.tradeId !== tradeId || trade.status === 'completed') return trade
+        const realized = Number((trade.pnl - trade.fees).toFixed(2))
+        return {
+          ...trade,
+          status: 'completed',
+          closingTime: now,
+          closingPrice: trade.marketPrice,
+          roi: realized,
+          pnl: realized,
+          note: `${trade.note} Closed manually from the open positions panel.`,
+        }
+      }),
+    }))
+  },
+}))

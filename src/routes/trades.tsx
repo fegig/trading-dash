@@ -1,154 +1,162 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
-import { useUserStore } from '../stores'
-import * as tradeService from '../services/tradeService'
-import type { ClosedTradeRow } from '../types/trade'
-import { formatDateWithTime } from '../util/time'
+import { useShallow } from 'zustand/react/shallow'
+import PageHero from '../components/common/PageHero'
+import TradeHistoryCard from '../components/trades/TradeHistoryCard'
+import TradePreviewDrawer, { TradePreviewPanel } from '../components/trades/TradePreviewPanel'
+import { useTradeStore, useUserStore } from '../stores'
+import type { TradeStatus } from '../types/trade'
+import { formatCurrency } from '../util/formatCurrency'
 
-const PAGE_SIZE = 10
+type HistoryType = Record<TradeStatus, boolean>
 
-function SideBadge({ side }: { side: ClosedTradeRow['option'] }) {
-  const buy = side === 'buy'
-  return (
-    <span
-      className={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${
-        buy ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
-      }`}
-    >
-      {side}
-    </span>
-  )
+const defaultFilters: HistoryType = {
+  open: true,
+  pending: true,
+  canceled: true,
+  completed: true,
 }
 
 export default function AllTradesPage() {
-  const userId = useUserStore((s) => s.user?.user_id) ?? 'demo-user'
-  const [rows, setRows] = useState<ClosedTradeRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(0)
+  const userId = useUserStore((state) => state.user?.user_id) ?? 'demo-user'
+  const { trades, loading, selectedTradeId, loadTrades, selectTrade } = useTradeStore(
+    useShallow((state) => ({
+      trades: state.trades,
+      loading: state.loading,
+      selectedTradeId: state.selectedTradeId,
+      loadTrades: state.loadTrades,
+      selectTrade: state.selectTrade,
+    }))
+  )
+
+  const [filters, setFilters] = useState<HistoryType>(defaultFilters)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      const data = await tradeService.getClosedTrades(userId)
-      console.log(data)
-      if (!cancelled) {
-        setRows(data)
-        setPage(0)
-        setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [userId])
+    void loadTrades(userId)
+  }, [loadTrades, userId])
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
-  const pageIndex = Math.min(page, totalPages - 1)
-  const pageRows = useMemo(() => {
-    const start = pageIndex * PAGE_SIZE
-    return rows.slice(start, start + PAGE_SIZE)
-  }, [rows, pageIndex])
+  const filteredTrades = useMemo(
+    () => trades.filter((trade) => filters[trade.status]),
+    [filters, trades]
+  )
+
+  const selectedTrade =
+    trades.find((trade) => trade.tradeId === selectedTradeId) ?? filteredTrades[0] ?? null
+
+  const stats = useMemo(() => {
+    const openCount = trades.filter((trade) => trade.status === 'open' || trade.status === 'pending').length
+    const realized = trades
+      .filter((trade) => trade.roi !== 'pending')
+      .reduce((sum, trade) => sum + Number(trade.roi), 0)
+    const completed = trades.filter((trade) => trade.status === 'completed')
+    const wins = completed.filter((trade) => Number(trade.roi) > 0).length
+
+    return [
+      { label: 'Open Flow', value: `${openCount} active setups` },
+      { label: 'Realized PnL', value: formatCurrency(realized, 'USD') },
+      {
+        label: 'Win Rate',
+        value: completed.length ? `${Math.round((wins / completed.length) * 100)}%` : '0%',
+      },
+    ]
+  }, [trades])
+
+  const filterCounts = useMemo(
+    () => ({
+      open: trades.filter((trade) => trade.status === 'open').length,
+      pending: trades.filter((trade) => trade.status === 'pending').length,
+      completed: trades.filter((trade) => trade.status === 'completed').length,
+      canceled: trades.filter((trade) => trade.status === 'canceled').length,
+    }),
+    [trades]
+  )
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-100 tracking-tight">All trades</h1>
-          <p className="text-sm text-neutral-500 mt-1">Full history of closed positions.</p>
+    <div className="space-y-6">
+      <PageHero
+        backTo="/trade-center"
+        backLabel="Back to Trade Center"
+        eyebrow="Execution Archive"
+        title="Trade history with setup context"
+        description="Review every position with the same visual structure you use on the dashboard, then drill into full setup details, funding source, execution notes, and live risk mapping."
+        iconClass="fi fi-rr-time-past"
+        stats={stats}
+        actions={
+          <>
+            <Link
+              to="/live-trading"
+              className="rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-2 text-sm text-neutral-300 hover:text-green-400 transition-colors"
+            >
+              Live trading desk
+            </Link>
+            <Link
+              to="/wallet"
+              className="rounded-full bg-green-500/15 px-4 py-2 text-sm text-green-300 hover:bg-green-500/25 transition-colors"
+            >
+              Review funding wallet
+            </Link>
+          </>
+        }
+      />
+
+      <div className="gradient-background rounded-2xl border border-neutral-800/80 p-4">
+        <div className="flex flex-wrap gap-3">
+          {(Object.keys(filters) as TradeStatus[]).map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => setFilters((prev) => ({ ...prev, [status]: !prev[status] }))}
+              className={`rounded-full px-4 py-2 text-sm capitalize border transition-colors ${
+                filters[status]
+                  ? 'border-green-500/30 bg-green-500/10 text-green-300'
+                  : 'border-neutral-800 bg-neutral-950/70 text-neutral-500'
+              }`}
+            >
+              {status} ({filterCounts[status]})
+            </button>
+          ))}
         </div>
-        <Link
-          to="/live-trading"
-          className="text-sm text-neutral-400 hover:text-green-400 flex items-center gap-1"
-        >
-          <i className="fi fi-rr-angle-small-left" />
-          Back to Live Trading
-        </Link>
       </div>
 
       {loading ? (
-        <div className="gradient-background p-12 rounded-xl animate-pulse min-h-[320px]" />
-      ) : rows.length === 0 ? (
-        <div className="gradient-background p-12 rounded-xl text-center text-neutral-500">
-          <i className="fi fi-rr-search-alt text-3xl mb-3 opacity-50" />
-          <p className="text-sm">No closed trades to show yet.</p>
-        </div>
+        <div className="gradient-background rounded-2xl min-h-[360px] animate-pulse" />
       ) : (
-        <div className="gradient-background p-0 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-neutral-500 uppercase border-b border-neutral-800">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Pair</th>
-                  <th className="px-4 py-3 font-medium">Side</th>
-                  <th className="px-4 py-3 font-medium">Opened</th>
-                  <th className="px-4 py-3 font-medium">Closed</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">ROI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-800/80">
-                {pageRows.map((info) => (
-                  <tr key={info.tradeId} className="hover:bg-neutral-900/40">
-                    <td className="px-4 py-3 font-medium text-neutral-200">{info.pair}</td>
-                    <td className="px-4 py-3">
-                      <SideBadge side={info.option} />
-                    </td>
-                    <td className="px-4 py-3 text-neutral-400 whitespace-nowrap">
-                      {formatDateWithTime(info.entryTime)}
-                    </td>
-                    <td className="px-4 py-3 text-neutral-400 whitespace-nowrap">
-                      {info.closingTime === 'pending'
-                        ? 'Pending'
-                        : formatDateWithTime(info.closingTime)}
-                    </td>
-                    <td className="px-4 py-3 capitalize text-neutral-300">{info.status}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {info.roi === 'pending' ? (
-                        <span className="text-amber-400/90">Pending</span>
-                      ) : (
-                        <span
-                          className={
-                            Number(info.roi) >= 0 ? 'text-green-400' : 'text-red-400'
-                          }
-                        >
-                          {info.roi}
-                          {info.currency}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {rows.length > PAGE_SIZE && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-800 text-sm text-neutral-400">
-              <span>
-                Page {pageIndex + 1} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={pageIndex === 0}
-                  onClick={() => setPage(pageIndex - 1)}
-                  className="px-3 py-1 rounded-lg gradient-background disabled:opacity-40"
-                >
-                  Prev
-                </button>
-                <button
-                  type="button"
-                  disabled={pageIndex >= totalPages - 1}
-                  onClick={() => setPage(pageIndex + 1)}
-                  className="px-3 py-1 rounded-lg gradient-background disabled:opacity-40"
-                >
-                  Next
-                </button>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
+          <div className="space-y-4">
+            {filteredTrades.length === 0 ? (
+              <div className="gradient-background rounded-2xl p-8 text-center text-neutral-500">
+                <i className="fi fi-rr-search-alt text-3xl mb-3 opacity-60" />
+                <p className="text-sm">No trades match your current status filters.</p>
               </div>
+            ) : (
+              filteredTrades.map((trade) => (
+                <TradeHistoryCard
+                  key={trade.tradeId}
+                  trade={trade}
+                  active={selectedTrade?.tradeId === trade.tradeId}
+                  onClick={() => {
+                    selectTrade(trade.tradeId)
+                    if (window.innerWidth < 1280) setPreviewOpen(true)
+                  }}
+                />
+              ))
+            )}
+          </div>
+
+          <div className="hidden xl:block">
+            <div className="sticky top-6">
+              <TradePreviewPanel trade={selectedTrade} />
             </div>
-          )}
+          </div>
         </div>
       )}
+
+      <TradePreviewDrawer
+        trade={selectedTrade}
+        open={previewOpen && !!selectedTrade}
+        onClose={() => setPreviewOpen(false)}
+      />
     </div>
   )
 }

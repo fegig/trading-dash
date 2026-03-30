@@ -1,33 +1,350 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
+import { toast } from 'react-toastify'
+import { useShallow } from 'zustand/react/shallow'
+import GradientBadge from '../components/common/GradientBadge'
+import {
+  investmentCategoryTone,
+  keywordTone,
+  riskTone,
+} from '../components/common/gradientBadgeTones'
+import PageHero from '../components/common/PageHero'
+import { usePlatformStore, useWalletStore } from '../stores'
+import type { InvestmentCategory } from '../types/platform'
+import { formatCurrency } from '../util/formatCurrency'
+
+const investmentCategories: Array<'All' | InvestmentCategory> = [
+  'All',
+  'Short Term',
+  'Long Term',
+  'Retirement',
+]
+
+function formatTerm(termDays: number) {
+  if (termDays >= 365) return `${Math.round(termDays / 30)} months`
+  if (termDays >= 90) return `${Math.round(termDays / 30)} months`
+  return `${termDays} days`
+}
+
+function MetricPanel({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">{label}</div>
+      <div className={`mt-2 text-sm font-semibold ${accent ?? 'text-neutral-100'}`}>{value}</div>
+    </div>
+  )
+}
 
 export default function InvestmentsPage() {
+  const {
+    investments,
+    investmentPositions,
+    selectedInvestmentId,
+    loadCatalog,
+    selectInvestment,
+    investProduct,
+  } = usePlatformStore(
+    useShallow((state) => ({
+      investments: state.investments,
+      investmentPositions: state.investmentPositions,
+      selectedInvestmentId: state.selectedInvestmentId,
+      loadCatalog: state.loadCatalog,
+      selectInvestment: state.selectInvestment,
+      investProduct: state.investProduct,
+    }))
+  )
+  const { assets, loadWallet } = useWalletStore(
+    useShallow((state) => ({
+      assets: state.assets,
+      loadWallet: state.loadWallet,
+    }))
+  )
+
+  const [selectedCategory, setSelectedCategory] = useState<'All' | InvestmentCategory>('All')
+  const [amount, setAmount] = useState('')
+
+  useEffect(() => {
+    void Promise.all([loadCatalog(), loadWallet()])
+  }, [loadCatalog, loadWallet])
+
+  const visibleInvestments = useMemo(
+    () =>
+      selectedCategory === 'All'
+        ? investments
+        : investments.filter((investment) => investment.category === selectedCategory),
+    [investments, selectedCategory]
+  )
+
+  const selectedInvestment =
+    visibleInvestments.find((investment) => investment.id === selectedInvestmentId) ??
+    visibleInvestments[0] ??
+    null
+
+  const fiatAsset = assets.find((asset) => asset.assetType === 'fiat')
+  const maxApy = useMemo(() => {
+    if (!investments.length) return '0%'
+    return `${Math.max(...investments.map((investment) => investment.apy)).toFixed(1)}%`
+  }, [investments])
+  const investedCapital = useMemo(
+    () => investmentPositions.reduce((sum, position) => sum + position.amount, 0),
+    [investmentPositions]
+  )
+
+  const currentPosition =
+    investmentPositions.find((position) => position.productId === selectedInvestment?.id) ?? null
+
+  const handleInvest = () => {
+    if (!selectedInvestment) return
+    const result = investProduct(selectedInvestment.id, Number(amount || selectedInvestment.minAmount))
+    if (result.ok) {
+      toast.success(result.message)
+    } else {
+      toast.error(result.message)
+    }
+  }
+
   return (
-    <div className="p-6 max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-100">Investments</h1>
-        <p className="text-sm text-neutral-500 mt-2">
-          Structured products, staking-style yields, and treasury allocations — unified with your
-          wallet.
-        </p>
-      </div>
-      <div className="gradient-background p-6 rounded-xl space-y-4">
-        <p className="text-sm text-neutral-500">
-          No products are linked yet. When your backend exposes offerings, list them here with APY,
-          tenor, and subscription CTAs.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <span className="text-xs px-2 py-1 rounded-full bg-neutral-800 text-neutral-400">
-            Compliance review
-          </span>
-          <span className="text-xs px-2 py-1 rounded-full bg-neutral-800 text-neutral-400">
-            Wallet integration
-          </span>
+    <div className="space-y-6">
+      <PageHero
+        backTo="/wallet"
+        backLabel="Back to Wallet"
+        eyebrow="Investment Desk"
+        title="Short-term, long-term, and retirement mandates"
+        description="Each investment mandate is funded from the fiat wallet, surfaced through the shared store, and structured like a real allocation desk rather than a crypto-only placeholder. That gives us a cleaner production path for managed products."
+        iconClass="fi fi-rs-chart-pie"
+        stats={[
+          { label: 'Active Positions', value: `${investmentPositions.length} mandates` },
+          { label: 'Capital Deployed', value: formatCurrency(investedCapital, 'USD') },
+          {
+            label: 'Cash Available',
+            value: fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable',
+          },
+          { label: 'Top Yield', value: maxApy },
+        ]}
+        actions={
+          <>
+            <Link
+              to="/wallet"
+              className="rounded-full bg-green-500/15 px-4 py-2 text-sm text-green-300 hover:bg-green-500/25 transition-colors"
+            >
+              Move funds into cash wallet
+            </Link>
+            <Link
+              to="/dashboard"
+              className="rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-2 text-sm text-neutral-300 hover:text-green-400 transition-colors"
+            >
+              Portfolio overview
+            </Link>
+          </>
+        }
+      />
+
+      <div className="gradient-background rounded-2xl border border-neutral-800/80 p-4">
+        <div className="flex flex-wrap gap-3">
+          {investmentCategories.map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(category)
+                const nextItems =
+                  category === 'All'
+                    ? investments
+                    : investments.filter((investment) => investment.category === category)
+                if (nextItems[0]) {
+                  selectInvestment(nextItems[0].id)
+                  setAmount(String(nextItems[0].minAmount))
+                }
+              }}
+              className={`rounded-full px-4 py-2 text-sm transition-all ${
+                selectedCategory === category
+                  ? 'bg-gradient-to-r from-green-500/18 via-green-500/10 to-transparent text-green-300 ring-1 ring-inset ring-green-500/18'
+                  : 'border border-neutral-800 bg-neutral-950/70 text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
         </div>
       </div>
-      <Link to="/wallet" className="text-sm text-green-400 hover:text-green-300 inline-flex items-center gap-1">
-        <i className="fi fi-rr-angle-small-left" />
-        Wallet
-      </Link>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_26rem] gap-6">
+        <div className="space-y-4">
+          {visibleInvestments.map((investment) => {
+            const activePosition = investmentPositions.find(
+              (position) => position.productId === investment.id
+            )
+
+            return (
+              <button
+                key={investment.id}
+                type="button"
+                onClick={() => {
+                  selectInvestment(investment.id)
+                  setAmount(String(investment.minAmount))
+                }}
+                className={`w-full text-left gradient-background rounded-2xl border p-5 transition-all ${
+                  selectedInvestment?.id === investment.id
+                    ? 'border-green-500/30'
+                    : 'border-neutral-800/80 hover:border-neutral-700'
+                }`}
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="max-w-3xl">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-lg font-semibold text-neutral-100">{investment.name}</span>
+                        <GradientBadge tone={investmentCategoryTone(investment.category)} size="xs">
+                          {investment.category}
+                        </GradientBadge>
+                        <GradientBadge tone={keywordTone(investment.vehicle)} size="xs">
+                          {investment.vehicle}
+                        </GradientBadge>
+                        <GradientBadge tone={riskTone(investment.risk)} size="xs">
+                          {investment.risk} risk
+                        </GradientBadge>
+                      </div>
+                      <p className="mt-2 text-sm text-neutral-500">{investment.subtitle}</p>
+                      <p className="mt-3 text-sm text-neutral-400">{investment.description}</p>
+                    </div>
+
+                    <div className="lg:max-w-xs">
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+                        Investment Objective
+                      </div>
+                      <p className="mt-2 text-sm text-neutral-300">{investment.objective}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                    <MetricPanel label="Yield" value={`${investment.apy}% APY`} accent="text-green-300" />
+                    <MetricPanel label="Term" value={formatTerm(investment.termDays)} />
+                    <MetricPanel label="Minimum" value={formatCurrency(investment.minAmount, 'USD')} />
+                    <MetricPanel label="Liquidity" value={investment.liquidity} />
+                    <MetricPanel label="Distribution" value={investment.distribution} />
+                    <MetricPanel
+                      label="Your Position"
+                      value={activePosition ? formatCurrency(activePosition.amount, 'USD') : 'No allocation'}
+                      accent={activePosition ? 'text-sky-300' : undefined}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {investment.focus.map((focus) => (
+                      <GradientBadge key={focus} tone={keywordTone(focus)} size="xs">
+                        {focus}
+                      </GradientBadge>
+                    ))}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+
+          {visibleInvestments.length === 0 ? (
+            <div className="gradient-background rounded-2xl border border-neutral-800/80 p-8 text-center text-neutral-500">
+              <i className="fi fi-rr-search-alt text-3xl mb-3 opacity-60" />
+              <p className="text-sm">No mandates match the selected category.</p>
+            </div>
+          ) : null}
+        </div>
+
+        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky top-6 h-fit">
+          {selectedInvestment ? (
+            <>
+              <div>
+                <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">
+                  Selected Mandate
+                </div>
+                <h2 className="mt-2 text-2xl font-semibold text-neutral-100">
+                  {selectedInvestment.name}
+                </h2>
+                <p className="mt-3 text-sm text-neutral-400">{selectedInvestment.description}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <GradientBadge tone={investmentCategoryTone(selectedInvestment.category)} size="xs">
+                    {selectedInvestment.category}
+                  </GradientBadge>
+                  <GradientBadge tone={keywordTone(selectedInvestment.vehicle)} size="xs">
+                    {selectedInvestment.vehicle}
+                  </GradientBadge>
+                  <GradientBadge tone={riskTone(selectedInvestment.risk)} size="xs">
+                    {selectedInvestment.risk} risk
+                  </GradientBadge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <MetricPanel label="Liquidity" value={selectedInvestment.liquidity} />
+                <MetricPanel label="Funded" value={`${selectedInvestment.fundedPct}%`} />
+                <MetricPanel label="Distribution" value={selectedInvestment.distribution} />
+                <MetricPanel label="Term" value={formatTerm(selectedInvestment.termDays)} />
+              </div>
+
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Suitable For</div>
+                <p className="mt-2 text-sm text-neutral-300">{selectedInvestment.suitableFor}</p>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+                  Exposure Focus
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedInvestment.focus.map((focus) => (
+                    <GradientBadge key={focus} tone={keywordTone(focus)} size="xs">
+                      {focus}
+                    </GradientBadge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+                  Subscription Size
+                </div>
+                <input
+                  type="text"
+                  value={amount || String(selectedInvestment.minAmount)}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    if (/^\d*\.?\d*$/.test(value)) setAmount(value)
+                  }}
+                  className="w-full rounded-xl border border-neutral-800 bg-neutral-900/80 px-4 py-3 text-sm text-neutral-100 outline-none focus:border-green-500/30"
+                />
+                <div className="flex items-center justify-between text-xs text-neutral-500">
+                  <span>Minimum ticket</span>
+                  <span>{formatCurrency(selectedInvestment.minAmount, 'USD')}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-neutral-500">
+                  <span>Your current position</span>
+                  <span>{currentPosition ? formatCurrency(currentPosition.amount, 'USD') : 'No allocation'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-neutral-500">
+                  <span>Funding source</span>
+                  <span>{fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable'}</span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
+                <div className="text-sm font-semibold text-green-300">Funding Path</div>
+                <p className="mt-2 text-xs text-green-100/80">
+                  Subscriptions debit from the fiat wallet first, then settle into managed positions held in the platform store.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleInvest}
+                className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
+              >
+                Subscribe from cash wallet
+              </button>
+            </>
+          ) : (
+            <div className="text-sm text-neutral-500">Select an investment mandate to view its details.</div>
+          )}
+        </aside>
+      </div>
     </div>
   )
 }
