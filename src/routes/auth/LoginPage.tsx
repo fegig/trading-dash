@@ -10,12 +10,21 @@ import {
   userRequiresTwoFactorLogin,
 } from '@/util/authFlow'
 import { establishSessionAndNavigate } from '@/util/establishSession'
-import { AuthFieldLabel, AuthPanel, authInputClass, authPrimaryButtonClass } from '@/components/auth/AuthPanel'
+import {
+  AuthAlert,
+  AuthContextBlock,
+  AuthFieldLabel,
+  AuthMetric,
+  AuthPanel,
+  AuthRailList,
+  authInputClass,
+  authPrimaryButtonClass,
+} from '@/components/auth/AuthPanel'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const hydrate = useAuthStore((s) => s.hydrate)
+  const hydrate = useAuthStore((state) => state.hydrate)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -55,8 +64,8 @@ export default function LoginPage() {
     navigate('/dashboard', { replace: true })
   }, [hydrate, navigate])
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
     setBusy(true)
     setError(null)
 
@@ -64,41 +73,41 @@ export default function LoginPage() {
       .loginWithPassword(email, password)
       .then(async (response) => {
         const data = response.data
-        const u = data?.user as ApiUser | undefined
-        if (!u) {
+        const user = data?.user as ApiUser | undefined
+        if (!user) {
           setError('Unable to sign in. Check your credentials and try again.')
           return
         }
 
-        if (u.verificationStatus === '0') {
+        if (user.verificationStatus === '0') {
           navigate('/verify', {
             replace: false,
             state: {
-              email: String(u.email ?? email),
-              userId: u.user_id as number,
+              email: String(user.email ?? email),
+              userId: user.user_id as number,
             },
           })
           return
         }
 
-        if (userNeedsOnboarding(u)) {
+        if (userNeedsOnboarding(user)) {
           navigate('/onboarding', {
             replace: false,
             state: {
-              userId: u.user_id,
-              email: String(u.email ?? email),
+              userId: user.user_id,
+              email: String(user.email ?? email),
               apiToken: typeof data?.token === 'string' ? data.token : undefined,
-              prelimUser: u,
+              prelimUser: user,
             },
           })
           return
         }
 
-        if (userRequiresTwoFactorLogin(u)) {
+        if (userRequiresTwoFactorLogin(user)) {
           try {
-            const messageId = await sendLoginOtpChallenge(u)
+            const messageId = await sendLoginOtpChallenge(user)
             persistPendingOtp({
-              user: u,
+              user,
               messageId,
               token: typeof data?.token === 'string' ? data.token : undefined,
             })
@@ -109,7 +118,7 @@ export default function LoginPage() {
           return
         }
 
-        await establishSessionAndNavigate(u, navigate, {
+        await establishSessionAndNavigate(user, navigate, {
           token: typeof data?.token === 'string' ? data.token : undefined,
         })
       })
@@ -124,25 +133,71 @@ export default function LoginPage() {
       .finally(() => setBusy(false))
   }
 
+  const footer = (
+    <div className="space-y-3 text-sm">
+      <p className="text-neutral-500">
+        No account?{' '}
+        <Link to="/register" className="font-medium text-green-300 transition hover:text-green-200">
+          Create one
+        </Link>
+      </p>
+      <p>
+        <Link to="/" className="text-neutral-500 transition hover:text-neutral-300">
+          Back to site
+        </Link>
+      </p>
+    </div>
+  )
+
+  const contextRail = (
+    <>
+      <AuthContextBlock
+        eyebrow="Account access"
+        title="Enter the same workspace used for trading, funding, and managed products."
+        body="The sign-in flow stays functionally identical while the surface now matches the dashboard’s calmer, more mature operating style."
+        iconClass="fi fi-rr-shield-check"
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <AuthMetric label="Access mode" value="Password + verification" accent="text-green-300" />
+          <AuthMetric label="Funding path" value="Fiat wallet ready" />
+        </div>
+      </AuthContextBlock>
+
+      <AuthContextBlock
+        eyebrow="After sign-in"
+        title="What opens next"
+        iconClass="fi fi-rr-apps"
+      >
+        <AuthRailList
+          items={[
+            'Review live setups and trade history from one command surface.',
+            'Move capital through wallet, copy trading, bots, and investments.',
+            'Track readiness, limits, and verification state without leaving the workspace.',
+          ]}
+        />
+      </AuthContextBlock>
+    </>
+  )
+
   return (
     <AuthPanel
-      title="Sign in"
-      subtitle="Use your BlockTrade credentials to access your workspace."
+      eyebrow="Secure sign-in"
+      title="Access your BlockTrade workspace"
+      subtitle="Sign in with your existing credentials to continue into trading, wallet funding, managed products, and account controls."
+      contextRail={contextRail}
+      footer={footer}
     >
       {confirmed ? (
-        <div className="mb-6 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200/90">
+        <AuthAlert tone="success" className="mb-6">
           Email verified. You can sign in below.
-        </div>
+        </AuthAlert>
       ) : null}
 
       <form onSubmit={onSubmit} className="space-y-5">
         {error ? (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200/90"
-          >
+          <AuthAlert tone="danger" className="mb-1">
             {error}
-          </div>
+          </AuthAlert>
         ) : null}
 
         <div>
@@ -152,7 +207,7 @@ export default function LoginPage() {
             type="email"
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             required
             className={authInputClass}
             placeholder="you@company.com"
@@ -164,26 +219,27 @@ export default function LoginPage() {
             <AuthFieldLabel htmlFor="auth-password">Password</AuthFieldLabel>
             <Link
               to="/forgot"
-              className="text-[11px] font-medium uppercase tracking-wider text-green-400/90 hover:text-green-300"
+              className="text-[11px] font-semibold uppercase tracking-[0.16em] text-green-300 transition hover:text-green-200"
             >
               Forgot?
             </Link>
           </div>
+
           <div className="relative">
             <input
               id="auth-password"
               type={passwordShown ? 'text' : 'password'}
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               required
               className={`${authInputClass} pr-12`}
-              placeholder="••••••••"
+              placeholder="Enter your password"
             />
             <button
               type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
-              onClick={() => setPasswordShown(!passwordShown)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 transition hover:text-neutral-300"
+              onClick={() => setPasswordShown((value) => !value)}
               aria-label={passwordShown ? 'Hide password' : 'Show password'}
             >
               <i className={`fi ${passwordShown ? 'fi-rr-eye-crossed' : 'fi-rr-eye'} text-base`} />
@@ -192,21 +248,9 @@ export default function LoginPage() {
         </div>
 
         <button type="submit" disabled={busy} className={authPrimaryButtonClass}>
-          {busy ? 'Signing in…' : 'Continue'}
+          {busy ? 'Signing in...' : 'Continue'}
         </button>
       </form>
-
-      <p className="mt-8 text-center text-sm text-neutral-500">
-        No account?{' '}
-        <Link to="/register" className="font-medium text-green-400 hover:text-green-300">
-          Create one
-        </Link>
-      </p>
-      <p className="mt-3 text-center text-sm">
-        <Link to="/" className="text-neutral-500 transition hover:text-neutral-300">
-          ← Back to site
-        </Link>
-      </p>
     </AuthPanel>
   )
 }

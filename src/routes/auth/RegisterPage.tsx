@@ -4,8 +4,12 @@ import axios from 'axios'
 import * as authService from '@/services/authService'
 import { getRandomString } from '@/util/random'
 import {
+  AuthAlert,
+  AuthContextBlock,
   AuthFieldLabel,
+  AuthMetric,
   AuthPanel,
+  AuthRailList,
   authInputClass,
   authPrimaryButtonClass,
 } from '@/components/auth/AuthPanel'
@@ -21,8 +25,8 @@ export default function RegisterPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const registerUser = (e: React.FormEvent) => {
-    e.preventDefault()
+  const registerUser = (event: React.FormEvent) => {
+    event.preventDefault()
     setError(null)
 
     if (password.length < 8) {
@@ -76,7 +80,9 @@ export default function RegisterPage() {
           if (Array.isArray(data)) setError(data.join(' '))
           else if (typeof data === 'object' && data && 'message' in data) {
             setError(String((data as { message: string }).message))
-          } else setError('Registration could not be completed.')
+          } else {
+            setError('Registration could not be completed.')
+          }
         } else {
           setError('Registration could not be completed.')
         }
@@ -84,20 +90,58 @@ export default function RegisterPage() {
       .finally(() => setBusy(false))
   }
 
+  const footer = (
+    <div className="space-y-3 text-sm">
+      <p className="text-neutral-500">
+        Already registered?{' '}
+        <Link to="/login" className="font-medium text-green-300 transition hover:text-green-200">
+          Sign in
+        </Link>
+      </p>
+      <p>
+        <Link to="/" className="text-neutral-500 transition hover:text-neutral-300">
+          Back to site
+        </Link>
+      </p>
+    </div>
+  )
+
+  const contextRail = (
+    <>
+      <AuthContextBlock
+        eyebrow="Account opening"
+        title="Create your account once, then move through verification and setup with the same flow."
+        body="This redesign keeps the registration logic intact while presenting a more professional first-touch experience."
+        iconClass="fi fi-rr-user-add"
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <AuthMetric label="Entry point" value="Email-based access" accent="text-green-300" />
+          <AuthMetric label="Next step" value="Email verification" />
+        </div>
+      </AuthContextBlock>
+
+      <AuthContextBlock eyebrow="What happens next" title="After account creation" iconClass="fi fi-rr-route">
+        <AuthRailList
+          items={[
+            'Verify your email before opening the workspace.',
+            'Complete profile and currency setup without changing flow behavior.',
+            'Move into dashboard funding, trading, and managed product surfaces after onboarding.',
+          ]}
+        />
+      </AuthContextBlock>
+    </>
+  )
+
   return (
     <AuthPanel
-      title="Create your account"
-      subtitle="Verify your email, then sign in to your workspace."
+      eyebrow="Create your account"
+      title="Open a BlockTrade workspace"
+      subtitle="Set your access credentials first, then continue into verification and profile setup."
+      contextRail={contextRail}
+      footer={footer}
     >
       <form onSubmit={registerUser} className="space-y-5">
-        {error ? (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200/90"
-          >
-            {error}
-          </div>
-        ) : null}
+        {error ? <AuthAlert tone="danger">{error}</AuthAlert> : null}
 
         <div>
           <AuthFieldLabel htmlFor="reg-email">Work email</AuthFieldLabel>
@@ -106,7 +150,7 @@ export default function RegisterPage() {
             type="email"
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             required
             className={authInputClass}
             placeholder="you@company.com"
@@ -120,7 +164,7 @@ export default function RegisterPage() {
             type="password"
             autoComplete="new-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
             required
             minLength={8}
             className={authInputClass}
@@ -135,7 +179,7 @@ export default function RegisterPage() {
             type="password"
             autoComplete="new-password"
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            onChange={(event) => setConfirm(event.target.value)}
             required
             className={authInputClass}
             placeholder="Repeat password"
@@ -143,25 +187,13 @@ export default function RegisterPage() {
         </div>
 
         <button type="submit" disabled={busy} className={authPrimaryButtonClass}>
-          {busy ? 'Creating account…' : 'Continue'}
+          {busy ? 'Creating account...' : 'Continue'}
         </button>
 
-        <p className="text-center text-xs leading-relaxed text-neutral-600">
+        <p className="text-xs leading-6 text-neutral-600">
           By continuing you agree to our terms and acknowledge applicable risk disclosures.
         </p>
       </form>
-
-      <p className="mt-8 text-center text-sm text-neutral-500">
-        Already registered?{' '}
-        <Link to="/login" className="font-medium text-green-400 hover:text-green-300">
-          Sign in
-        </Link>
-      </p>
-      <p className="mt-3 text-center text-sm">
-        <Link to="/" className="text-neutral-500 transition hover:text-neutral-300">
-          ← Back to site
-        </Link>
-      </p>
     </AuthPanel>
   )
 }

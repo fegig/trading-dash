@@ -9,8 +9,10 @@ type HeroStat = {
 type PageHeroProps = {
   backTo: string
   backLabel: string
+  eyebrow?: string
   title: string
   description: string
+  iconClass?: string
   stats?: HeroStat[]
   actions?: ReactNode
 }
@@ -18,8 +20,10 @@ type PageHeroProps = {
 export default function PageHero({
   backTo,
   backLabel,
+  eyebrow,
   title,
   description,
+  iconClass,
   stats = [],
   actions,
 }: PageHeroProps) {
@@ -43,7 +47,12 @@ export default function PageHero({
             <span>{backLabel}</span>
           </Link>
 
-
+          {eyebrow ? (
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-green-300">
+              {iconClass ? <i className={`${iconClass} text-xs`} /> : null}
+              <span>{eyebrow}</span>
+            </div>
+          ) : null}
 
           <h1 className="text-xl md:text-2xl font-bold text-neutral-100 tracking-tight mt-4">
             {title}

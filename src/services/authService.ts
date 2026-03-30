@@ -136,7 +136,12 @@ export function notifyLoginFromDeviceStorage(
     const t = Math.floor(Date.now() / 1000)
     const timeDate = convertTime(t)
     void authGet(
-      endpoints.mailer.loginNotification(String(user.email), user.user_id, loginDevice, timeDate)
+      endpoints.mailer.loginNotification(
+        String(user.email),
+        String(user.user_id),
+        loginDevice,
+        timeDate
+      )
     )
   } catch {
     /* ignore */

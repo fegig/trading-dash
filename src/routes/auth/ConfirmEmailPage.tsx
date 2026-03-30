@@ -1,7 +1,35 @@
 import { useParams, useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
 import * as authService from '@/services/authService'
-import { AuthPanel, authPrimaryButtonClass } from '@/components/auth/AuthPanel'
+import {
+  AuthContextBlock,
+  AuthPanel,
+  AuthRailList,
+  authPrimaryButtonClass,
+  authSecondaryButtonClass,
+} from '@/components/auth/AuthPanel'
+
+function ConfirmEmailContext() {
+  return (
+    <>
+      <AuthContextBlock
+        eyebrow="Verification result"
+        title="Email verification is part of the same account-opening flow."
+        body="We keep the existing token validation logic and only modernize the visual experience around it."
+        iconClass="fi fi-rr-badge-check"
+      />
+      <AuthContextBlock eyebrow="Next step" title="After confirmation" iconClass="fi fi-rr-route">
+        <AuthRailList
+          items={[
+            'Continue into onboarding if profile setup is still pending.',
+            'Sign in if you prefer to finish setup later.',
+            'Request a new verification email if the original link expired.',
+          ]}
+        />
+      </AuthContextBlock>
+    </>
+  )
+}
 
 export default function ConfirmEmailPage() {
   const params = useParams<{ email: string; id: string; userId: string }>()
@@ -17,14 +45,16 @@ export default function ConfirmEmailPage() {
 
     authService
       .verifyEmailToken(token, userId)
-      .then((r) => r.data as boolean)
+      .then((response) => response.data as boolean)
       .then(async (valid) => {
         if (cancelled) return
         if (!valid) {
           setBody(
             <AuthPanel
-              title="Link expired"
+              eyebrow="Link expired"
+              title="This verification link is no longer valid"
               subtitle="Request a fresh verification email from the sign-up flow or contact support."
+              contextRail={<ConfirmEmailContext />}
             >
               <button
                 type="button"
@@ -42,14 +72,16 @@ export default function ConfirmEmailPage() {
           return
         }
         try {
-          const r2 = await authService.updateUserVerificationStatus(1, userId)
-          const data = r2.data as boolean
+          const nextResponse = await authService.updateUserVerificationStatus(1, userId)
+          const data = nextResponse.data as boolean
           if (cancelled) return
           if (data) {
             setBody(
               <AuthPanel
-                title="You’re verified"
-                subtitle={`${email} is confirmed. Finish your profile or sign in when you’re ready.`}
+                eyebrow="Email verified"
+                title="Your address is confirmed"
+                subtitle={`${email} is verified. Finish your profile setup or sign in when you are ready.`}
+                contextRail={<ConfirmEmailContext />}
               >
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
@@ -78,7 +110,12 @@ export default function ConfirmEmailPage() {
         } catch {
           if (cancelled) return
           setBody(
-            <AuthPanel title="Already verified" subtitle="You can sign in with your credentials.">
+            <AuthPanel
+              eyebrow="Already verified"
+              title="This address has already been confirmed"
+              subtitle="You can sign in with your credentials and continue from the account workspace."
+              contextRail={<ConfirmEmailContext />}
+            >
               <button
                 type="button"
                 onClick={() => navigate('/login', { replace: true })}
@@ -93,7 +130,12 @@ export default function ConfirmEmailPage() {
       .catch(() => {
         if (!cancelled) {
           setBody(
-            <AuthPanel title="Something went wrong" subtitle="Try again or request a new link.">
+            <AuthPanel
+              eyebrow="Something went wrong"
+              title="We could not validate this verification request"
+              subtitle="Try again from the sign-in flow or request a fresh verification link."
+              contextRail={<ConfirmEmailContext />}
+            >
               <button
                 type="button"
                 onClick={() => navigate('/login')}
@@ -114,8 +156,13 @@ export default function ConfirmEmailPage() {
   return (
     <div className="flex min-h-[32vh] items-center justify-center">
       {body ?? (
-        <AuthPanel title="Confirming your email" subtitle="Please wait a moment.">
-          <p className="text-sm text-neutral-500">Validating your link…</p>
+        <AuthPanel
+          eyebrow="Confirming email"
+          title="Validating your verification request"
+          subtitle="Please wait while we confirm the link and update your account status."
+          contextRail={<ConfirmEmailContext />}
+        >
+          <p className="text-sm text-neutral-500">Validating your link...</p>
         </AuthPanel>
       )}
     </div>

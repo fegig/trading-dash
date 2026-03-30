@@ -2,8 +2,11 @@ import { Link } from 'react-router'
 import { useState } from 'react'
 import * as authService from '@/services/authService'
 import {
+  AuthAlert,
+  AuthContextBlock,
   AuthFieldLabel,
   AuthPanel,
+  AuthRailList,
   authInputClass,
   authPrimaryButtonClass,
 } from '@/components/auth/AuthPanel'
@@ -13,8 +16,8 @@ export default function ForgotPage() {
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
     setBusy(true)
     authService
       .requestPasswordReset(email)
@@ -22,24 +25,57 @@ export default function ForgotPage() {
       .finally(() => setBusy(false))
   }
 
+  const footer = !sent ? (
+    <p className="text-sm text-neutral-500">
+      <Link to="/login" className="font-medium text-green-300 transition hover:text-green-200">
+        Back to sign in
+      </Link>
+    </p>
+  ) : null
+
+  const contextRail = (
+    <>
+      <AuthContextBlock
+        eyebrow="Password reset"
+        title="Recover access without changing the account workflow."
+        body="Reset instructions are still sent through the existing service flow. The redesign only improves clarity and reassurance."
+        iconClass="fi fi-rr-key"
+      />
+
+      <AuthContextBlock eyebrow="Security notes" title="What to expect" iconClass="fi fi-rr-shield-check">
+        <AuthRailList
+          items={[
+            'If the address exists, reset instructions will be sent shortly.',
+            'Use the latest email only and avoid reusing old reset links.',
+            'Return to sign in after updating your password.',
+          ]}
+        />
+      </AuthContextBlock>
+    </>
+  )
+
   return (
     <AuthPanel
-      title="Reset password"
+      eyebrow="Recover account access"
+      title="Reset your password"
       subtitle={
         sent
-          ? 'If an account exists for this address, you will receive reset instructions shortly.'
-          : 'Enter the email associated with your account. We will email you a reset link.'
+          ? 'If an account exists for this address, reset instructions are already on the way.'
+          : 'Enter the email associated with your account and we will send a reset link.'
       }
+      contextRail={contextRail}
+      footer={footer}
     >
       {sent ? (
         <div className="space-y-6">
-          <div className="rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-4 text-sm text-green-100/90">
+          <AuthAlert tone="success">
             <p className="flex gap-2">
               <i className="fi fi-rr-check-circle mt-0.5 shrink-0 text-green-400" />
               Check your inbox and follow the link to choose a new password.
             </p>
-          </div>
-          <Link to="/login" className={`${authPrimaryButtonClass} inline-block text-center no-underline`}>
+          </AuthAlert>
+
+          <Link to="/login" className={`${authPrimaryButtonClass} inline-flex text-center no-underline`}>
             Back to sign in
           </Link>
         </div>
@@ -52,25 +88,18 @@ export default function ForgotPage() {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               required
               className={authInputClass}
               placeholder="you@company.com"
             />
           </div>
+
           <button type="submit" disabled={busy} className={authPrimaryButtonClass}>
-            {busy ? 'Sending…' : 'Send reset link'}
+            {busy ? 'Sending...' : 'Send reset link'}
           </button>
         </form>
       )}
-
-      {!sent ? (
-        <p className="mt-8 text-center text-sm text-neutral-500">
-          <Link to="/login" className="font-medium text-green-400 hover:text-green-300">
-            ← Sign in
-          </Link>
-        </p>
-      ) : null}
     </AuthPanel>
   )
 }

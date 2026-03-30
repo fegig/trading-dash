@@ -9,7 +9,15 @@ import {
 } from '@/util/authFlow'
 import { establishSessionAndNavigate } from '@/util/establishSession'
 import type { ApiUser } from '@/stores'
-import { AuthPanel, authPrimaryButtonClass, authSecondaryButtonClass } from '@/components/auth/AuthPanel'
+import {
+  AuthAlert,
+  AuthContextBlock,
+  AuthMetric,
+  AuthPanel,
+  AuthRailList,
+  authPrimaryButtonClass,
+  authSecondaryButtonClass,
+} from '@/components/auth/AuthPanel'
 
 export default function LoginOtpPage() {
   const navigate = useNavigate()
@@ -22,11 +30,11 @@ export default function LoginOtpPage() {
   const [info, setInfo] = useState<string | null>(null)
 
   useEffect(() => {
-    const p = readPendingOtp()
-    if (!p?.user?.user_id || !p.messageId) {
+    const pending = readPendingOtp()
+    if (!pending?.user?.user_id || !pending.messageId) {
       setPayload(null)
     } else {
-      setPayload(p)
+      setPayload(pending)
     }
     setOtpReady(true)
   }, [])
@@ -51,8 +59,8 @@ export default function LoginOtpPage() {
     }
   }, [payload])
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     if (!payload?.user || !payload.messageId) return
     const digits = code.replace(/\D/g, '')
     if (digits.length !== 6) {
@@ -67,9 +75,9 @@ export default function LoginOtpPage() {
         messageId: payload.messageId,
         code: digits,
       })
-      const u = payload.user as ApiUser
+      const user = payload.user as ApiUser
       clearPendingOtp()
-      await establishSessionAndNavigate(u, navigate, {
+      await establishSessionAndNavigate(user, navigate, {
         token: typeof payload.token === 'string' ? payload.token : undefined,
         to: payload.redirectTo,
       })
@@ -80,10 +88,22 @@ export default function LoginOtpPage() {
     }
   }
 
+  const footer = (
+    <p className="text-sm text-neutral-500">
+      <Link to="/login" className="font-medium text-green-300 transition hover:text-green-200">
+        Use a different account
+      </Link>
+    </p>
+  )
+
   if (!otpReady) {
     return (
-      <AuthPanel title="Two-factor verification" subtitle="Loading…">
-        <p className="text-sm text-neutral-500">Preparing your session…</p>
+      <AuthPanel
+        eyebrow="Two-factor verification"
+        title="Preparing your security challenge"
+        subtitle="Please wait while we load your verification request."
+      >
+        <p className="text-sm text-neutral-500">Preparing your session...</p>
       </AuthPanel>
     )
   }
@@ -91,35 +111,59 @@ export default function LoginOtpPage() {
   if (payload === null) {
     return (
       <AuthPanel
-        title="Verification unavailable"
+        eyebrow="Verification unavailable"
+        title="This verification request is no longer active"
         subtitle="Open the sign-in page and enter your password again to receive a fresh code."
+        footer={footer}
       >
-        <Link to="/login" className={authPrimaryButtonClass + ' block text-center'}>
+        <Link to="/login" className={`${authPrimaryButtonClass} inline-flex text-center no-underline`}>
           Back to sign in
         </Link>
       </AuthPanel>
     )
   }
 
+  const contextRail = (
+    <>
+      <AuthContextBlock
+        eyebrow="Security check"
+        title="We verify sign-in before opening the workspace."
+        body="The account flow remains unchanged: verify the one-time code, then continue into the same dashboard and funding environment."
+        iconClass="fi fi-rr-shield-check"
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <AuthMetric label="Delivery" value="Email OTP" accent="text-green-300" />
+          <AuthMetric label="Code length" value="6 digits" />
+        </div>
+      </AuthContextBlock>
+
+      <AuthContextBlock
+        eyebrow="Verification tips"
+        title="Use the latest code only"
+        iconClass="fi fi-rr-badge-check"
+      >
+        <AuthRailList
+          items={[
+            'Codes expire quickly for security.',
+            'Request a new code if the latest one does not arrive.',
+            'After verification, you will return to the original destination automatically.',
+          ]}
+        />
+      </AuthContextBlock>
+    </>
+  )
+
   return (
     <AuthPanel
-      title="Two-factor verification"
+      eyebrow="Two-factor verification"
+      title="Confirm it is really you"
       subtitle={`Enter the one-time code we sent to ${email || 'your email'}.`}
+      contextRail={contextRail}
+      footer={footer}
     >
       <form onSubmit={onSubmit} className="space-y-5">
-        {info ? (
-          <div className="rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200/90">
-            {info}
-          </div>
-        ) : null}
-        {error ? (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200/90"
-          >
-            {error}
-          </div>
-        ) : null}
+        {info ? <AuthAlert tone="success">{info}</AuthAlert> : null}
+        {error ? <AuthAlert tone="danger">{error}</AuthAlert> : null}
 
         <div>
           <label htmlFor="otp-code" className="sr-only">
@@ -132,14 +176,14 @@ export default function LoginOtpPage() {
             autoComplete="one-time-code"
             maxLength={6}
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            className="w-full rounded-xl border border-neutral-800 bg-neutral-900/70 px-4 py-4 text-center font-mono text-2xl tracking-[0.35em] text-neutral-100 placeholder:text-neutral-600 focus:border-green-500/40 focus:outline-none focus:ring-1 focus:ring-green-500/30"
-            placeholder="••••••"
+            onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+            className="w-full rounded-2xl border border-neutral-800 bg-neutral-900/75 px-4 py-4 text-center font-mono text-2xl tracking-[0.35em] text-neutral-100 placeholder:text-neutral-600 transition-colors focus:border-green-500/30 focus:outline-none focus:ring-1 focus:ring-green-500/20"
+            placeholder="000000"
           />
         </div>
 
         <button type="submit" disabled={busy} className={authPrimaryButtonClass}>
-          {busy ? 'Verifying…' : 'Verify and continue'}
+          {busy ? 'Verifying...' : 'Verify and continue'}
         </button>
 
         <button
@@ -148,15 +192,9 @@ export default function LoginOtpPage() {
           onClick={() => void onResend()}
           className={authSecondaryButtonClass}
         >
-          {resendBusy ? 'Sending…' : 'Resend code'}
+          {resendBusy ? 'Sending...' : 'Resend code'}
         </button>
       </form>
-
-      <p className="mt-8 text-center text-sm text-neutral-500">
-        <Link to="/login" className="font-medium text-neutral-300 hover:text-green-400">
-          ← Use a different account
-        </Link>
-      </p>
     </AuthPanel>
   )
 }

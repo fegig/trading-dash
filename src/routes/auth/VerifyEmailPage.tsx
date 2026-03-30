@@ -3,15 +3,22 @@ import { useEffect, useState } from 'react'
 import * as authService from '@/services/authService'
 import { getRandomString } from '@/util/random'
 import NotFoundPage from '../NotFound'
-import { AuthPanel, authPrimaryButtonClass, authSecondaryButtonClass } from '@/components/auth/AuthPanel'
+import {
+  AuthAlert,
+  AuthContextBlock,
+  AuthPanel,
+  AuthRailList,
+  authPrimaryButtonClass,
+  authSecondaryButtonClass,
+} from '@/components/auth/AuthPanel'
 
 export default function VerifyEmailPage() {
-  const items = useLocation()
+  const location = useLocation()
   const navigate = useNavigate()
   const [resMsg, setResMsg] = useState<string | null>(null)
   const [verifiedStatus, setVerifiedStatus] = useState(false)
 
-  const userId = (items.state as { userId?: number } | null)?.userId
+  const userId = (location.state as { userId?: number } | null)?.userId
 
   useEffect(() => {
     if (userId == null) return
@@ -28,35 +35,58 @@ export default function VerifyEmailPage() {
   }, [userId])
 
   const resendMail = () => {
-    const st = items.state as {
+    const state = location.state as {
       email?: string
       userName?: string
       userId?: number
     } | null
-    if (!st?.email || st.userId == null) return
+    if (!state?.email || state.userId == null) return
 
     const token = getRandomString(62)
     authService
-      .createVerifyToken(st.userId, token)
-      .then(() => authService.sendVerificationEmail(st.email!, st.userId!, token, st.userName))
-      .then((res) => {
-        if (res.data === '200' || res.data === 200) setResMsg('Verification email sent.')
+      .createVerifyToken(state.userId, token)
+      .then(() => authService.sendVerificationEmail(state.email!, state.userId!, token, state.userName))
+      .then((response) => {
+        if (response.data === '200' || response.data === 200) setResMsg('Verification email sent.')
       })
       .catch(() => {})
   }
 
-  if (items.state == null) {
+  if (location.state == null) {
     return <NotFoundPage />
   }
 
-  const st = items.state as { email: string; userId: number }
-  const email = st.email
+  const state = location.state as { email: string; userId: number }
+  const email = state.email
+
+  const contextRail = (
+    <>
+      <AuthContextBlock
+        eyebrow="Email verification"
+        title="Your account is almost ready."
+        body="The verification step still uses the same token and polling logic. The redesign simply makes the state clearer and calmer."
+        iconClass="fi fi-rr-envelope"
+      />
+
+      <AuthContextBlock eyebrow="What to do" title="Before you continue" iconClass="fi fi-rr-time-forward">
+        <AuthRailList
+          items={[
+            'Open the latest verification email only.',
+            'Check spam or promotions folders if it does not arrive quickly.',
+            'Return here automatically after the address is confirmed.',
+          ]}
+        />
+      </AuthContextBlock>
+    </>
+  )
 
   if (verifiedStatus) {
     return (
       <AuthPanel
-        title="Email confirmed"
-        subtitle="Your address is verified. Complete your profile or sign in when you prefer."
+        eyebrow="Email confirmed"
+        title="Your address is verified"
+        subtitle="Finish your profile setup now or sign in and return later."
+        contextRail={contextRail}
       >
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
@@ -64,7 +94,7 @@ export default function VerifyEmailPage() {
             onClick={() =>
               navigate('/onboarding', {
                 replace: true,
-                state: { userId: st.userId, email: st.email },
+                state: { userId: state.userId, email: state.email },
               })
             }
             className={authPrimaryButtonClass}
@@ -85,32 +115,36 @@ export default function VerifyEmailPage() {
 
   return (
     <AuthPanel
-      title="Confirm your email"
-      subtitle={`We sent a message to ${email}. Open the link inside to finish setup.`}
+      eyebrow="Confirm your email"
+      title="Verify your address before opening the workspace"
+      subtitle={`We sent a verification message to ${email}. Open the link inside to finish setup.`}
+      contextRail={contextRail}
+      footer={
+        <p className="text-sm text-neutral-500">
+          <Link to="/login" className="font-medium text-green-300 transition hover:text-green-200">
+            Back to sign in
+          </Link>
+        </p>
+      }
     >
       <div className="space-y-6">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 px-4 py-4 text-sm text-neutral-400">
+        <AuthAlert tone="neutral">
           <p className="flex gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/15 text-green-400">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/10 text-green-300">
               <i className="fi fi-rr-envelope text-lg" />
             </span>
             <span>
-              Link expires for security. If it does, request a new email below. Check spam folders if
-              you don&apos;t see it within a few minutes.
+              Verification links expire for security. If the latest email no longer works, request a
+              new one below.
             </span>
           </p>
-        </div>
+        </AuthAlert>
 
         <button type="button" onClick={resendMail} className={authPrimaryButtonClass}>
           Resend email
         </button>
-        {resMsg ? <p className="text-center text-sm text-green-400/90">{resMsg}</p> : null}
 
-        <p className="text-center text-sm text-neutral-500">
-          <Link to="/login" className="font-medium text-neutral-300 hover:text-green-400">
-            ← Back to sign in
-          </Link>
-        </p>
+        {resMsg ? <AuthAlert tone="success">{resMsg}</AuthAlert> : null}
       </div>
     </AuthPanel>
   )

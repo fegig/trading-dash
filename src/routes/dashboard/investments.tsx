@@ -62,6 +62,7 @@ export default function InvestmentsPage() {
 
   const [selectedCategory, setSelectedCategory] = useState<'All' | InvestmentCategory>('All')
   const [amount, setAmount] = useState('')
+  const [renderTimestamp] = useState(() => Math.floor(Date.now() / 1000))
 
   useEffect(() => {
     void Promise.all([loadCatalog(), loadWallet()])
@@ -94,16 +95,15 @@ export default function InvestmentsPage() {
     investmentPositions.find((position) => position.productId === selectedInvestment?.id) ?? null
 
   const runningPositions = useMemo(() => {
-    const nowSec = Math.floor(Date.now() / 1000)
     return investmentPositions
       .map((position) => {
         const product = investments.find((item) => item.id === position.productId)
         if (!product) return null
-        const roi = estimatePositionRoi(product, position, nowSec)
+        const roi = estimatePositionRoi(product, position, renderTimestamp)
         return { position, product, roi }
       })
       .filter((row): row is NonNullable<typeof row> => row !== null)
-  }, [investmentPositions, investments])
+  }, [investmentPositions, investments, renderTimestamp])
 
   const handleInvest = () => {
     if (!selectedInvestment) return

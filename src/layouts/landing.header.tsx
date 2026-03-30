@@ -3,58 +3,74 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { paths } from '@/navigation/paths'
 
+const navItems = [
+  { to: '/about', label: 'About' },
+  { to: '/market', label: 'Markets' },
+  { to: '/help', label: 'Help' },
+  { to: '/insights', label: 'Insights' },
+]
+
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `text-sm font-medium transition-colors ${isActive ? 'text-green-400' : 'text-neutral-400 hover:text-neutral-100'}`
+  `text-sm font-medium transition-colors ${
+    isActive ? 'text-neutral-50' : 'text-neutral-400 hover:text-neutral-100'
+  }`
 
 export default function LandingHeader() {
   const [open, setOpen] = useState(false)
-  const hydrate = useAuthStore((s) => s.hydrate)
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const hydrate = useAuthStore((state) => state.hydrate)
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
 
   useEffect(() => {
     hydrate()
   }, [hydrate])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-        <Link to="/" className="text-lg font-bold tracking-tight text-green-400 hover:text-green-300">
-          BlockTrade
+    <header className="fixed inset-x-0 top-0 z-60 border-b border-neutral-800/80 bg-neutral-950/88 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-304 items-center justify-between gap-4 px-4 py-4 md:px-6">
+        <Link to="/" className="flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-2xl bg-green-500/10 text-green-300 ring-1 ring-green-500/20">
+            <i className="fi fi-rr-chart-candlestick text-lg" />
+          </span>
+          <span>
+            <span className="block text-lg font-semibold tracking-tight text-neutral-50">BlockTrade</span>
+            <span className="block text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+              Capital Operations
+            </span>
+          </span>
         </Link>
 
-        <nav className="hidden items-center gap-6 md:flex" aria-label="Marketing">
-          <NavLink to="/about" className={navLinkClass}>
-            About
-          </NavLink>
-          <NavLink to="/market" className={navLinkClass}>
-            Markets
-          </NavLink>
-          <NavLink to="/help" className={navLinkClass}>
-            Help
-          </NavLink>
-          <NavLink to="/insights" className={navLinkClass}>
-            Insights
-          </NavLink>
+        <nav
+          className="hidden items-center gap-6 rounded-full border border-neutral-800 bg-neutral-950/70 px-5 py-3 md:flex"
+          aria-label="Marketing"
+        >
+          {navItems.map((item) => (
+            <NavLink key={item.to} to={item.to} className={navLinkClass}>
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
           {isLoggedIn ? (
             <Link
               to={paths.dashboard}
-              className="rounded-xl bg-green-500/90 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-green-400"
+              className="inline-flex items-center justify-center rounded-full bg-green-500 px-5 py-3 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
             >
-              Dashboard
+              Open dashboard
             </Link>
           ) : (
             <>
-              <Link to="/login" className="text-sm text-neutral-300 hover:text-green-400">
-                Login
+              <Link
+                to="/login"
+                className="inline-flex items-center justify-center rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-3 text-sm font-medium text-neutral-300 transition hover:border-neutral-700 hover:text-neutral-100"
+              >
+                Sign in
               </Link>
               <Link
                 to="/register"
-                className="rounded-xl bg-green-500/90 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-green-400"
+                className="inline-flex items-center justify-center rounded-full bg-green-500 px-5 py-3 text-sm font-semibold text-neutral-950 transition hover:bg-green-400"
               >
-                Register
+                Open account
               </Link>
             </>
           )}
@@ -62,48 +78,55 @@ export default function LandingHeader() {
 
         <button
           type="button"
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-800 md:hidden"
-          aria-label="Menu"
-          onClick={() => setOpen(!open)}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-neutral-800 bg-neutral-950/70 text-neutral-300 md:hidden"
+          aria-label="Toggle menu"
+          onClick={() => setOpen((value) => !value)}
         >
-          <i className={`fi ${open ? 'fi-rr-cross' : 'fi-rr-menu-burger'} text-neutral-300`} />
+          <i className={`fi ${open ? 'fi-rr-cross' : 'fi-rr-menu-burger'} text-base`} />
         </button>
       </div>
 
       {open ? (
-        <div className="border-t border-neutral-800 bg-neutral-950 px-4 py-4 md:hidden">
+        <div className="border-t border-neutral-800/80 bg-neutral-950/96 px-4 py-4 shadow-[0_24px_60px_-32px_rgba(0,0,0,0.9)] md:hidden">
           <nav className="flex flex-col gap-3">
-            <NavLink to="/about" className={navLinkClass} onClick={() => setOpen(false)}>
-              About
-            </NavLink>
-            <NavLink to="/market" className={navLinkClass} onClick={() => setOpen(false)}>
-              Markets
-            </NavLink>
-            <NavLink to="/help" className={navLinkClass} onClick={() => setOpen(false)}>
-              Help
-            </NavLink>
-            <NavLink to="/insights" className={navLinkClass} onClick={() => setOpen(false)}>
-              Insights
-            </NavLink>
-            <hr className="border-neutral-800" />
-            {isLoggedIn ? (
-              <Link
-                to={paths.dashboard}
-                className="text-center text-sm font-semibold text-green-400"
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={navLinkClass}
                 onClick={() => setOpen(false)}
               >
-                Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link to="/login" className="text-sm text-neutral-300" onClick={() => setOpen(false)}>
-                  Login
+                {item.label}
+              </NavLink>
+            ))}
+            <div className="mt-3 flex flex-col gap-3 border-t border-neutral-800/80 pt-4">
+              {isLoggedIn ? (
+                <Link
+                  to={paths.dashboard}
+                  className="inline-flex items-center justify-center rounded-full bg-green-500 px-5 py-3 text-sm font-semibold text-neutral-950"
+                  onClick={() => setOpen(false)}
+                >
+                  Open dashboard
                 </Link>
-                <Link to="/register" className="text-sm text-green-400" onClick={() => setOpen(false)}>
-                  Register
-                </Link>
-              </>
-            )}
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center justify-center rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-3 text-sm font-medium text-neutral-300"
+                    onClick={() => setOpen(false)}
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="inline-flex items-center justify-center rounded-full bg-green-500 px-5 py-3 text-sm font-semibold text-neutral-950"
+                    onClick={() => setOpen(false)}
+                  >
+                    Open account
+                  </Link>
+                </>
+              )}
+            </div>
           </nav>
         </div>
       ) : null}

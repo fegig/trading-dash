@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { TransactionHistoryProps, TransactionTimeFilter } from '@/types/wallet'
 import { formatCurrency } from '@/util/formatCurrency'
 import GradientBadge from '../common/GradientBadge'
@@ -46,14 +46,15 @@ export default function TransactionHistory({
     )
   }, [renderTimestamp, timeFilter, transactions])
 
-  useEffect(() => {
-    setTxPage(1)
-  }, [timeFilter, transactions])
+  const currentPage = Math.min(
+    txPage,
+    Math.max(1, Math.ceil(filteredTransactions.length / TX_PAGE_SIZE))
+  )
 
   const pagedTransactions = useMemo(
     () =>
-      filteredTransactions.slice((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE),
-    [filteredTransactions, txPage]
+      filteredTransactions.slice((currentPage - 1) * TX_PAGE_SIZE, currentPage * TX_PAGE_SIZE),
+    [currentPage, filteredTransactions]
   )
 
   return (
@@ -68,7 +69,10 @@ export default function TransactionHistory({
             <button
               key={filter}
               type="button"
-              onClick={() => setTimeFilter(filter)}
+              onClick={() => {
+                setTimeFilter(filter)
+                setTxPage(1)
+              }}
               className={`px-3 text-xs py-1 rounded-full ${
                 timeFilter === filter
                   ? 'bg-green-500 text-neutral-950'
@@ -144,7 +148,7 @@ export default function TransactionHistory({
             </tbody>
           </table>
           <Pagination
-            page={txPage}
+            page={currentPage}
             pageSize={TX_PAGE_SIZE}
             totalCount={filteredTransactions.length}
             onPageChange={setTxPage}

@@ -1,6 +1,8 @@
 import { BrowserRouter, Route, Routes } from 'react-router'
 import { ToastContainer } from 'react-toastify'
 import { AuthBootstrap } from './components/AuthBootstrap'
+import CookieConsent from './components/common/CookieConsent'
+import SmoothScroll from './components/common/SmoothScroll'
 import DashboardLayout from './layouts/protected.layout'
 import LandingLayout from './layouts/landing.layout'
 import AuthLayout from './layouts/auth.layout'
@@ -34,6 +36,8 @@ import LiveTrading from './routes/dashboard/live-trading'
 function App() {
   return (
     <BrowserRouter>
+      <SmoothScroll />
+      <CookieConsent />
       <AuthBootstrap>
         <Routes>
           <Route element={<LandingLayout />}>

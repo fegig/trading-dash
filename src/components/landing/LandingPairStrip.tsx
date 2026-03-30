@@ -1,61 +1,116 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { HIGHLIGHT_COINS, PREDEFINED_COINS } from '@/data/marketCoins'
+import { paths } from '@/navigation/paths'
 import { CurrencyCell } from './CurrencyCell'
 import { PriceChange } from './PriceChange'
-import { paths } from '@/navigation/paths'
+import { MarketingSurface } from './MarketingSurface'
 
-/** Deterministic mock quote per symbol (no API dependency). */
-function mockRow(symbol: string) {
-  let h = 0
-  for (let i = 0; i < symbol.length; i++) h += symbol.charCodeAt(i)
-  const price = 50 + (h % 50000) + (h % 100) * 0.01
-  const change = ((h % 17) - 8) * 0.35
-  return { price, change }
+type MarketSnapshotRow = {
+  symbol: string
+  name: string
+  price: number
+  change: number
+  volume: number
+  spread: number
+}
+
+function buildMarketRow(symbol: string, name: string): MarketSnapshotRow {
+  let seed = 0
+  for (let index = 0; index < symbol.length; index += 1) seed += symbol.charCodeAt(index) * (index + 1)
+
+  return {
+    symbol,
+    name,
+    price: 25 + (seed % 60000) + (seed % 100) * 0.01,
+    change: ((seed % 21) - 10) * 0.37,
+    volume: 900000 + (seed % 7000000),
+    spread: 0.1 + (seed % 30) / 100,
+  }
 }
 
 export function LandingPairStrip() {
-  const rows = useMemo(() => {
-    return HIGHLIGHT_COINS.map((sym) => {
-      const coin = PREDEFINED_COINS.find((c) => c.symbol === sym)
-      const { price, change } = mockRow(sym)
-      return { sym, name: coin?.name ?? sym, price, change }
-    })
-  }, [])
+  const rows = useMemo(
+    () =>
+      PREDEFINED_COINS.slice(0, 8).map((coin) => buildMarketRow(coin.symbol, coin.name)),
+    []
+  )
+
+  const highlights = rows.filter((row) =>
+    HIGHLIGHT_COINS.some((highlight) => highlight === row.symbol)
+  )
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-900/40">
-      <table className="w-full min-w-[520px] text-left text-sm">
-        <thead>
-          <tr className="border-b border-neutral-800 text-xs uppercase tracking-wide text-neutral-500">
-            <th className="px-4 py-3">Pair</th>
-            <th className="px-4 py-3">Price</th>
-            <th className="px-4 py-3">24h</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.sym} className="border-b border-neutral-800/80 last:border-0">
-              <td className="px-4 py-3">
-                <span className="font-semibold text-neutral-100">{r.sym}</span>
-                <span className="ml-2 text-neutral-500">{r.name}</span>
-              </td>
-              <td className="px-4 py-3">
-                <CurrencyCell value={r.price} symbol="$" />
-              </td>
-              <td className="px-4 py-3">
-                <PriceChange change={r.change} />
-              </td>
+    <MarketingSurface className="p-5 md:p-6">
+      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {highlights.map((row) => (
+          <div
+            key={row.symbol}
+            className="rounded-2xl border border-neutral-800 bg-neutral-950/70 px-4 py-4"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-neutral-100">{row.symbol}/USD</div>
+                <div className="text-xs text-neutral-500">{row.name}</div>
+              </div>
+              <span className="rounded-full border border-neutral-800 bg-neutral-900/80 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                Spread {row.spread.toFixed(2)}%
+              </span>
+            </div>
+            <div className="mt-4 text-xl font-semibold tracking-tight text-neutral-50">
+              <CurrencyCell value={row.price} symbol="$" />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
+              <PriceChange change={row.change} />
+              <span>Vol ${Math.round(row.volume / 1000)}K</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div
+        data-lenis-prevent
+        className="mt-6 overflow-x-auto rounded-[24px] border border-neutral-800 bg-neutral-950/70"
+      >
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead className="border-b border-neutral-800 bg-neutral-950/80">
+            <tr className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+              <th className="px-4 py-3 font-semibold">Asset</th>
+              <th className="px-4 py-3 font-semibold">Last Price</th>
+              <th className="px-4 py-3 font-semibold">24h</th>
+              <th className="px-4 py-3 font-semibold">24h Volume</th>
+              <th className="px-4 py-3 font-semibold">Indicative Spread</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="border-t border-neutral-800 px-4 py-2 text-center text-xs text-neutral-500">
-        Illustrative data.{' '}
-        <Link to={paths.dashboardLiveTrading} className="text-green-400 hover:text-green-300">
+          </thead>
+          <tbody className="divide-y divide-neutral-800/80">
+            {rows.map((row) => (
+              <tr key={row.symbol} className="hover:bg-neutral-900/50">
+                <td className="px-4 py-3">
+                  <div className="font-medium text-neutral-100">{row.symbol}/USD</div>
+                  <div className="text-xs text-neutral-500">{row.name}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <CurrencyCell value={row.price} symbol="$" />
+                </td>
+                <td className="px-4 py-3">
+                  <PriceChange change={row.change} />
+                </td>
+                <td className="px-4 py-3 text-neutral-300">
+                  <CurrencyCell value={row.volume} symbol="$" decimalScale={0} />
+                </td>
+                <td className="px-4 py-3 text-neutral-400">{row.spread.toFixed(2)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 border-t border-neutral-800/80 pt-4 text-sm text-neutral-500 md:flex-row md:items-center md:justify-between">
+        <p>Illustrative market snapshot. Open a workspace to access your live trading desk and portfolio controls.</p>
+        <Link to={paths.dashboardLiveTrading} className="font-medium text-green-300 transition hover:text-green-200">
           Open live desk
         </Link>
-      </p>
-    </div>
+      </div>
+    </MarketingSurface>
   )
 }

@@ -2,35 +2,51 @@ import { Link, NavLink } from 'react-router'
 
 export default function AuthHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b border-neutral-800/80 bg-neutral-950/90 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 md:px-6">
-        <Link
-          to="/"
-          className="text-lg font-bold tracking-tight text-green-400 transition-colors hover:text-green-300"
-        >
-          BlockTrade
-        </Link>
-        <div className="flex items-center gap-1 text-sm">
-          <NavLink
-            to="/login"
-            className={({ isActive }) =>
-              `rounded-lg px-3 py-2 font-medium transition-colors ${
-                isActive ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-400 hover:text-neutral-200'
-              }`
-            }
+    <header className="fixed inset-x-0 top-0 z-[60] border-b border-neutral-800/80 bg-neutral-950/88 backdrop-blur-xl">
+      <nav className="mx-auto flex max-w-[76rem] items-center justify-between gap-4 px-4 py-4 md:px-6">
+        <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-green-500/10 text-green-300 ring-1 ring-green-500/20">
+              <i className="fi fi-rr-chart-candlestick text-lg" />
+            </span>
+            <div>
+              <div className="text-lg font-semibold tracking-tight text-neutral-50">BlockTrade</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                Secure Account Access
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link
+            to="/help"
+            className="hidden rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-2.5 text-sm font-medium text-neutral-400 transition hover:border-neutral-700 hover:text-neutral-100 md:inline-flex"
           >
-            Sign in
-          </NavLink>
-          <NavLink
-            to="/register"
-            className={({ isActive }) =>
-              `rounded-lg px-3 py-2 font-medium transition-colors ${
-                isActive ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-400 hover:text-neutral-200'
-              }`
-            }
-          >
-            Create account
-          </NavLink>
+            Need help?
+          </Link>
+          <div className="flex items-center rounded-full border border-neutral-800 bg-neutral-950/70 p-1">
+            <NavLink
+              to="/login"
+              className={({ isActive }) =>
+                `rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
+                  isActive ? 'bg-neutral-100 text-neutral-950' : 'text-neutral-400 hover:text-neutral-100'
+                }`
+              }
+            >
+              Sign in
+            </NavLink>
+            <NavLink
+              to="/register"
+              className={({ isActive }) =>
+                `rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
+                  isActive ? 'bg-green-500 text-neutral-950' : 'text-neutral-400 hover:text-neutral-100'
+                }`
+              }
+            >
+              Create account
+            </NavLink>
+          </div>
         </div>
       </nav>
     </header>
