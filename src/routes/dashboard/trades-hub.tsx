@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
-import TraderSummaryPanel from '../components/trades/TraderSummaryPanel'
-import OpenTradesTable from '../components/trades/OpenTradesTable'
-import ClosedTradesTable from '../components/trades/ClosedTradesTable'
+import TraderSummaryPanel from '../../components/trades/TraderSummaryPanel'
+import OpenTradesTable from '../../components/trades/OpenTradesTable'
+import ClosedTradesTable from '../../components/trades/ClosedTradesTable'
 
 /** Trades hub — summary, open orders, recent closed (not live chart) */
 export default function TradesHubPage() {

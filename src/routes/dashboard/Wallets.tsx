@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useShallow } from 'zustand/react/shallow'
-import AccountBalance from '../components/wallet/AccountBalance'
-import AssetsList from '../components/wallet/AssetsList'
-import TransactionHistory from '../components/wallet/TransactionHistory'
-import { useWalletStore } from '../stores'
-import { formatCurrency } from '../util/formatCurrency'
+import AccountBalance from '@/components/wallet/AccountBalance'
+import AssetsList from '@/components/wallet/AssetsList'
+import TransactionHistory from '@/components/wallet/TransactionHistory'
+import { useWalletStore } from '@/stores'
+import { formatCurrency } from '@/util/formatCurrency'
 
 export default function Wallets() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)

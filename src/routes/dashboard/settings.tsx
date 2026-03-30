@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import PageHero from '../components/common/PageHero'
-import Switch from '../components/common/SwitchOption'
-import { useSettingsStore } from '../stores'
-import { formatDateWithTime } from '../util/time'
+import PageHero from '../../components/common/PageHero'
+import Switch from '../../components/common/SwitchOption'
+import { useSettingsStore } from '../../stores'
+import { formatDateWithTime } from '../../util/time'
 
 const sectionMeta = {
   security: {

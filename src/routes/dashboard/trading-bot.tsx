@@ -2,12 +2,12 @@ import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'react-toastify'
 import { useShallow } from 'zustand/react/shallow'
-import GradientBadge from '../components/common/GradientBadge'
-import PageHero from '../components/common/PageHero'
-import { keywordTone } from '../components/common/gradientBadgeTones'
-import { usePlatformStore, useWalletStore } from '../stores'
-import { formatCurrency } from '../util/formatCurrency'
-import { isSubscriptionActive } from '../util/subscription'
+import GradientBadge from '../../components/common/GradientBadge'
+import PageHero from '../../components/common/PageHero'
+import { keywordTone } from '../../components/common/gradientBadgeTones'
+import { usePlatformStore, useWalletStore } from '../../stores'
+import { formatCurrency } from '../../util/formatCurrency'
+import { isSubscriptionActive } from '../../util/subscription'
 
 function MetricCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (

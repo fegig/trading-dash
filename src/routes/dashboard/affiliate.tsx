@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useUserStore } from '../stores'
+import { useUserStore } from '../../stores'
 
 export default function AffiliatePage() {
   const userId = useUserStore((s) => s.user?.user_id) ?? 'demo-user'

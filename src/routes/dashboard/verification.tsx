@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
-import PageHero from '../components/common/PageHero'
-import { useUserStore, useVerificationStore } from '../stores'
-import { formatDateWithTime } from '../util/time'
+import PageHero from '@/components/common/PageHero'
+import { useUserStore, useVerificationStore } from '@/stores'
+import { formatDateWithTime } from '@/util/time'
 
 function statusLabel(status: string | undefined) {
   switch (status) {

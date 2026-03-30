@@ -1,10 +1,10 @@
-import OrderBook from '../components/dashboard/OrderBook';
-import OrderForm from '../components/dashboard/OrderForm';
-import ChartArea from '../components/dashboard/ChartArea';
-import PairBanner, { MarketData } from '../components/dashboard/PairBanner';
+import OrderBook from '../../components/dashboard/OrderBook';
+import OrderForm from '../../components/dashboard/OrderForm';
+import ChartArea from '../../components/dashboard/ChartArea';
+import PairBanner, { MarketData } from '../../components/dashboard/PairBanner';
 import { useState } from 'react';
-import MiniTradeHistory from '../components/dashboard/MiniTradeHistory';
-import Modal from '../components/common/Modal';
+import MiniTradeHistory from '../../components/dashboard/MiniTradeHistory';
+import Modal from '../../components/common/Modal';
 
 /** Live spot trading — chart, order book, order form */
 function LiveTrading() {

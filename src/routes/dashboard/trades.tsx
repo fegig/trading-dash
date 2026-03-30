@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import Pagination from '../components/common/Pagination'
-import PageHero from '../components/common/PageHero'
-import TradeHistoryCard from '../components/trades/TradeHistoryCard'
-import TradePreviewDrawer, { TradePreviewPanel } from '../components/trades/TradePreviewPanel'
-import { useTradeStore, useUserStore } from '../stores'
-import type { TradeStatus } from '../types/trade'
-import { formatCurrency } from '../util/formatCurrency'
+import Pagination from '@/components/common/Pagination'
+import PageHero from '@/components/common/PageHero'
+import TradeHistoryCard from '@/components/trades/TradeHistoryCard'
+import TradePreviewDrawer, { TradePreviewPanel } from '@/components/trades/TradePreviewPanel'
+import { useTradeStore, useUserStore } from '@/stores'
+import type { TradeStatus } from '@/types/trade'
+import { formatCurrency } from '@/util/formatCurrency'
 import TradeHistoryFilter from '@/components/dashboard/TradeHistoryFilter'
 
 type HistoryType = Record<TradeStatus, boolean>
@@ -45,10 +45,6 @@ export default function AllTradesPage() {
     () => trades.filter((trade) => filters[trade.status]),
     [filters, trades]
   )
-
-  useEffect(() => {
-    setTradePage(1)
-  }, [filters])
 
   const paginatedTrades = useMemo(
     () =>

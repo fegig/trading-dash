@@ -48,7 +48,7 @@ export default function MiniTradeHistory() {
     <>
       <TradeHistoryFilter historyType={historyType} setHistoryType={setHistoryType} showAllTrades={true} />
 
-      <div className="max-h-[310px] overflow-y-auto scrollbar-none mt-4">
+      <div className="max-h-[350px] overflow-y-auto scrollbar-none mt-4">
         <div className="flex flex-col space-y-4 pb-4">
           {filteredHistory.length === 0 ? (
             <div className="gradient-background rounded-2xl p-6 text-center text-neutral-500">

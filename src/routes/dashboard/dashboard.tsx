@@ -223,7 +223,7 @@ export default function DashboardPage() {
     : 0
   const deploymentValue = liveTradeMargin + copyCapital + investmentCapital
   const deploymentPct = portfolioValue > 0 ? Math.round((deploymentValue / portfolioValue) * 100) : 0
-  const nowSec = Math.floor(Date.now() / 1000)
+  const nowSec = Math.floor(new Date().getTime() / 1000)
   const activeBotSubscriptions = botSubscriptions.filter((sub) => isSubscriptionActive(sub.expiresAt, nowSec))
   const activeCopySubscriptions = copyAllocations.filter((alloc) =>
     isSubscriptionActive(alloc.expiresAt, nowSec)

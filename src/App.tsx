@@ -1,26 +1,25 @@
 import { BrowserRouter, Route, Routes } from "react-router"
 import DashboardLayout from "./layouts/protected.layout"
 import { ToastContainer } from "react-toastify"
-import AllTradesPage from "./routes/trades"
-import Wallets from "./routes/Wallets"
-import DashboardPage from "./routes/dashboard"
-import CopyTradingPage from "./routes/copy-trading"
-import TradingBotPage from "./routes/trading-bot"
-import InvestmentsPage from "./routes/investments"
-import AffiliatePage from "./routes/affiliate"
-import SettingsPage from "./routes/settings"
-import VerificationPage from "./routes/verification"
-import HelpPage from "./routes/help"
-import LogoutPage from "./routes/logout"
-import LiveTrading from "./routes/live-trading"
+import AllTradesPage from "./routes/dashboard/trades"
+import Wallets from "./routes/dashboard/Wallets"
+import DashboardPage from "./routes/dashboard/dashboard"
+import CopyTradingPage from "./routes/dashboard/copy-trading"
+import TradingBotPage from "./routes/dashboard/trading-bot"
+import InvestmentsPage from "./routes/dashboard/investments"
+import AffiliatePage from "./routes/dashboard/affiliate"
+import SettingsPage from "./routes/dashboard/settings"
+import VerificationPage from "./routes/dashboard/verification"
+import HelpPage from "./routes/dashboard/help"
+import LogoutPage from "./routes/dashboard/logout"
+import LiveTrading from "./routes/dashboard/live-trading"
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<DashboardLayout />}>
+        <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardPage />} />
-          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="live-trading" element={<LiveTrading />} />
           <Route path="trades" element={<AllTradesPage />} />
           <Route path="wallet" element={<Wallets />} /> 
