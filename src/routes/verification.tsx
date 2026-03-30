@@ -86,7 +86,7 @@ export default function VerificationPage() {
         }
       />
 
-      <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
         <div className="space-y-6">
           <section className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-4">
             <div>
@@ -158,7 +158,8 @@ export default function VerificationPage() {
           </section>
         </div>
 
-        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky  h-fit self-start">
+        <div>
+        <aside className="sticky  gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 h-fit">
           <div>
             <div className="text-[8px]  tracking-[0.16em] text-neutral-500">Documents</div>
             <h2 className="text-xl font-semibold text-neutral-100 mt-2">Review package</h2>
@@ -207,6 +208,7 @@ export default function VerificationPage() {
             </div>
           ) : null}
         </aside>
+        </div>
       </div>
     </div>
   )

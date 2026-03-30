@@ -240,7 +240,7 @@ export default function InvestmentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_26rem] gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_26rem] gap-6">
         <div className="space-y-4">
           {visibleInvestments.map((investment) => {
             const activePosition = investmentPositions.find(
@@ -308,7 +308,8 @@ export default function InvestmentsPage() {
           ) : null}
         </div>
 
-        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky  h-fit self-start">
+        <div>
+        <aside className="sticky  gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 h-fit">
           {selectedInvestment ? (
             <>
               <div>
@@ -403,6 +404,7 @@ export default function InvestmentsPage() {
             <div className="text-sm text-neutral-500">Select an investment mandate to view its details.</div>
           )}
         </aside>
+        </div>
       </div>
     </div>
   )

@@ -143,7 +143,7 @@ export default function CopyTradingPage() {
         }
       />
 
-      <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
         <div className="space-y-4">
           <div className="xl:hidden space-y-4">
             {traderRows.map(({ trader, following, alloc, traderAllocation, subLive }) => (
@@ -190,7 +190,7 @@ export default function CopyTradingPage() {
                     ) : null}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 lg:min-w-[22rem] lg:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 lg:min-w-88 lg:grid-cols-4">
                     <MetricCard label="Monthly" value={trader.monthlyReturn} accent="text-green-300" />
                     <MetricCard label="Win Rate" value={`${trader.winRate}%`} />
                     <MetricCard label="Drawdown" value={`${trader.maxDrawdown}%`} accent="text-amber-300" />
@@ -278,7 +278,8 @@ export default function CopyTradingPage() {
           </div>
         </div>
 
-        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky  h-fit self-start">
+        <div>
+        <aside className="sticky  gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 h-fit">
           {selectedTrader ? (
             <>
               <div>
@@ -380,6 +381,7 @@ export default function CopyTradingPage() {
             <div className="text-sm text-neutral-500">Select a lead trader to review allocation details.</div>
           )}
         </aside>
+        </div>
       </div>
     </div>
   )

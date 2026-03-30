@@ -90,10 +90,17 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
     const bot = bots.find((item) => item.id === botId)
     if (!bot) return { ok: false, message: 'Bot not found.' }
     const now = Math.floor(Date.now() / 1000)
-    const hasActive = botSubscriptions.some(
-      (sub) => sub.botId === botId && isSubscriptionActive(sub.expiresAt, now)
-    )
-    if (hasActive) return { ok: false, message: 'This bot already has an active subscription.' }
+    // Only one bot may be active at a time
+    const activeSub = botSubscriptions.find((sub) => isSubscriptionActive(sub.expiresAt, now))
+    if (activeSub) {
+      const activeBot = bots.find((b) => b.id === activeSub.botId)
+      if (activeSub.botId === botId)
+        return { ok: false, message: `${bot.name} already has an active subscription.` }
+      return {
+        ok: false,
+        message: `${activeBot?.name ?? 'Another bot'} is already running. Cancel it before activating a new plan.`,
+      }
+    }
 
     const walletResult = useWalletStore
       .getState()

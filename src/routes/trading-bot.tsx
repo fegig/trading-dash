@@ -48,7 +48,7 @@ export default function TradingBotPage() {
     void Promise.all([loadCatalog(), loadWallet()])
   }, [loadCatalog, loadWallet])
 
-  const nowSec = Math.floor(Date.now() / 1000)
+  const nowSec = Math.floor(new Date().getTime() / 1000)
   const fiatAsset = assets.find((asset) => asset.assetType === 'fiat')
   const selectedBot = bots.find((bot) => bot.id === selectedBotId) ?? bots[0]
   const averageWinRate = useMemo(() => {
@@ -85,15 +85,16 @@ export default function TradingBotPage() {
   const isBotActive = (botId: string) =>
     botSubscriptions.some((sub) => sub.botId === botId && isSubscriptionActive(sub.expiresAt, nowSec))
 
+  const anyActiveSubscription = botSubscriptions.find((sub) => isSubscriptionActive(sub.expiresAt, nowSec))
+  const anyOtherActive = anyActiveSubscription && anyActiveSubscription.botId !== selectedBot?.id
+
   return (
     <div className="space-y-6">
       <PageHero
         backTo="/trade-center"
         backLabel="Back to Trade Center"
-        eyebrow="Automation Desk"
-        title="Systematic trading plans with controlled activation"
+        title="Trading plans with controlled activation"
         description="Bot plans are now loaded from the service layer, purchased from the fiat wallet, and retained in the shared store so automation activation behaves like a production product workflow."
-        iconClass="fi fi-rs-robot"
         stats={[
           { label: 'Active Bots', value: `${activeSubscriptions.length} running` },
           {
@@ -189,10 +190,12 @@ export default function TradingBotPage() {
         </section>
       ) : null}
 
-      <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
         <div className="space-y-4">
           {bots.map((bot) => {
             const isActive = isBotActive(bot.id)
+            const blockedByOther =
+              !isActive && !!anyActiveSubscription
             return (
               <button
                 key={bot.id}
@@ -201,7 +204,9 @@ export default function TradingBotPage() {
                 className={`w-full text-left gradient-background rounded-2xl border p-5 transition-all ${
                   selectedBot?.id === bot.id
                     ? 'border-green-500/30'
-                    : 'border-neutral-800/80 hover:border-neutral-700'
+                    : blockedByOther
+                      ? 'border-neutral-800/50 opacity-60'
+                      : 'border-neutral-800/80 hover:border-neutral-700'
                 }`}
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -215,13 +220,17 @@ export default function TradingBotPage() {
                         <GradientBadge tone="sky" size="xs">
                           Active
                         </GradientBadge>
+                      ) : blockedByOther ? (
+                        <GradientBadge tone="neutral" size="xs">
+                          Unavailable
+                        </GradientBadge>
                       ) : null}
                     </div>
                     <p className="text-sm text-neutral-500 mt-2">{bot.strapline}</p>
                     <p className="text-sm text-neutral-400 mt-3">{bot.description}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:min-w-[22rem]">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:min-w-88">
                     <MetricCard label="Price" value={formatCurrency(bot.priceUsd, 'USD')} />
                     <MetricCard label="Target" value={bot.monthlyTarget} accent="text-green-300" />
                     <MetricCard label="Win Rate" value={`${bot.winRate}%`} />
@@ -233,7 +242,8 @@ export default function TradingBotPage() {
           })}
         </div>
 
-        <aside className="gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 sticky  h-fit self-start">
+        <div>
+        <aside className="sticky  gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 h-fit">
           {selectedBot ? (
             <>
               <div>
@@ -304,21 +314,34 @@ export default function TradingBotPage() {
                 </p>
               </div>
 
+              {anyOtherActive ? (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
+                  <div className="text-xs font-semibold text-amber-300">One bot at a time</div>
+                  <p className="text-xs text-amber-100/70 mt-1">
+                    {bots.find((b) => b.id === anyActiveSubscription?.botId)?.name ?? 'Another bot'} is
+                    currently running. It must expire or be cancelled before activating a new plan.
+                  </p>
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 onClick={handlePurchase}
-                disabled={selectedSubActive}
+                disabled={selectedSubActive || !!anyOtherActive}
                 className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-50 disabled:pointer-events-none"
               >
                 {selectedSubActive
                   ? `${selectedBot.name} subscription active`
-                  : `Purchase for ${formatCurrency(selectedBot.priceUsd, 'USD')}`}
+                  : anyOtherActive
+                    ? 'Another bot is already running'
+                    : `Purchase for ${formatCurrency(selectedBot.priceUsd, 'USD')}`}
               </button>
             </>
           ) : (
             <div className="text-sm text-neutral-500">Select a bot package to inspect its controls.</div>
           )}
         </aside>
+        </div>
       </div>
     </div>
   )

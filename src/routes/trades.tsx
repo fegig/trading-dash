@@ -96,7 +96,7 @@ export default function AllTradesPage() {
       {loading ? (
         <div className="gradient-background rounded-2xl min-h-[360px] animate-pulse" />
       ) : (
-        <div className="grid grid-cols-1 items-start xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
           <div className="space-y-4">
             {filteredTrades.length === 0 ? (
               <div className="gradient-background rounded-2xl p-8 text-center text-neutral-500">
@@ -126,7 +126,7 @@ export default function AllTradesPage() {
             )}
           </div>
 
-          <div className="hidden xl:block self-start">
+          <div className="hidden xl:block">
             <div className="sticky ">
               <TradePreviewPanel trade={selectedTrade} />
             </div>
