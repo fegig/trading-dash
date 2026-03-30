@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import PageHero from '@/components/common/PageHero'
 import { useUserStore, useVerificationStore } from '@/stores'
 import { formatDateWithTime } from '@/util/time'
+import { paths } from '@/navigation/paths'
 
 function statusLabel(status: string | undefined) {
   switch (status) {
@@ -77,7 +78,7 @@ export default function VerificationPage() {
               Continue enhanced review
             </button>
             <Link
-              to="/settings"
+              to={paths.dashboardSettings}
               className="rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-2 text-sm text-neutral-300 hover:text-green-400 transition-colors"
             >
               Open account settings

@@ -4,8 +4,8 @@ import AssetAvatar from '../common/AssetAvatar'
 import Receive from './Receive'
 import Send from './Send'
 import Swap from './Swap'
-import { type UserCoinsProps } from '../../types/wallet'
-import { formatCurrency, formatNumber } from '../../util/formatCurrency'
+import { type UserCoinsProps } from '@/types/wallet'
+import { formatCurrency, formatNumber } from '@/util/formatCurrency'
 import GradientBadge from '../common/GradientBadge'
 
 export default function AssetsList({ userCoins }: { userCoins: UserCoinsProps[] }) {

@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import AssetAvatar from '../common/AssetAvatar'
-import { UserCoinsProps } from '../../types/wallet'
-import { downloadQRCode } from '../../util/qr'
+import { UserCoinsProps } from '@/types/wallet'
+import { downloadQRCode } from '@/util/qr'
 
 export default function Receive({ coin }: { coin: UserCoinsProps }) {
   const [copied, setCopied] = useState<boolean>(false)

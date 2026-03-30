@@ -1,6 +1,6 @@
 import AssetAvatar from '../common/AssetAvatar'
-import { type UserCoinsProps } from '../../types/wallet'
-import { formatCurrency } from '../../util/formatCurrency'
+import { type UserCoinsProps } from '@/types/wallet'
+import { formatCurrency } from '@/util/formatCurrency'
 
 function calculateTotalValue(userCoins: UserCoinsProps[]) {
     return userCoins.reduce((sum, coin) => sum + coin.userBalance * Number(coin.price), 0)

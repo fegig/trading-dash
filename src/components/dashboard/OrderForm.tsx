@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { formatLength } from "../../util/formatCurrency";
+import { formatLength } from "@/util/formatCurrency";
 import { MarketData } from "./PairBanner";
-import { errorToast, successToast } from "../../components/common/sweetAlerts";
+import { errorToast, successToast } from "@/components/common/sweetAlerts";
 import Switch from "../common/SwitchOption";
 
 type TradingType = 'isolated' | 'cross';

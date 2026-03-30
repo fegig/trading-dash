@@ -3,9 +3,10 @@ import { Link } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
 import GradientBadge from '../common/GradientBadge'
 import { tradeSideTone, tradeStatusTone } from '../common/gradientBadgeTones'
-import { useTradeStore, useUserStore } from '../../stores'
-import type { ClosedTradeRow } from '../../types/trade'
-import { formatDateWithTime } from '../../util/time'
+import { useTradeStore, useUserStore } from '@/stores'
+import type { ClosedTradeRow } from '@/types/trade'
+import { formatDateWithTime } from '@/util/time'
+import { paths } from '@/navigation/paths'
 
 function SideBadge({ side }: { side: ClosedTradeRow['option'] }) {
   return (
@@ -96,7 +97,7 @@ export default function ClosedTradesTable({ limit, showViewAll }: Props) {
       {showViewAll && (
         <div className="flex justify-end px-4 pt-3">
           <Link
-            to="/trades"
+            to={paths.dashboardTrades}
             className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
           >
             View all trades

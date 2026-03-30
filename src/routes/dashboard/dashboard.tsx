@@ -11,6 +11,7 @@ import { usePlatformStore, useTradeStore, useUserStore, useVerificationStore, us
 import { formatCurrency, formatLength, formatNumber } from '@/util/formatCurrency'
 import { isSubscriptionActive } from '@/util/subscription'
 import { formatDateWithTime } from '@/util/time'
+import { paths } from '@/navigation/paths'
 
 function verificationBadge(status: string | undefined) {
   switch (status) {
@@ -324,7 +325,7 @@ export default function DashboardPage() {
                 Open trading desk
               </Link>
               <Link
-                to="/wallet"
+                to={paths.dashboardWallet}
                 className="rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-2 text-sm text-neutral-300 transition-colors hover:text-green-400"
               >
                 Review funding wallet
@@ -349,25 +350,25 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <ActionTile
-          to="/trade-center"
+          to={paths.dashboardHub}
           iconClass="fi fi-rr-apps"
           title="Trade Center"
           body="Access product desks, active mandates, and product-level controls."
         />
         <ActionTile
-          to="/trades"
+          to={paths.dashboardTrades}
           iconClass="fi fi-rr-time-past"
           title="Trade Archive"
           body="Inspect setup context, funding source, and realized performance."
         />
         <ActionTile
-          to="/wallet"
+          to={paths.dashboardWallet}
           iconClass="fi fi-rr-wallet"
           title="Funding Wallet"
           body="Move capital between fiat and crypto balances before deployment."
         />
         <ActionTile
-          to="/verification"
+          to={paths.dashboardVerification}
           iconClass="fi fi-rr-shield-check"
           title="Account Readiness"
           body="Monitor compliance tier, funding limits, and review milestones."
@@ -390,7 +391,7 @@ export default function DashboardPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
               Recent Trade Activity
             </h2>
-            <Link to="/trades" className="text-xs text-green-400 hover:text-green-300">
+            <Link to={paths.dashboardTrades} className="text-xs text-green-400 hover:text-green-300">
               View all trades
             </Link>
           </div>

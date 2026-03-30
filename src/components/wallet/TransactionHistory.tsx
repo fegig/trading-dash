@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { TransactionHistoryProps, TransactionTimeFilter } from '../../types/wallet'
-import { formatCurrency } from '../../util/formatCurrency'
+import type { TransactionHistoryProps, TransactionTimeFilter } from '@/types/wallet'
+import { formatCurrency } from '@/util/formatCurrency'
 import GradientBadge from '../common/GradientBadge'
 import Pagination from '../common/Pagination'
 

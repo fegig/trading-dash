@@ -3,6 +3,7 @@ import { useState, type Dispatch, type SetStateAction } from "react"
 import Dropdown from "../common/Dropdown"
 import Switch from "../common/SwitchOption"
 import { Link } from "react-router"
+import { paths } from "@/navigation/paths"
 
 export type HistoryType = Record<TradeStatus, boolean>
 
@@ -74,7 +75,7 @@ export default function TradeHistoryFilter({
 
       {showAllTrades && (
         <Link
-        to="/trades"
+        to={paths.dashboardTrades}
         className="gradient-background rounded-lg px-3! py-2! text-xs text-neutral-400 hover:text-green-400 flex items-center gap-2 transition-colors"
       >
         <i className="fi fi-rr-exchange text-sm" />

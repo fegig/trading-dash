@@ -1,6 +1,6 @@
 import { TransactionStatus } from '@/types/wallet'
-import type { RiskLevel } from '../../types/platform'
-import type { TradeDirection, TradeSide, TradeStatus } from '../../types/trade'
+import type { RiskLevel } from '@/types/platform'
+import type { TradeDirection, TradeSide, TradeStatus } from '@/types/trade'
 
 export type GradientBadgeTone =
   | 'neutral'

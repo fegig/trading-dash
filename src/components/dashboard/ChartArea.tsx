@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { CoinData, CoinReturn, getCoinById } from "../../services/CryptoService";
+import { CoinData, CoinReturn, getCoinById } from "@/services/CryptoService";
 import CustomChartWidget from "../common/CustomChartWidget";
 import { MarketData } from "./PairBanner";
 import Modal from "../common/Modal";
-import { ChartType, Filters } from "../../types/chat";
+import { ChartType, Filters } from "@/types/chat";
 
 
 

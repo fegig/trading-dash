@@ -1,4 +1,5 @@
 export { useAuthStore } from './authStore'
+export type { ApiUser } from './authStore'
 export { useUserStore } from './userStore'
 export type { UserProfile, VerificationStatus } from './userStore'
 export { useCurrencyStore } from './currencyStore'

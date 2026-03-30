@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useShallow } from 'zustand/react/shallow'
 import AssetAvatar from '../common/AssetAvatar'
-import { useWalletStore } from '../../stores'
-import { type UserCoinsProps } from '../../types/wallet'
-import { formatCurrency } from '../../util/formatCurrency'
+import { useWalletStore } from '@/stores'
+import { type UserCoinsProps } from '@/types/wallet'
+import { formatCurrency } from '@/util/formatCurrency'
 
 export default function Swap({ coin }: { coin: UserCoinsProps }) {
   const { assets, convertAssets, loadWallet } = useWalletStore(

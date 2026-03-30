@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import AssetAvatar from '../common/AssetAvatar'
-import { UserCoinsProps } from '../../types/wallet'
-import { formatCurrency, formatNumber } from '../../util/formatCurrency'
+import { UserCoinsProps } from '@/types/wallet'
+import { formatCurrency, formatNumber } from '@/util/formatCurrency'
 
 export default function Send({ coin }: { coin: UserCoinsProps }) {
   const [amount, setAmount] = useState<string>('')

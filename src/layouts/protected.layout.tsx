@@ -1,9 +1,43 @@
-import { Outlet } from "react-router"
+import { Navigate, Outlet, useLocation } from "react-router"
+import { useAuthStore } from "../stores"
+import { userNeedsOnboarding } from "@/util/authFlow"
 import Header from "./header"
 import Footer from "./footer"
 import SidebarMenu from "./sidebar"
 
 function DashboardLayout() {
+  const location = useLocation()
+  const hydrated = useAuthStore((s) => s.hydrated)
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const user = useAuthStore((s) => s.user)
+
+  if (!hydrated) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-neutral-950 text-neutral-400 text-sm">
+        Loading session…
+      </div>
+    )
+  }
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  if (user && userNeedsOnboarding(user)) {
+    return (
+      <Navigate
+        to="/onboarding"
+        replace
+        state={{
+          userId: user.user_id,
+          email: user.email,
+          resume: true,
+          prelimUser: user,
+        }}
+      />
+    )
+  }
+
   return (
     <div className="min-h-dvh flex flex-col bg-neutral-950 text-gray-100">
       <Header />

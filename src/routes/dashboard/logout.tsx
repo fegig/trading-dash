@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { useAuthStore } from '../../stores'
+import { useAuthStore } from '@/stores'
 
 export default function LogoutPage() {
   const navigate = useNavigate()

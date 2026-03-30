@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatCurrency, formatNumber } from '../../util/formatCurrency';
+import { formatCurrency, formatNumber } from '@/util/formatCurrency';
 import DepthSelector from './DepthSelector';
 import { MarketData } from './PairBanner';
 

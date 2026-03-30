@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { formatLength } from '../../util/formatCurrency';
-import { saveItem } from '../../util/storage';
+import { formatLength } from '@/util/formatCurrency';
+import { saveItem } from '@/util/storage';
 import Modal from '../common/Modal';
 
 export interface MarketData {

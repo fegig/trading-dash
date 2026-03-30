@@ -1,4 +1,4 @@
-import type { WalletAssetType } from '../../types/wallet'
+import type { WalletAssetType } from '@/types/wallet'
 
 type Props = {
   symbol: string

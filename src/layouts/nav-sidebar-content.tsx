@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router'
+import { NavLink, useNavigate } from 'react-router'
 import { navGroups } from '../navigation/navConfig'
 import { useAuthStore } from '../stores'
 
@@ -7,11 +7,13 @@ type Props = {
 }
 
 export function NavSidebarContent({ onNavigate }: Props) {
+  const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
 
   const handleLogout = () => {
     onNavigate?.()
     logout()
+    navigate('/login', { replace: true })
   }
 
   return (

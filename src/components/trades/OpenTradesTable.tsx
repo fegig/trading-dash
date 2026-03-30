@@ -2,9 +2,9 @@ import { useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import GradientBadge from '../common/GradientBadge'
 import { tradeSideTone } from '../common/gradientBadgeTones'
-import { useTradeStore, useUserStore } from '../../stores'
-import type { OpenTradeRow } from '../../types/trade'
-import { formatDateWithTime } from '../../util/time'
+import { useTradeStore, useUserStore } from '@/stores'
+import type { OpenTradeRow } from '@/types/trade'
+import { formatDateWithTime } from '@/util/time'
 
 function SideBadge({ side }: { side: OpenTradeRow['option'] }) {
   return (

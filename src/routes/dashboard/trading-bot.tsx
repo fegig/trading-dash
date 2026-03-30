@@ -2,12 +2,13 @@ import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'react-toastify'
 import { useShallow } from 'zustand/react/shallow'
-import GradientBadge from '../../components/common/GradientBadge'
-import PageHero from '../../components/common/PageHero'
-import { keywordTone } from '../../components/common/gradientBadgeTones'
-import { usePlatformStore, useWalletStore } from '../../stores'
-import { formatCurrency } from '../../util/formatCurrency'
-import { isSubscriptionActive } from '../../util/subscription'
+import GradientBadge from '@/components/common/GradientBadge'
+import PageHero from '@/components/common/PageHero'
+import { keywordTone } from '@/components/common/gradientBadgeTones'
+import { usePlatformStore, useWalletStore } from '@/stores'
+import { formatCurrency } from '@/util/formatCurrency'
+import { isSubscriptionActive } from '@/util/subscription'
+import { paths } from '@/navigation/paths'
 
 function MetricCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
@@ -91,7 +92,7 @@ export default function TradingBotPage() {
   return (
     <div className="space-y-6">
       <PageHero
-        backTo="/trade-center"
+        backTo={paths.dashboardHub}
         backLabel="Back to Trade Center"
         title="Trading plans with controlled activation"
         description="Bot plans are now loaded from the service layer, purchased from the fiat wallet, and retained in the shared store so automation activation behaves like a production product workflow."
@@ -106,13 +107,13 @@ export default function TradingBotPage() {
         actions={
           <>
             <Link
-              to="/wallet"
+              to={paths.dashboardWallet}
               className="rounded-full bg-green-500/15 px-4 py-2 text-sm text-green-300 hover:bg-green-500/25 transition-colors"
             >
               Top up cash wallet
             </Link>
             <Link
-              to="/trades"
+              to={paths.dashboardTrades}
               className="rounded-full border border-neutral-800 bg-neutral-950/70 px-4 py-2 text-sm text-neutral-300 hover:text-green-400 transition-colors"
             >
               Review trade archive

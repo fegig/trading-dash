@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import ReactApexChart from 'react-apexcharts';
-import { CoinData } from '../../services/CryptoService';
+import { CoinData } from '@/services/CryptoService';
 import { ApexOptions } from 'apexcharts';
-import { ChartType } from '../../types/chat';
+import { ChartType } from '@/types/chat';
 
 interface CustomChartWidgetProps {
     data: CoinData[];

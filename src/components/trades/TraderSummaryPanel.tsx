@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useCurrencyStore, useUserStore } from '../../stores'
-import * as userService from '../../services/userService'
-import { formatNumber } from '../../util/formatCurrency'
+import { useCurrencyStore, useUserStore } from '@/stores'
+import * as userService from '@/services/userService'
+import { formatNumber } from '@/util/formatCurrency'
 
 type SummaryState = {
   fiat: number
