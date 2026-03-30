@@ -15,6 +15,7 @@ const defaultFilters: HistoryType = {
   pending: true,
   canceled: true,
   completed: true,
+  failed: true,
 }
 
 export default function AllTradesPage() {
@@ -68,6 +69,7 @@ export default function AllTradesPage() {
       pending: trades.filter((trade) => trade.status === 'pending').length,
       completed: trades.filter((trade) => trade.status === 'completed').length,
       canceled: trades.filter((trade) => trade.status === 'canceled').length,
+      failed: trades.filter((trade) => trade.status === 'failed').length,
     }),
     [trades]
   )
