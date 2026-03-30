@@ -95,7 +95,7 @@ export default function AboutPage() {
             <img
               src="/images/our_people.png"
               alt="BlockTrade team"
-              className="h-[21rem] w-full object-cover object-top"
+              className="h-84 w-full object-cover object-top"
             />
           </div>
 
@@ -166,7 +166,7 @@ export default function AboutPage() {
             <img
               src="/images/our_mission.png"
               alt="BlockTrade mission"
-              className="h-[16rem] w-full object-cover"
+              className="h-64 w-full object-cover"
             />
           </div>
           <div className="mt-5">
@@ -189,7 +189,7 @@ export default function AboutPage() {
             <img
               src="/images/our_vision.png"
               alt="BlockTrade vision"
-              className="h-[16rem] w-full object-cover"
+              className="h-64 w-full object-cover"
             />
           </div>
           <div className="mt-5">
@@ -241,7 +241,7 @@ export default function AboutPage() {
             <img
               src="/images/our_people_2.png"
               alt="BlockTrade team collaboration"
-              className="h-[16rem] w-full object-cover"
+              className="h-64 w-full object-cover"
             />
           </div>
           <div className="mt-5">

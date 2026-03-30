@@ -10,13 +10,13 @@ export default function LandingLayout() {
         aria-hidden
       />
       <div
-        className="pointer-events-none fixed inset-0 opacity-30 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] background-size:[30px_30px]"
+        className="pointer-events-none fixed inset-0 opacity-30 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-size-[32px_32px]"
         aria-hidden
       />
 
       <LandingHeader />
       <main className="relative flex-1 pt-22 md:pt-24">
-        <div className="mx-auto w-full max-w312 px-4 py-10 md:px-6 md:py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 py-10 md:px-6 md:py-14">
           <Outlet />
         </div>
       </main>
