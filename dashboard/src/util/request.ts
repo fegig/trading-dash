@@ -26,9 +26,12 @@ client.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-export const get = async (endpoint: string) => {
+export const get = async (
+  endpoint: string,
+  params?: Record<string, string | number | undefined>
+) => {
   try {
-    const response = await client.get(endpoint)
+    const response = await client.get(endpoint, { params })
     return response?.data
   } catch (error: unknown) {
     if (error instanceof AxiosError) {

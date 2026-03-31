@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { formatLength } from '@/util/formatCurrency';
 import { saveItem } from '@/util/storage';
 import Modal from '../common/Modal';
+import { get } from '@/util/request';
+import { endpoints } from '@/services/endpoints';
 
 export interface MarketData {
     PRICE?: number;
@@ -106,11 +108,11 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
 
         async function load() {
             try {
-                const response = await fetch(
-                    `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${selectedPair.base}&tsyms=${selectedPair.quote}`
-                );
-                if (cancelled) return;
-                const data = (await response.json()) as PriceMultiFullResponse;
+                const data = (await get(endpoints.crypto.price, {
+                    fsyms: selectedPair.base,
+                    tsyms: selectedPair.quote,
+                })) as PriceMultiFullResponse | undefined;
+                if (cancelled || !data) return;
                 const rawData = data.RAW?.[selectedPair.base]?.[selectedPair.quote];
                 if (!rawData || cancelled) return;
 

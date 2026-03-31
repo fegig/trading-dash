@@ -1,14 +1,10 @@
 import type { AxiosResponse } from 'axios'
-import { mockTradePositions } from '../data/trades'
 import type { ClosedTradeRow, OpenTradeRow, TradePosition } from '../types/trade'
 import { post } from '../util/request'
 import { endpoints } from './endpoints'
 
 function cloneTrade(trade: TradePosition): TradePosition {
-  return {
-    ...trade,
-    tags: [...trade.tags],
-  }
+  return { ...trade, tags: [...trade.tags] }
 }
 
 function toOpenTradeRow(trade: TradePosition): OpenTradeRow {
@@ -40,18 +36,11 @@ function toClosedTradeRow(trade: TradePosition): ClosedTradeRow {
 }
 
 export async function getTradePositions(userID: string): Promise<TradePosition[]> {
-  try {
-    const res = (await post(endpoints.user.getTradePositions, {
-      userId: userID,
-    })) as AxiosResponse | undefined
-    const rows = res?.data?.data
-    if (Array.isArray(rows) && rows.length > 0) {
-      return rows.map((r: TradePosition) => cloneTrade(r))
-    }
-  } catch {
-    /* fall through */
-  }
-  return mockTradePositions.map(cloneTrade)
+  const res = (await post(endpoints.user.getTradePositions, { userId: userID })) as
+    | AxiosResponse
+    | undefined
+  const rows = res?.data?.data
+  return Array.isArray(rows) ? rows.map((r: TradePosition) => cloneTrade(r)) : []
 }
 
 export async function getOpenTrades(userID: string): Promise<OpenTradeRow[]> {
@@ -69,11 +58,7 @@ export async function getClosedTrades(userID: string): Promise<ClosedTradeRow[]>
 }
 
 export async function closeTrade(tradeID: string) {
-  try {
-    return await post(endpoints.user.closeTrade, { tradeID })
-  } catch {
-    return { ok: true }
-  }
+  return post(endpoints.user.closeTrade, { tradeID })
 }
 
 export async function createExternalTradeToken(payload: {
@@ -83,13 +68,5 @@ export async function createExternalTradeToken(payload: {
   expires: number
   status: string
 }) {
-  try {
-    return await post(endpoints.auth.createToken, payload)
-  } catch {
-    const data = {
-      token: payload.token,
-      expires: payload.expires,
-    }
-    return { data } as AxiosResponse
-  }
+  return post(endpoints.auth.createToken, payload) as Promise<AxiosResponse>
 }

@@ -1,9 +1,3 @@
-import {
-  mockVerificationBenefits,
-  mockVerificationDocuments,
-  mockVerificationOverview,
-  mockVerificationSteps,
-} from '../data/account'
 import type {
   VerificationBenefit,
   VerificationDocument,
@@ -72,45 +66,25 @@ export async function downloadVerificationDocument(
   return { ok: true }
 }
 
-export async function getVerificationOverview(): Promise<VerificationOverview> {
-  try {
-    const data = await get(endpoints.verification.overview)
-    if (data && typeof data === 'object' && 'tier' in data) {
-      return data as VerificationOverview
-    }
-  } catch {
-    /* mock */
+export async function getVerificationOverview(): Promise<VerificationOverview | null> {
+  const data = await get(endpoints.verification.overview)
+  if (data && typeof data === 'object' && 'tier' in data) {
+    return data as VerificationOverview
   }
-  return { ...mockVerificationOverview }
+  return null
 }
 
 export async function getVerificationSteps(): Promise<VerificationStep[]> {
-  try {
-    const data = await get(endpoints.verification.steps)
-    if (Array.isArray(data)) return data as VerificationStep[]
-  } catch {
-    /* mock */
-  }
-  return mockVerificationSteps.map((step) => ({ ...step }))
+  const data = await get(endpoints.verification.steps)
+  return Array.isArray(data) ? (data as VerificationStep[]) : []
 }
 
 export async function getVerificationDocuments(): Promise<VerificationDocument[]> {
-  try {
-    const data = await get(endpoints.verification.documents)
-    /** Empty array is valid — do not fall back to demo data (that caused fake “already uploaded”). */
-    if (Array.isArray(data)) return data as VerificationDocument[]
-  } catch {
-    /* mock */
-  }
-  return mockVerificationDocuments.map((doc) => ({ ...doc }))
+  const data = await get(endpoints.verification.documents)
+  return Array.isArray(data) ? (data as VerificationDocument[]) : []
 }
 
 export async function getVerificationBenefits(): Promise<VerificationBenefit[]> {
-  try {
-    const data = await get(endpoints.verification.benefits)
-    if (Array.isArray(data)) return data as VerificationBenefit[]
-  } catch {
-    /* mock */
-  }
-  return mockVerificationBenefits.map((benefit) => ({ ...benefit }))
+  const data = await get(endpoints.verification.benefits)
+  return Array.isArray(data) ? (data as VerificationBenefit[]) : []
 }

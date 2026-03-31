@@ -65,6 +65,8 @@ export const fiatCurrencies = mysqlTable('fiat_currencies', {
   id: int('id').primaryKey().autoincrement(),
   name: varchar('name', { length: 64 }).notNull(),
   symbol: varchar('symbol', { length: 8 }).notNull(),
+  /** ISO 4217 currency code, e.g. USD, EUR, GBP, NGN */
+  code: varchar('code', { length: 8 }).notNull().default(''),
 })
 
 export const walletAssets = mysqlTable(
@@ -223,18 +225,19 @@ export const faqItems = mysqlTable(
 export const settingToggles = mysqlTable(
   'setting_toggles',
   {
-    id: varchar('id', { length: 64 }).primaryKey(),
+    /** Semantic key for this toggle, e.g. 'two-factor-login'. Combined with userId as composite PK. */
+    toggleId: varchar('toggle_id', { length: 64 }).notNull(),
     userId: int('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     section: mysqlEnum('section', ['security', 'trading', 'notifications', 'privacy']).notNull(),
     title: varchar('title', { length: 256 }).notNull(),
     description: text('description').notNull(),
-    enabled: boolean('enabled').notNull(),
+    enabled: boolean('enabled').notNull().default(false),
     icon: varchar('icon', { length: 64 }).notNull(),
     tone: mysqlEnum('tone', ['green', 'sky', 'amber', 'rose']).notNull(),
   },
-  (t) => [index('st_user_idx').on(t.userId)]
+  (t) => [primaryKey({ columns: [t.userId, t.toggleId] }), index('st_user_idx').on(t.userId)]
 )
 
 export const verificationSteps = mysqlTable(
@@ -408,6 +411,34 @@ export const userInvestmentPositions = mysqlTable(
     startedAt: bigint('started_at', { mode: 'number' }).notNull(),
   },
   (t) => [index('uip_user_idx').on(t.userId)]
+)
+
+/** Global catalog of tradable coins (not per-user wallet rows). */
+export const coins = mysqlTable('coins', {
+  id: varchar('id', { length: 32 }).primaryKey(),
+  name: varchar('name', { length: 64 }).notNull(),
+  symbol: varchar('symbol', { length: 16 }).notNull(),
+  chain: varchar('chain', { length: 32 }).notNull(),
+  confirmLevel: int('confirm_level').notNull().default(0),
+  iconUrl: varchar('icon_url', { length: 512 }),
+  isActive: boolean('is_active').notNull().default(true),
+})
+
+/** Cron audit: one row per bot run per subscription (rate-limit / observability). */
+export const botTradeRuns = mysqlTable(
+  'bot_trade_runs',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    userId: int('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    botId: varchar('bot_id', { length: 64 }).notNull(),
+    subscriptionRowId: int('subscription_row_id').notNull(),
+    ranAt: bigint('ran_at', { mode: 'number' }).notNull(),
+    tradesCreated: int('trades_created').notNull().default(0),
+    detailJson: text('detail_json'),
+  },
+  (t) => [index('btr_user_idx').on(t.userId), index('btr_sub_idx').on(t.subscriptionRowId)]
 )
 
 export const liveOrders = mysqlTable(

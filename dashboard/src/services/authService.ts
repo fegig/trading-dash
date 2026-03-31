@@ -1,4 +1,4 @@
-import { authPost } from './authClient'
+import { authPost, authGet } from './authClient'
 import { endpoints } from './endpoints'
 import { convertTime } from '../util/convertTime'
 
@@ -119,6 +119,15 @@ export async function notifyOnboardingWelcome() {
 /** Creates HttpOnly session cookie when the user only has Bearer (onboarding completion). */
 export async function ensureWebSession() {
   return authPost<{ ok?: boolean }>(endpoints.user.ensureWebSession, {})
+}
+
+/** Refresh profile (names from bios, email, verification) using Bearer + optional session cookie. */
+export async function fetchCurrentUserProfile() {
+  const { data } = await authGet<{
+    user?: Record<string, unknown>
+    bios?: Record<string, unknown>
+  }>(endpoints.user.me)
+  return data
 }
 
 /** Fire-and-forget login notification when `OMS__FEI` device payload exists. */

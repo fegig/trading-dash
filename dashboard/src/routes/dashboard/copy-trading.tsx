@@ -83,12 +83,14 @@ export default function CopyTradingPage() {
 
   const handleAllocate = () => {
     if (!selectedTrader) return
-    const result = followTrader(selectedTrader.id, Number(allocation || selectedTrader.minAllocation))
-    if (result.ok) {
-      toast.success(result.message)
-    } else {
-      toast.error(result.message)
-    }
+    void (async () => {
+      const result = await followTrader(selectedTrader.id, Number(allocation || selectedTrader.minAllocation))
+      if (result.ok) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+    })()
   }
 
   const pickTrader = (trader: CopyTraderProfile) => {

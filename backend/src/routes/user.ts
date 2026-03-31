@@ -22,6 +22,7 @@ import { randomSessionId } from '../lib/otp'
 import * as schema from '../db/schema'
 import { rowToTradePosition } from '../lib/trade-map'
 import { getInternalUserIdByPublicId } from '../services/users-repo'
+import { provisionUserWallets } from '../services/wallet-provisioning'
 
 type ActivityLogRow = InferSelectModel<typeof schema.activityLogs>
 type TradeRow = InferSelectModel<typeof schema.trades>
@@ -34,16 +35,51 @@ function apiUserRow(u: {
   email: string
   verificationStatus: number
   currencyId: number | null
+  bios?: unknown
 }) {
+  const b =
+    u.bios && typeof u.bios === 'object' && !Array.isArray(u.bios)
+      ? (u.bios as Record<string, unknown>)
+      : {}
+  // phone may be stored as "phone" or "phoneNumber" depending on onboarding step
+  const phone =
+    typeof b.phone === 'string' && b.phone.trim()
+      ? b.phone.trim()
+      : typeof b.phoneNumber === 'string' && b.phoneNumber.trim()
+        ? b.phoneNumber.trim()
+        : ''
   return {
     user_id: u.publicId,
     email: u.email,
     verificationStatus: String(u.verificationStatus) as '0' | '1' | '2' | '3',
     currency_id: u.currencyId ?? '',
-    firstName: '',
-    lastName: '',
+    firstName: typeof b.firstName === 'string' ? b.firstName : '',
+    lastName: typeof b.lastName === 'string' ? b.lastName : '',
+    phone,
+    country: typeof b.country === 'string' ? b.country : '',
+    loginOtpEnabled: b.loginOtpEnabled === true,
   }
 }
+
+user.get('/me', requireUser, async (c) => {
+  const uid = c.var.user!.id
+  const [row] = await c.var.db.select().from(schema.users).where(eq(schema.users.id, uid)).limit(1)
+  if (!row) return c.json({ error: 'Not found' }, 404)
+  const bios =
+    row.bios && typeof row.bios === 'object' && !Array.isArray(row.bios)
+      ? (row.bios as Record<string, unknown>)
+      : {}
+  return c.json({
+    user: apiUserRow({
+      publicId: row.publicId,
+      email: row.email,
+      verificationStatus: row.verificationStatus,
+      currencyId: row.currencyId,
+      bios: row.bios,
+    }),
+    bios,
+  })
+})
 
 user.post('/login', async (c) => {
   const parsed = loginBodySchema.safeParse(await c.req.json().catch(() => ({})))
@@ -82,12 +118,16 @@ user.post('/login', async (c) => {
   const cookie = `${cookieName}=${sessId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${week}${secure ? '; Secure' : ''}`
   c.header('Set-Cookie', cookie)
 
+  // Provision wallet assets + default settings (awaited so data is ready immediately)
+  await provisionUserWallets(c.var.db, u.id)
+
   return c.json({
     user: apiUserRow({
       publicId: u.publicId,
       email: u.email,
       verificationStatus: u.verificationStatus,
       currencyId: u.currencyId,
+      bios: u.bios,
     }),
     token: bearer,
   })
@@ -458,6 +498,9 @@ user.post('/welcomeOnboarding', requireUser, async (c) => {
   if (prevBios.onboardingWelcomeSent === true || prevBios.onboardingWelcomeSent === 1) {
     return c.json({ ok: true, alreadySent: true })
   }
+
+  // Ensure all active coins + settings are provisioned (awaited)
+  await provisionUserWallets(c.var.db, uid)
 
   const base = ((c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000').replace(
     /\/$/,

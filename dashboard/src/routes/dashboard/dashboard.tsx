@@ -7,11 +7,45 @@ import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
 import MiniTradeHistory from '@/components/dashboard/MiniTradeHistory'
 import PairBanner, { type MarketData } from '@/components/dashboard/PairBanner'
 import type { GradientBadgeTone } from '@/components/common/gradientBadgeTones'
-import { usePlatformStore, useTradeStore, useUserStore, useVerificationStore, useWalletStore } from '@/stores'
+import { useAuthStore, usePlatformStore, useTradeStore, useUserStore, useVerificationStore, useWalletStore } from '@/stores'
 import { formatCurrency, formatLength, formatNumber } from '@/util/formatCurrency'
 import { isSubscriptionActive } from '@/util/subscription'
 import { formatDateWithTime } from '@/util/time'
 import { paths } from '@/navigation/paths'
+
+const TWO_FA_DISMISSED_KEY = 'td_2fa_prompt_dismissed'
+
+function TwoFaBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="flex items-start gap-4 rounded-2xl border border-amber-500/25 bg-amber-500/8 p-4">
+      <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-500/15 text-amber-400">
+        <i className="fi fi-rr-shield-exclamation text-base" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-amber-300">Secure your account with two-factor login</p>
+        <p className="mt-1 text-xs leading-5 text-neutral-400">
+          Two-factor authentication adds a one-time code challenge at sign-in.
+          Enable it in Settings to protect against unauthorised access.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            to="/settings"
+            className="rounded-full bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/25"
+          >
+            Enable 2FA in Settings
+          </Link>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded-full px-3 py-1.5 text-xs text-neutral-500 transition hover:text-neutral-300"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function verificationBadge(status: string | undefined) {
   switch (status) {
@@ -120,9 +154,24 @@ function transactionTone(type: string): GradientBadgeTone {
 
 export default function DashboardPage() {
   const user = useUserStore((state) => state.user)
+  const authUser = useAuthStore((state) => state.user)
   const userId = user?.user_id ?? 'demo-user'
   const badge = verificationBadge(user?.verificationStatus)
   const [, setSymbol] = useState<MarketData | null>(null)
+
+  // 2FA recommendation banner — shown once until dismissed, hidden if already enabled
+  const [show2faBanner, setShow2faBanner] = useState(() => {
+    try {
+      return localStorage.getItem(TWO_FA_DISMISSED_KEY) !== '1'
+    } catch {
+      return false
+    }
+  })
+  const twoFaEnabled = authUser?.loginOtpEnabled === true
+  const dismiss2faBanner = () => {
+    try { localStorage.setItem(TWO_FA_DISMISSED_KEY, '1') } catch { /* ignore */ }
+    setShow2faBanner(false)
+  }
 
   const { trades, loading: tradeLoading, loadTrades } = useTradeStore(
     useShallow((state) => ({
@@ -293,6 +342,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 p-6">
+      {show2faBanner && !twoFaEnabled && (
+        <TwoFaBanner onDismiss={dismiss2faBanner} />
+      )}
+
       <section className="gradient-background relative overflow-hidden rounded-3xl border border-neutral-800/80 p-6 md:p-7">
         <div className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-green-500/8 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 left-8 h-48 w-48 rounded-full bg-emerald-500/6 blur-3xl" />

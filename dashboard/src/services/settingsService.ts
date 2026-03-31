@@ -1,24 +1,25 @@
-import { mockActivityLogs, mockSettingsToggles } from '../data/account'
 import type { ActivityLogRow, SettingToggle } from '../types/account'
-import { get } from '../util/request'
+import { get, update } from '../util/request'
 import { endpoints } from './endpoints'
 
 export async function getSettingsToggles(): Promise<SettingToggle[]> {
+  const data = await get(endpoints.settings.toggles)
+  return Array.isArray(data) ? (data as SettingToggle[]) : []
+}
+
+export async function updateSettingToggle(
+  toggleId: string,
+  enabled: boolean
+): Promise<{ ok: boolean; error?: string }> {
   try {
-    const data = await get(endpoints.settings.toggles)
-    if (Array.isArray(data) && data.length > 0) return data as SettingToggle[]
+    await update(endpoints.settings.updateToggle(toggleId), { enabled })
+    return { ok: true }
   } catch {
-    /* mock */
+    return { ok: false, error: 'Could not save setting. Try again.' }
   }
-  return mockSettingsToggles.map((toggle) => ({ ...toggle }))
 }
 
 export async function getActivityLogs(): Promise<ActivityLogRow[]> {
-  try {
-    const data = await get(endpoints.settings.activityLogs)
-    if (Array.isArray(data) && data.length > 0) return data as ActivityLogRow[]
-  } catch {
-    /* mock */
-  }
-  return mockActivityLogs.map((log) => ({ ...log }))
+  const data = await get(endpoints.settings.activityLogs)
+  return Array.isArray(data) ? (data as ActivityLogRow[]) : []
 }

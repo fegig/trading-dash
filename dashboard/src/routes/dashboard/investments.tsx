@@ -107,12 +107,14 @@ export default function InvestmentsPage() {
 
   const handleInvest = () => {
     if (!selectedInvestment) return
-    const result = investProduct(selectedInvestment.id, Number(amount || selectedInvestment.minAmount))
-    if (result.ok) {
-      toast.success(result.message)
-    } else {
-      toast.error(result.message)
-    }
+    void (async () => {
+      const result = await investProduct(selectedInvestment.id, Number(amount || selectedInvestment.minAmount))
+      if (result.ok) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+    })()
   }
 
   return (

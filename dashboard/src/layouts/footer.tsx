@@ -3,6 +3,8 @@ import { formatNumber } from '../util/formatCurrency';
 import { MarketData } from '../components/dashboard/PairBanner';
 import { getItem } from '../util';
 import Modal from '../components/common/Modal';
+import { get } from '../util/request';
+import { endpoints } from '../services/endpoints';
 
 type NetworkConnection = {
   downlink: number;
@@ -120,17 +122,18 @@ function Footer() {
       try {
         if (!symbols?.QUOTE) return; // Early return if quote currency isn't available
         
-        const response = await fetch(
-          `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${pairs.join(',')}&tsyms=${symbols.QUOTE}`
-        );
-        const data = await response.json();
+        const data = (await get(endpoints.crypto.price, {
+          fsyms: pairs.join(','),
+          tsyms: symbols.QUOTE,
+        })) as { RAW?: Record<string, Record<string, { PRICE: number; CHANGEPCT24HOUR?: number }>> } | undefined;
+        if (!data?.RAW) return;
 
         const prices = pairs.reduce((acc: {[key: string]: { price: number; change24h: number }}, symbol) => {
-          const rawData = data.RAW[symbol]?.[symbols!.QUOTE as string];
+          const rawData = data.RAW?.[symbol]?.[symbols!.QUOTE as string];
           if (rawData) {
             acc[symbol] = {
               price: rawData.PRICE,
-              change24h: rawData.CHANGEPCT24HOUR
+              change24h: rawData.CHANGEPCT24HOUR ?? 0
             };
           }
           return acc;

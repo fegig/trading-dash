@@ -29,5 +29,12 @@
   "durable_objects": {
     "bindings": [{ "name": "LIVE_TRADING", "class_name": "LiveTradingRoom" }]
   },
-  "migrations": [{ "tag": "v1", "new_classes": ["LiveTradingRoom"] }]
+  "migrations": [{ "tag": "v1", "new_classes": ["LiveTradingRoom"] }],
+  // Hourly bot auto-trading cron (Workers scheduled handler).
+  "triggers": { "crons": ["0 * * * *"] }
+  // Optional: CryptoCompare response cache — run:
+  //   wrangler kv namespace create CRYPTO_CACHE
+  //   wrangler kv namespace create CRYPTO_CACHE --preview
+  // Then add:
+  // "kv_namespaces": [{ "binding": "CRYPTO_CACHE", "id": "<prod_id>", "preview_id": "<preview_id>" }],
 }

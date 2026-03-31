@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     port: 4000,
     proxy: {
-      '^/(user|auth|wallet|affiliate|admin|platform|settings|verification|live)': {
+      '^/(user|auth|wallet|affiliate|admin|platform|settings|verification|live|crypto)': {
         target: apiTarget,
         changeOrigin: true,
       },

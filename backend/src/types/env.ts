@@ -7,10 +7,14 @@ export type Env = {
   HYPERDRIVE: Hyperdrive
   VERIFICATION_UPLOADS: R2Bucket
   RATE_LIMIT?: KVNamespace
+  /** Optional KV for CryptoCompare response caching (create via `wrangler kv namespace create`) */
+  CRYPTO_CACHE?: KVNamespace
   LIVE_TRADING: DurableObjectNamespace
   RESEND_API_KEY: string
   SESSION_SECRET: string
   API_KEY?: string
+  /** Server-only; set in .dev.vars / Workers secrets */
+  CRYPTOCOMPARE_API_KEY?: string
   SESSION_COOKIE_NAME: string
   CORS_ORIGIN: string
   RESEND_FROM: string

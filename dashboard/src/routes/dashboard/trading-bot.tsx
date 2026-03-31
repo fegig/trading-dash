@@ -75,12 +75,14 @@ export default function TradingBotPage() {
 
   const handlePurchase = () => {
     if (!selectedBot) return
-    const result = purchaseBot(selectedBot.id)
-    if (result.ok) {
-      toast.success(result.message)
-    } else {
-      toast.error(result.message)
-    }
+    void (async () => {
+      const result = await purchaseBot(selectedBot.id)
+      if (result.ok) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+    })()
   }
 
   const isBotActive = (botId: string) =>

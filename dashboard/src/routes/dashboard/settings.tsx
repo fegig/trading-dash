@@ -106,7 +106,7 @@ export default function SettingsPage() {
                       <div className="text-sm text-neutral-500 mt-1">{preference.description}</div>
                     </div>
                   </div>
-                  <Switch isOn={preference.enabled} onToggle={() => togglePreference(preference.id)} />
+                  <Switch isOn={preference.enabled} onToggle={() => void togglePreference(preference.id)} />
                 </div>
               ))}
             </div>

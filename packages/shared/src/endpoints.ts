@@ -18,6 +18,7 @@ export const endpoints = {
     addAdminWallet: '/user/addAdminWallet',
     welcomeOnboarding: '/user/welcomeOnboarding',
     ensureWebSession: '/user/ensureWebSession',
+    me: '/user/me',
   },
   auth: {
     createToken: '/auth/createToken',
@@ -48,11 +49,25 @@ export const endpoints = {
     investmentProducts: '/platform/investment-products',
     copyAllocations: '/platform/copy-allocations',
     botSubscriptions: '/platform/bot-subscriptions',
+    botSubscribe: '/platform/bot-subscriptions',
+    botUnsubscribe: (botId: string) =>
+      `/platform/bot-subscriptions/${encodeURIComponent(botId)}`,
+    coins: '/platform/coins',
+    addCoin: '/platform/coins',
     followingTraders: '/platform/following-traders',
+    followTraderAllocate: '/platform/following-traders',
     investmentPositions: '/platform/investment-positions',
+    investPosition: '/platform/investment-positions',
+  },
+  crypto: {
+    price: '/crypto/price',
+    history: '/crypto/history',
+    news: '/crypto/news',
+    coinDetail: '/crypto/coin-detail',
   },
   settings: {
     toggles: '/settings/toggles',
+    updateToggle: (toggleId: string) => `/settings/toggles/${encodeURIComponent(toggleId)}`,
     activityLogs: '/settings/activity-logs',
   },
   verification: {

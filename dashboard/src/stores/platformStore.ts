@@ -9,7 +9,7 @@ import type {
   InvestmentProduct,
   TradingBotPlan,
 } from '../types/platform'
-import { DEFAULT_SUBSCRIPTION_DAYS, isSubscriptionActive, subscriptionPeriodSeconds } from '../util/subscription'
+import { isSubscriptionActive } from '../util/subscription'
 
 type PlatformState = {
   bots: TradingBotPlan[]
@@ -28,9 +28,9 @@ type PlatformState = {
   selectBot: (botId: string | null) => void
   selectTrader: (traderId: string | null) => void
   selectInvestment: (investmentId: string | null) => void
-  purchaseBot: (botId: string) => { ok: boolean; message: string }
-  followTrader: (traderId: string, amount: number) => { ok: boolean; message: string }
-  investProduct: (investmentId: string, amount: number) => { ok: boolean; message: string }
+  purchaseBot: (botId: string) => Promise<{ ok: boolean; message: string }>
+  followTrader: (traderId: string, amount: number) => Promise<{ ok: boolean; message: string }>
+  investProduct: (investmentId: string, amount: number) => Promise<{ ok: boolean; message: string }>
 }
 
 export const usePlatformStore = create<PlatformState>((set, get) => ({
@@ -85,12 +85,11 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
   selectBot: (botId) => set({ selectedBotId: botId }),
   selectTrader: (traderId) => set({ selectedTraderId: traderId }),
   selectInvestment: (investmentId) => set({ selectedInvestmentId: investmentId }),
-  purchaseBot: (botId) => {
+  purchaseBot: async (botId) => {
     const { bots, botSubscriptions } = get()
     const bot = bots.find((item) => item.id === botId)
     if (!bot) return { ok: false, message: 'Bot not found.' }
     const now = Math.floor(Date.now() / 1000)
-    // Only one bot may be active at a time
     const activeSub = botSubscriptions.find((sub) => isSubscriptionActive(sub.expiresAt, now))
     if (activeSub) {
       const activeBot = bots.find((b) => b.id === activeSub.botId)
@@ -102,24 +101,14 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
       }
     }
 
-    const walletResult = useWalletStore
-      .getState()
-      .spendFiat(bot.priceUsd, `${bot.name} activation purchased from bot desk.`, 'Bot Purchase')
+    const api = await platformService.subscribeBot(botId)
+    if (!api.ok) return { ok: false, message: api.message }
 
-    if (!walletResult.ok) return walletResult
-
-    const days = bot.subscriptionDays ?? DEFAULT_SUBSCRIPTION_DAYS
-    const subscribedAt = now
-    const newSub: BotSubscription = {
-      botId,
-      subscribedAt,
-      expiresAt: subscribedAt + subscriptionPeriodSeconds(days),
-      lifetimePnlUsd: 0,
-    }
-    set((state) => ({ botSubscriptions: [...state.botSubscriptions, newSub] }))
+    await useWalletStore.getState().loadWallet(true)
+    await get().loadCatalog(true)
     return { ok: true, message: `${bot.name} is now active on your account.` }
   },
-  followTrader: (traderId, amount) => {
+  followTrader: async (traderId, amount) => {
     const { copyTraders } = get()
     const trader = copyTraders.find((item) => item.id === traderId)
     if (!trader) return { ok: false, message: 'Trader not found.' }
@@ -130,54 +119,14 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
       }
     }
 
-    const walletResult = useWalletStore
-      .getState()
-      .spendFiat(amount, `${amount} USD allocated to ${trader.name}.`, 'Copy Trading Allocation')
+    const api = await platformService.followTraderAllocate(traderId, amount)
+    if (!api.ok) return { ok: false, message: api.message }
 
-    if (!walletResult.ok) return walletResult
-
-    const now = Math.floor(Date.now() / 1000)
-    const period = subscriptionPeriodSeconds(DEFAULT_SUBSCRIPTION_DAYS)
-    let totalAllocation = amount
-    set((state) => {
-      const existing = state.copyAllocations.find((allocation) => allocation.traderId === traderId)
-      if (existing) {
-        const nextAmount = Number((existing.amount + amount).toFixed(2))
-        totalAllocation = nextAmount
-        // Renewal: extend subscription from current expiry or now, whichever is later.
-        const nextExpiresAt = Math.max(now, existing.expiresAt) + period
-        return {
-          followingTraderIds: state.followingTraderIds.includes(traderId)
-            ? state.followingTraderIds
-            : [...state.followingTraderIds, traderId],
-          copyAllocations: state.copyAllocations.map((allocation) =>
-            allocation.traderId === traderId
-              ? { ...allocation, amount: nextAmount, expiresAt: nextExpiresAt }
-              : allocation
-          ),
-        }
-      }
-
-      return {
-        followingTraderIds: state.followingTraderIds.includes(traderId)
-          ? state.followingTraderIds
-          : [...state.followingTraderIds, traderId],
-        copyAllocations: [
-          ...state.copyAllocations,
-          {
-            traderId,
-            amount,
-            startedAt: now,
-            expiresAt: now + period,
-            lifetimePnlUsd: 0,
-          },
-        ],
-      }
-    })
-
-    return { ok: true, message: `${trader.name} allocation is now $${totalAllocation}.` }
+    await useWalletStore.getState().loadWallet(true)
+    await get().loadCatalog(true)
+    return { ok: true, message: `${trader.name} allocation updated.` }
   },
-  investProduct: (investmentId, amount) => {
+  investProduct: async (investmentId, amount) => {
     const { investments } = get()
     const product = investments.find((item) => item.id === investmentId)
     if (!product) return { ok: false, message: 'Investment product not found.' }
@@ -185,29 +134,11 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
       return { ok: false, message: `Minimum ticket for ${product.name} is $${product.minAmount}.` }
     }
 
-    const walletResult = useWalletStore
-      .getState()
-      .spendFiat(amount, `${amount} USD subscribed to ${product.name}.`, 'Investment Subscription')
+    const api = await platformService.investPosition(investmentId, amount)
+    if (!api.ok) return { ok: false, message: api.message }
 
-    if (!walletResult.ok) return walletResult
-
-    const startedAt = Math.floor(Date.now() / 1000)
-    set((state) => {
-      const existing = state.investmentPositions.find((position) => position.productId === investmentId)
-      if (existing) {
-        return {
-          investmentPositions: state.investmentPositions.map((position) =>
-            position.productId === investmentId
-              ? { ...position, amount: Number((position.amount + amount).toFixed(2)) }
-              : position
-          ),
-        }
-      }
-      return {
-        investmentPositions: [...state.investmentPositions, { productId: investmentId, amount, startedAt }],
-      }
-    })
-
+    await useWalletStore.getState().loadWallet(true)
+    await get().loadCatalog(true)
     return { ok: true, message: `${product.name} funded with $${amount}.` }
   },
 }))

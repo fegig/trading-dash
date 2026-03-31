@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
 import { paths } from '@/navigation/paths'
+import { get } from '@/util/request'
+import { endpoints } from '@/services/endpoints'
 import { useAuthStore } from '@/stores/authStore'
 import {
   MarketingButtonLink,
@@ -87,20 +88,20 @@ export default function InsightsPage() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
 
   useEffect(() => {
-    axios
-      .get<{
-        Data?: Array<{
-          id?: string
-          title?: string
-          body?: string
-          imageurl?: string
-          published_on?: number
-          url?: string
-          source_info?: { name?: string }
-        }>
-      }>('https://min-api.cryptocompare.com/data/v2/news/?lang=EN')
-      .then((response) => {
-        const rows = response.data?.Data
+    void (async () => {
+      try {
+        const response = (await get(endpoints.crypto.news, { lang: 'EN' })) as {
+          Data?: Array<{
+            id?: string
+            title?: string
+            body?: string
+            imageurl?: string
+            published_on?: number
+            url?: string
+            source_info?: { name?: string }
+          }>
+        }
+        const rows = response?.Data
         if (!Array.isArray(rows) || rows.length === 0) return
 
         setList(
@@ -114,9 +115,12 @@ export default function InsightsPage() {
             source: item.source_info?.name ?? 'Market source',
           }))
         )
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      } catch {
+        /* keep FALLBACK */
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [])
 
   const featured = list[0] ?? FALLBACK[0]
@@ -200,7 +204,7 @@ export default function InsightsPage() {
             <img
               src={featured.imageurl}
               alt={featured.title}
-              className="h-[18rem] w-full object-cover md:h-[24rem]"
+              className="h-72 w-full object-cover md:h-96"
             />
             <div className="p-6 md:p-7">
               <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">

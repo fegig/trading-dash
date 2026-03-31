@@ -1,7 +1,25 @@
 -- Optional reference data after migrations. Run against your MySQL database.
-INSERT IGNORE INTO `fiat_currencies` (`id`, `name`, `symbol`) VALUES
-  (1, 'US Dollar', '$USD'),
-  (2, 'Euro', '€EUR');
+INSERT IGNORE INTO `fiat_currencies` (`id`, `name`, `symbol`, `code`) VALUES
+  (1,  'US Dollar',            '$',  'USD'),
+  (2,  'Euro',                 '€',  'EUR'),
+  (3,  'British Pound',        '£',  'GBP'),
+  (4,  'Nigerian Naira',       '₦',  'NGN'),
+  (5,  'Ghanaian Cedi',        '₵',  'GHS'),
+  (6,  'Kenyan Shilling',      'KSh','KES'),
+  (7,  'South African Rand',   'R',  'ZAR'),
+  (8,  'Canadian Dollar',      'C$', 'CAD'),
+  (9,  'Australian Dollar',    'A$', 'AUD'),
+  (10, 'Swiss Franc',          'Fr', 'CHF'),
+  (11, 'Japanese Yen',         '¥',  'JPY'),
+  (12, 'Chinese Yuan',         '¥',  'CNY'),
+  (13, 'Indian Rupee',         '₹',  'INR'),
+  (14, 'Brazilian Real',       'R$', 'BRL'),
+  (15, 'Mexican Peso',         '$',  'MXN'),
+  (16, 'Singapore Dollar',     'S$', 'SGD'),
+  (17, 'UAE Dirham',           'د.إ','AED'),
+  (18, 'Saudi Riyal',          '﷼',  'SAR'),
+  (19, 'Turkish Lira',         '₺',  'TRY'),
+  (20, 'Indonesian Rupiah',    'Rp', 'IDR');
 
 INSERT IGNORE INTO `faq_categories` (`id`, `name`, `sort_order`) VALUES
   (1, 'Getting started', 0),

@@ -1,12 +1,3 @@
-import {
-  mockBotSubscriptions,
-  mockCopyAllocations,
-  mockCopyTraders,
-  mockFollowingTraderIds,
-  mockInvestmentPositions,
-  mockInvestmentProducts,
-  mockTradingBots,
-} from '../data/platform'
 import type {
   BotSubscription,
   CopyAllocation,
@@ -15,109 +6,90 @@ import type {
   InvestmentProduct,
   TradingBotPlan,
 } from '../types/platform'
-import { get } from '../util/request'
+import { get, post } from '../util/request'
 import { endpoints } from './endpoints'
 
-function cloneBots(): TradingBotPlan[] {
-  return mockTradingBots.map((bot) => ({
-    ...bot,
-    markets: [...bot.markets],
-    guardrails: [...bot.guardrails],
-  }))
-}
-
-function cloneTraders(): CopyTraderProfile[] {
-  return mockCopyTraders.map((trader) => ({
-    ...trader,
-    focusPairs: [...trader.focusPairs],
-  }))
-}
-
-function cloneCopyAllocations(): CopyAllocation[] {
-  return mockCopyAllocations.map((allocation) => ({ ...allocation }))
-}
-
-function cloneBotSubscriptions(): BotSubscription[] {
-  return mockBotSubscriptions.map((sub) => ({ ...sub }))
-}
-
-function cloneInvestments(): InvestmentProduct[] {
-  return mockInvestmentProducts.map((product) => ({
-    ...product,
-    focus: [...product.focus],
-  }))
-}
-
-function clonePositions(): InvestmentPosition[] {
-  return mockInvestmentPositions.map((position) => ({ ...position }))
-}
-
 export async function getTradingBots(): Promise<TradingBotPlan[]> {
-  try {
-    const data = await get(endpoints.platform.tradingBots)
-    if (Array.isArray(data) && data.length > 0) return data as TradingBotPlan[]
-  } catch {
-    /* mock */
-  }
-  return cloneBots()
+  const data = await get(endpoints.platform.tradingBots)
+  return Array.isArray(data) ? (data as TradingBotPlan[]) : []
 }
 
 export async function getCopyTraders(): Promise<CopyTraderProfile[]> {
-  try {
-    const data = await get(endpoints.platform.copyTraders)
-    if (Array.isArray(data) && data.length > 0) return data as CopyTraderProfile[]
-  } catch {
-    /* mock */
-  }
-  return cloneTraders()
+  const data = await get(endpoints.platform.copyTraders)
+  return Array.isArray(data) ? (data as CopyTraderProfile[]) : []
 }
 
 export async function getInvestmentProducts(): Promise<InvestmentProduct[]> {
-  try {
-    const data = await get(endpoints.platform.investmentProducts)
-    if (Array.isArray(data) && data.length > 0) return data as InvestmentProduct[]
-  } catch {
-    /* mock */
-  }
-  return cloneInvestments()
+  const data = await get(endpoints.platform.investmentProducts)
+  return Array.isArray(data) ? (data as InvestmentProduct[]) : []
 }
 
 export async function getCopyAllocations(): Promise<CopyAllocation[]> {
-  try {
-    const data = await get(endpoints.platform.copyAllocations)
-    if (Array.isArray(data)) return data as CopyAllocation[]
-  } catch {
-    /* mock */
-  }
-  return cloneCopyAllocations()
+  const data = await get(endpoints.platform.copyAllocations)
+  return Array.isArray(data) ? (data as CopyAllocation[]) : []
 }
 
 export async function getBotSubscriptions(): Promise<BotSubscription[]> {
-  try {
-    const data = await get(endpoints.platform.botSubscriptions)
-    if (Array.isArray(data)) return data as BotSubscription[]
-  } catch {
-    /* mock */
-  }
-  return cloneBotSubscriptions()
+  const data = await get(endpoints.platform.botSubscriptions)
+  return Array.isArray(data) ? (data as BotSubscription[]) : []
 }
 
 export async function getFollowingTraderIds(): Promise<string[]> {
-  try {
-    const data = await get(endpoints.platform.followingTraders)
-    if (Array.isArray(data)) return data as string[]
-  } catch {
-    /* mock */
-  }
-  return [...mockFollowingTraderIds]
+  const data = await get(endpoints.platform.followingTraders)
+  return Array.isArray(data) ? (data as string[]) : []
 }
 
 export async function getInvestmentPositions(): Promise<InvestmentPosition[]> {
-  try {
-    const data = await get(endpoints.platform.investmentPositions)
-    if (Array.isArray(data)) return data as InvestmentPosition[]
-  } catch {
-    /* mock */
+  const data = await get(endpoints.platform.investmentPositions)
+  return Array.isArray(data) ? (data as InvestmentPosition[]) : []
+}
+
+export async function subscribeBot(
+  botId: string
+): Promise<{ ok: true; subscription: BotSubscription } | { ok: false; message: string }> {
+  const res = await post(endpoints.platform.botSubscribe, { botId })
+  if (!res || typeof res !== 'object' || !('status' in res)) {
+    return { ok: false, message: 'Network error' }
   }
-  return clonePositions()
+  if (res.status !== 200) {
+    const err = (res.data as { error?: string } | undefined)?.error
+    return { ok: false, message: err ?? 'Request failed' }
+  }
+  const d = res.data as { ok?: boolean; subscription?: BotSubscription; error?: string }
+  if (d.ok && d.subscription) return { ok: true, subscription: d.subscription }
+  return { ok: false, message: d.error ?? 'Purchase failed' }
+}
+
+export async function followTraderAllocate(
+  traderId: string,
+  amount: number
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const res = await post(endpoints.platform.followTraderAllocate, { traderId, amount })
+  if (!res || typeof res !== 'object' || !('status' in res)) {
+    return { ok: false, message: 'Network error' }
+  }
+  if (res.status !== 200) {
+    const err = (res.data as { error?: string } | undefined)?.error
+    return { ok: false, message: err ?? 'Request failed' }
+  }
+  const d = res.data as { ok?: boolean; error?: string }
+  if (d.ok) return { ok: true }
+  return { ok: false, message: d.error ?? 'Allocation failed' }
+}
+
+export async function investPosition(
+  productId: string,
+  amount: number
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const res = await post(endpoints.platform.investPosition, { productId, amount })
+  if (!res || typeof res !== 'object' || !('status' in res)) {
+    return { ok: false, message: 'Network error' }
+  }
+  if (res.status !== 200) {
+    const err = (res.data as { error?: string } | undefined)?.error
+    return { ok: false, message: err ?? 'Request failed' }
+  }
+  const d = res.data as { ok?: boolean; error?: string }
+  if (d.ok) return { ok: true }
+  return { ok: false, message: d.error ?? 'Investment failed' }
 }
