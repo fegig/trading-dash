@@ -5,17 +5,18 @@ import AccountBalance from '@/components/wallet/AccountBalance'
 import AssetsList from '@/components/wallet/AssetsList'
 import TransactionHistory from '@/components/wallet/TransactionHistory'
 import { useWalletStore } from '@/stores'
-import { formatCurrency } from '@/util/formatCurrency'
+import { formatUsdAndAccountFiat, safeFormatCurrency } from '@/util/walletDisplay'
 
 export default function Wallets() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const { assets, transactions, loading, loadWallet, convertAssets } = useWalletStore(
+  const { assets, transactions, loading, loadWallet, convertAssets, displayCurrency } = useWalletStore(
     useShallow((state) => ({
       assets: state.assets,
       transactions: state.transactions,
       loading: state.loading,
       loadWallet: state.loadWallet,
       convertAssets: state.convertAssets,
+      displayCurrency: state.displayCurrency,
     }))
   )
 
@@ -24,7 +25,7 @@ export default function Wallets() {
   const [amount, setAmount] = useState('')
 
   useEffect(() => {
-    void loadWallet()
+    void loadWallet(true)
   }, [loadWallet])
 
 
@@ -43,14 +44,18 @@ export default function Wallets() {
   const quotePreview = useMemo(() => {
     const rawAmount = Number(amount)
     if (!fromAsset || !toAsset || !Number.isFinite(rawAmount) || rawAmount <= 0) return null
-    const usdValue = rawAmount * Number(fromAsset.price)
-    const fee = usdValue * 0.0035
-    const toAmountValue = (usdValue - fee) / Number(toAsset.price)
+    const fromPx = Number(fromAsset.price)
+    const toPx = Number(toAsset.price)
+    const usdGross = rawAmount * fromPx
+    const feeUsd = usdGross * 0.0035
+    const usdNet = usdGross - feeUsd
+    const toAmountValue = usdNet / toPx
     return {
-      usdValue,
-      fee,
+      usdGross,
+      feeUsd,
+      usdNet,
       toAmountValue,
-      rate: Number(fromAsset.price) / Number(toAsset.price),
+      rate: fromPx / toPx,
     }
   }, [amount, fromAsset, toAsset])
 
@@ -67,13 +72,15 @@ export default function Wallets() {
       toast.error('Select both source and destination assets.')
       return
     }
-    const result = convertAssets(fromAsset.walletId, toAsset.walletId, Number(amount))
-    if (!result.ok) {
-      toast.error(result.message)
-      return
-    }
-    toast.success(result.message)
-    setAmount('')
+    void (async () => {
+      const result = await convertAssets(fromAsset.walletId, toAsset.walletId, Number(amount))
+      if (!result.ok) {
+        toast.error(result.message)
+        return
+      }
+      toast.success(result.message)
+      setAmount('')
+    })()
   }
 
   return (
@@ -85,13 +92,16 @@ export default function Wallets() {
         <>
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6 items-start">
            <div>
-           <AccountBalance userCoins={assets} />
+           <AccountBalance userCoins={assets} displayCurrency={displayCurrency} />
            <section className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-semibold text-neutral-100">Asset inventory</h2>
-                  <button className="rounded-full bg-neutral-900 p-2 py-1 hover:bg-neutral-800/50 smooth flex items-center space-x-2 text-xs">
+                  <button
+                    type="button"
+                    className="rounded-full bg-neutral-900 p-2 py-1 hover:bg-neutral-800/50 smooth flex items-center space-x-2 text-xs"
+                  >
                     <i className="fi fi-rr-add text-neutral-500"></i>
                     <span>Add Asset</span>
                   </button>
@@ -123,7 +133,7 @@ export default function Wallets() {
 
             <div ref={scrollContainerRef} className="overflow-x-auto scrollbar-none">
               <div className="flex gap-4 min-w-max">
-                <AssetsList userCoins={assets} />
+                <AssetsList userCoins={assets} displayCurrency={displayCurrency} />
               </div>
             </div>
           </section>
@@ -188,27 +198,64 @@ export default function Wallets() {
               </div>
 
               <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between text-neutral-400">
-                  <span>Converted value</span>
-                  <span>{quotePreview ? formatCurrency(quotePreview.usdValue, 'USD') : '$0.00'}</span>
+                <div className="flex flex-col gap-0.5 text-neutral-400">
+                  <div className="flex items-center justify-between">
+                    <span>Converted value (gross)</span>
+                    <span className="text-right">
+                      {quotePreview
+                        ? (() => {
+                            const { usd, fiat } = formatUsdAndAccountFiat(
+                              quotePreview.usdGross,
+                              displayCurrency
+                            )
+                            return (
+                              <span>
+                                <span className="text-neutral-200">{fiat}</span>
+                                <span className="text-neutral-500 text-xs ml-1">({usd})</span>
+                              </span>
+                            )
+                          })()
+                        : '—'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-neutral-400">
-                  <span>Fee</span>
-                  <span>{quotePreview ? formatCurrency(quotePreview.fee, 'USD') : '$0.00'}</span>
+                <div className="flex flex-col gap-0.5 text-neutral-400">
+                  <div className="flex items-center justify-between">
+                    <span>Fee (0.35%)</span>
+                    <span className="text-right">
+                      {quotePreview
+                        ? (() => {
+                            const { usd, fiat } = formatUsdAndAccountFiat(
+                              quotePreview.feeUsd,
+                              displayCurrency
+                            )
+                            return (
+                              <span>
+                                <span className="text-neutral-200">{fiat}</span>
+                                <span className="text-neutral-500 text-xs ml-1">({usd})</span>
+                              </span>
+                            )
+                          })()
+                        : '—'}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-neutral-100">
                   <span>You receive</span>
                   <span>
                     {quotePreview && toAsset
                       ? toAsset.assetType === 'fiat'
-                        ? formatCurrency(quotePreview.toAmountValue, toAsset.coinShort)
+                        ? safeFormatCurrency(
+                            quotePreview.toAmountValue,
+                            toAsset.coinShort || displayCurrency.code
+                          )
                         : `${quotePreview.toAmountValue.toFixed(6)} ${toAsset.coinShort}`
                       : '--'}
                   </span>
                 </div>
-                <div className="text-xs text-neutral-500">
+                <div className="text-xs text-neutral-500 border-t border-neutral-800/80 pt-2 mt-1">
                   {quotePreview && fromAsset && toAsset
-                    ? `1 ${fromAsset.coinShort} ~= ${quotePreview.rate.toFixed(6)} ${toAsset.coinShort}`
+                    ? `1 ${fromAsset.coinShort} ≈ ${quotePreview.rate.toFixed(8)} ${toAsset.coinShort} · Notional routed in USD for trading`
                     : 'Select assets and enter an amount to preview the conversion.'}
                 </div>
               </div>

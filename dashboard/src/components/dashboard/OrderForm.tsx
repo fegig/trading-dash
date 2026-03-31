@@ -1,8 +1,11 @@
 import { useState, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { formatLength } from "@/util/formatCurrency";
 import { MarketData } from "./PairBanner";
 import { errorToast, successToast } from "@/components/common/sweetAlerts";
 import { placeLiveOrder } from "@/services/liveOrderService";
+import { useWalletStore } from "@/stores";
+import { formatUsdAndAccountFiat } from "@/util/walletDisplay";
 import Switch from "../common/SwitchOption";
 
 type TradingType = 'isolated' | 'cross';
@@ -65,6 +68,8 @@ interface OrderFormProps {
 }
 
 function OrderForm({ symbol }: OrderFormProps) {
+    const displayCurrency = useWalletStore(useShallow((s) => s.displayCurrency));
+
     const [tradingType, setTradingType] = useState<TradingType>('isolated');
     const [tradingTypeValue, setTradingTypeValue] = useState<number>(0);
     const [orderType, setOrderType] = useState<OrderType>('market');
@@ -123,16 +128,27 @@ function OrderForm({ symbol }: OrderFormProps) {
         const liquidationPrice = calculateLiquidationPrice(priceStr, levStr, longShort);
         const marginRequired = calculateMargin(amount, levStr);
         const maxPosition = calculateMaxPosition(marginBalance, levStr);
+        const levN = Number(levStr) || 1;
+        const marginUsd =
+            priceNum > 0 && Number(amount) > 0 ? (Number(amount) * priceNum) / levN : 0;
+        const marginDual =
+            marginUsd > 0
+                ? formatUsdAndAccountFiat(marginUsd, displayCurrency)
+                : null;
 
         const detailRows: Detail[] = [
             { name: 'Commission', value: commission.toFixed(2), unit: symbol?.QUOTE },
             { name: 'Av Liquidation Price', value: liquidationPrice.toFixed(2), unit: symbol?.QUOTE },
-            { name: 'Margin', value: marginRequired.toFixed(2), unit: symbol?.QUOTE },
+            {
+                name: 'Margin (USD, wallet debit)',
+                value: marginDual ? `${marginDual.usd} (${marginDual.fiat})` : marginRequired.toFixed(2),
+                unit: marginDual ? undefined : symbol?.QUOTE,
+            },
             { name: 'Max Position Amount', value: maxPosition.toFixed(2), unit: symbol?.QUOTE },
         ];
 
         return { marginUsage: marginUsageRows, details: detailRows };
-    }, [amount, leverage, orderPrice, orderType, longShort, symbol]);
+    }, [amount, leverage, orderPrice, orderType, longShort, symbol, displayCurrency]);
 
     // Update place order handler
     const handlePlaceOrder = (): void => {
@@ -178,10 +194,12 @@ function OrderForm({ symbol }: OrderFormProps) {
             .then((res) => {
                 const status = res && 'status' in res ? (res as { status?: number }).status : undefined;
                 if (status && status >= 400) {
-                    errorToast('Order rejected. Check session and try again.');
+                    const msg = (res as { data?: { error?: string } })?.data?.error;
+                    errorToast(msg ?? 'Order rejected. Check session and balance.');
                     return;
                 }
                 successToast('Order placed successfully');
+                void useWalletStore.getState().loadWallet(true);
             })
             .catch(() => {
                 errorToast('Could not place order. Is the API running?');

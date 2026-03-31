@@ -57,8 +57,12 @@ export async function getClosedTrades(userID: string): Promise<ClosedTradeRow[]>
     .map(toClosedTradeRow)
 }
 
-export async function closeTrade(tradeID: string) {
-  return post(endpoints.user.closeTrade, { tradeID })
+export async function closeTrade(tradeID: string, marketPrice?: number) {
+  const payload: Record<string, unknown> = { tradeID }
+  if (marketPrice != null && Number.isFinite(marketPrice) && marketPrice > 0) {
+    payload.marketPrice = marketPrice
+  }
+  return post(endpoints.user.closeTrade, payload)
 }
 
 export async function createExternalTradeToken(payload: {

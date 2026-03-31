@@ -8,51 +8,12 @@ import * as schema from '../db/schema'
 import { catalogDepositAddress } from '../lib/catalog-deposit-address'
 import { coincapIconUrl } from '../lib/coincap'
 import { provisionCoinForAllUsers } from '../services/wallet-provisioning'
+import { spendUserFiatUsd } from '../lib/wallet-ledger'
 
 const DEFAULT_SUB_DAYS = 30
 const SUB_PERIOD_SEC = DEFAULT_SUB_DAYS * 86400
 
 const platform = new Hono<{ Bindings: Env; Variables: AppVariables }>()
-
-async function spendUserFiat(
-  db: AppVariables['db'],
-  userId: number,
-  amount: number,
-  note: string,
-  methodName: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const rows = await db
-    .select()
-    .from(schema.walletAssets)
-    .where(and(eq(schema.walletAssets.userId, userId), eq(schema.walletAssets.assetType, 'fiat')))
-    .limit(1)
-  const fiat = rows[0]
-  if (!fiat) return { ok: false, error: 'No fiat wallet' }
-  const bal = Number(fiat.userBalance)
-  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'Invalid amount' }
-  if (bal < amount) return { ok: false, error: 'Insufficient balance' }
-  const next = (bal - amount).toFixed(8)
-  await db.update(schema.walletAssets).set({ userBalance: next }).where(eq(schema.walletAssets.id, fiat.id))
-
-  const tid = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
-  await db.insert(schema.walletTransactions).values({
-    id: tid,
-    userId,
-    type: 'withdrawal',
-    amount: String(amount.toFixed(8)),
-    eqAmount: String(amount.toFixed(8)),
-    status: 'completed',
-    createdAt: now,
-    methodType: 'fiat',
-    methodName,
-    methodSymbol: fiat.coinShort,
-    methodIcon: fiat.iconUrl ?? undefined,
-    methodIconClass: fiat.iconClass ?? undefined,
-    note,
-  })
-  return { ok: true }
-}
 
 platform.get('/coins', async (c) => {
   const rows = await c.var.db
@@ -290,11 +251,12 @@ platform.post('/bot-subscriptions', requireUser, async (c) => {
   const days = bot.subscriptionDays ?? DEFAULT_SUB_DAYS
   const periodSec = days * 86400
 
-  const spend = await spendUserFiat(
+  const spend = await spendUserFiatUsd(
+    c.env,
     c.var.db,
     uid,
     price,
-    `${bot.name} activation purchased from bot desk.`,
+    `${bot.name} activation (${price} USD) debited in your account currency.`,
     'Bot Purchase'
   )
   if (!spend.ok) return c.json({ error: spend.error }, 400)
@@ -352,11 +314,12 @@ platform.post('/following-traders', requireUser, async (c) => {
   }
 
   const uid = c.var.user!.id
-  const spend = await spendUserFiat(
+  const spend = await spendUserFiatUsd(
+    c.env,
     c.var.db,
     uid,
     amount,
-    `${amount} USD allocated to ${trader.name}.`,
+    `${amount} USD allocation to ${trader.name} (charged in your account currency).`,
     'Copy Trading Allocation'
   )
   if (!spend.ok) return c.json({ error: spend.error }, 400)
@@ -417,11 +380,12 @@ platform.post('/investment-positions', requireUser, async (c) => {
   }
 
   const uid = c.var.user!.id
-  const spend = await spendUserFiat(
+  const spend = await spendUserFiatUsd(
+    c.env,
     c.var.db,
     uid,
     amount,
-    `${amount} USD subscribed to ${product.name}.`,
+    `${amount} USD subscribed to ${product.name} (charged in your account currency).`,
     'Investment Subscription'
   )
   if (!spend.ok) return c.json({ error: spend.error }, 400)

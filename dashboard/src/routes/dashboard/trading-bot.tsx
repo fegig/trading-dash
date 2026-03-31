@@ -7,6 +7,7 @@ import PageHero from '@/components/common/PageHero'
 import { keywordTone } from '@/components/common/gradientBadgeTones'
 import { usePlatformStore, useWalletStore } from '@/stores'
 import { formatCurrency } from '@/util/formatCurrency'
+import { formatUsdAndAccountFiat, safeFormatCurrency } from '@/util/walletDisplay'
 import { isSubscriptionActive } from '@/util/subscription'
 import { paths } from '@/navigation/paths'
 
@@ -38,10 +39,11 @@ export default function TradingBotPage() {
       purchaseBot: state.purchaseBot,
     }))
   )
-  const { assets, loadWallet } = useWalletStore(
+  const { assets, loadWallet, displayCurrency } = useWalletStore(
     useShallow((state) => ({
       assets: state.assets,
       loadWallet: state.loadWallet,
+      displayCurrency: state.displayCurrency,
     }))
   )
 
@@ -102,7 +104,12 @@ export default function TradingBotPage() {
           { label: 'Active Bots', value: `${activeSubscriptions.length} running` },
           {
             label: 'Cash Available',
-            value: fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable',
+            value: fiatAsset
+              ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(
+                  fiatAsset.userBalance * displayCurrency.usdPerUnit,
+                  'USD'
+                )})`
+              : 'Unavailable',
           },
           { label: 'Average Win Rate', value: `${averageWinRate}%` },
         ]}
@@ -234,7 +241,10 @@ export default function TradingBotPage() {
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:min-w-88">
-                    <MetricCard label="Price" value={formatCurrency(bot.priceUsd, 'USD')} />
+                    <MetricCard
+                      label="Price"
+                      value={`${formatUsdAndAccountFiat(bot.priceUsd, displayCurrency).usd} · ${formatUsdAndAccountFiat(bot.priceUsd, displayCurrency).fiat}`}
+                    />
                     <MetricCard label="Target" value={bot.monthlyTarget} accent="text-green-300" />
                     <MetricCard label="Win Rate" value={`${bot.winRate}%`} />
                     <MetricCard label="Drawdown" value={`${bot.maxDrawdown}%`} accent="text-amber-300" />
@@ -285,7 +295,10 @@ export default function TradingBotPage() {
               <div className="grid grid-cols-2 gap-3">
                 <MetricCard label="Markets" value={selectedBot.markets.join(', ')} />
                 <MetricCard label="Cadence" value={selectedBot.cadence} />
-                <MetricCard label="Price" value={formatCurrency(selectedBot.priceUsd, 'USD')} />
+                <MetricCard
+                  label="Price"
+                  value={`${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).usd} · ${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).fiat}`}
+                />
                 <MetricCard
                   label="Status"
                   value={
@@ -337,7 +350,7 @@ export default function TradingBotPage() {
                   ? `${selectedBot.name} subscription active`
                   : anyOtherActive
                     ? 'Another bot is already running'
-                    : `Purchase for ${formatCurrency(selectedBot.priceUsd, 'USD')}`}
+                    : `Purchase for ${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).usd} (${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).fiat})`}
               </button>
             </>
           ) : (

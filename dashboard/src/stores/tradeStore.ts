@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import * as tradeService from '../services/tradeService'
 import type { TradePosition } from '../types/trade'
+import { useWalletStore } from './walletStore'
 
 type TradeState = {
   trades: TradePosition[]
@@ -37,7 +38,13 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   },
   selectTrade: (tradeId) => set({ selectedTradeId: tradeId }),
   closeTrade: async (tradeId) => {
-    await tradeService.closeTrade(tradeId)
+    const trade = get().trades.find((t) => t.tradeId === tradeId)
+    const mpx =
+      trade && typeof trade.marketPrice === 'number' && Number.isFinite(trade.marketPrice)
+        ? trade.marketPrice
+        : undefined
+    await tradeService.closeTrade(tradeId, mpx)
+    await useWalletStore.getState().loadWallet(true)
     const { loadedUserId } = get()
     if (loadedUserId) {
       await get().loadTrades(loadedUserId, true)

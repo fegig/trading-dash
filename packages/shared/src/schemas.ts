@@ -13,6 +13,14 @@ export const userIdBodySchema = z.object({
 
 export const closeTradeBodySchema = z.object({
   tradeID: z.string(),
+  /** Optional exit mark; defaults to stored market price on the trade row. */
+  marketPrice: z.number().positive().optional(),
+})
+
+export const walletConvertBodySchema = z.object({
+  fromWalletId: z.string().min(1),
+  toWalletId: z.string().min(1),
+  fromAmount: z.number().positive(),
 })
 
 export const currencyIdBodySchema = z.object({

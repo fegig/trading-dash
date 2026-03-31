@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import Cookies from 'js-cookie'
 import type { UserProfile, VerificationStatus } from './userStore'
 import { useUserStore } from './userStore'
+import { useWalletStore } from './walletStore'
 
 const USER_KEY = '_currentInfo'
 const COOKIE_KEY = '__isLoggedIn'
@@ -90,5 +91,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('OMS__FEI')
     set({ isLoggedIn: false, user: null })
     useUserStore.getState().setUser(null)
+    useWalletStore.setState({
+      assets: [],
+      transactions: [],
+      loaded: false,
+      displayCurrency: { code: 'USD', name: 'US Dollar', usdPerUnit: 1 },
+    })
   },
 }))

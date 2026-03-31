@@ -1,8 +1,20 @@
 import { create } from 'zustand'
 import * as walletService from '../services/walletService'
-import type { TransactionHistoryProps, UserCoinsProps, WalletConversionQuote } from '../types/wallet'
+import type {
+  TransactionHistoryProps,
+  UserCoinsProps,
+  WalletConversionQuote,
+  WalletDisplayCurrency,
+} from '../types/wallet'
+
+const DEFAULT_DISPLAY: WalletDisplayCurrency = {
+  code: 'USD',
+  name: 'US Dollar',
+  usdPerUnit: 1,
+}
 
 type WalletState = {
+  displayCurrency: WalletDisplayCurrency
   assets: UserCoinsProps[]
   transactions: TransactionHistoryProps[]
   loading: boolean
@@ -14,7 +26,7 @@ type WalletState = {
     fromAssetId: string,
     toAssetId: string,
     rawAmount: number
-  ) => { ok: boolean; message: string; quote?: WalletConversionQuote }
+  ) => Promise<{ ok: boolean; message: string; quote?: WalletConversionQuote }>
   spendFiat: (amount: number, note: string, methodName: string) => { ok: boolean; message: string }
 }
 
@@ -25,29 +37,38 @@ function createMethodIcon(asset: UserCoinsProps) {
 }
 
 export const useWalletStore = create<WalletState>((set, get) => ({
+  displayCurrency: DEFAULT_DISPLAY,
   assets: [],
   transactions: [],
   loading: false,
   loaded: false,
   selectedAssetId: null,
   loadWallet: async (force = false) => {
-    if (!force && (get().loading || get().loaded)) return
-    set({ loading: true })
-    const [assets, transactions] = await Promise.all([
-      walletService.getWalletAssets(),
-      walletService.getWalletTransactions(),
-    ])
-    set({
-      assets,
-      transactions,
-      loading: false,
-      loaded: true,
-      selectedAssetId: assets[0]?.walletId ?? null,
-    })
+    if (get().loading) return
+    if (!force && get().loaded) return
+    // Avoid full-page skeleton on background refresh (e.g. Swap modal open) — that unmounted the modal.
+    const quietRefresh = Boolean(force && get().loaded && get().assets.length > 0)
+    if (!quietRefresh) set({ loading: true })
+    try {
+      const [bundle, transactions] = await Promise.all([
+        walletService.getWalletAssets(),
+        walletService.getWalletTransactions(),
+      ])
+      set({
+        displayCurrency: bundle.displayCurrency,
+        assets: bundle.assets,
+        transactions,
+        loading: false,
+        loaded: true,
+        selectedAssetId: bundle.assets[0]?.walletId ?? null,
+      })
+    } catch {
+      set({ loading: false })
+    }
   },
   selectAsset: (assetId) => set({ selectedAssetId: assetId }),
-  convertAssets: (fromAssetId, toAssetId, rawAmount) => {
-    const { assets, transactions } = get()
+  convertAssets: async (fromAssetId, toAssetId, rawAmount) => {
+    const { assets } = get()
     const fromAsset = assets.find((asset) => asset.walletId === fromAssetId)
     const toAsset = assets.find((asset) => asset.walletId === toAssetId)
 
@@ -59,68 +80,37 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       return { ok: false, message: 'Enter a valid amount to convert.' }
     }
 
-    if (rawAmount > fromAsset.userBalance) {
+    if (rawAmount > fromAsset.userBalance + 1e-12) {
       return { ok: false, message: 'Insufficient balance for this conversion.' }
+    }
+
+    const api = await walletService.postWalletConvert(fromAssetId, toAssetId, rawAmount)
+    if (!api.ok) {
+      return { ok: false, message: api.message }
     }
 
     const fromPrice = Number(fromAsset.price)
     const toPrice = Number(toAsset.price)
-    const usdValue = Number((rawAmount * fromPrice).toFixed(2))
-    const fee = Number((usdValue * 0.0035).toFixed(2))
-    const netUsd = usdValue - fee
-    const precision = toAsset.assetType === 'fiat' ? 2 : 6
-    const toAmount = Number((netUsd / toPrice).toFixed(precision))
-    const rate = Number((fromPrice / toPrice).toFixed(6))
+    const rate = toPrice > 0 ? Number((fromPrice / toPrice).toFixed(8)) : 0
     const quote: WalletConversionQuote = {
       fromAssetId,
       toAssetId,
-      fromAmount: rawAmount,
-      toAmount,
+      fromAmount: api.fromAmount,
+      toAmount: api.toAmount,
       rate,
-      fee,
-      usdValue: netUsd,
+      fee: api.feeUsd,
+      usdValue: api.netUsd,
     }
 
-    const createdAt = Math.floor(Date.now() / 1000)
-    set({
-      assets: assets.map((asset) => {
-        if (asset.walletId === fromAsset.walletId) {
-          return { ...asset, userBalance: Number((asset.userBalance - rawAmount).toFixed(8)) }
-        }
-        if (asset.walletId === toAsset.walletId) {
-          return { ...asset, userBalance: Number((asset.userBalance + toAmount).toFixed(8)) }
-        }
-        return asset
-      }),
-      transactions: [
-        {
-          id: `txn-convert-${createdAt}`,
-          type: 'transfer',
-          amount: rawAmount,
-          eqAmount: netUsd,
-          status: 'completed',
-          createdAt,
-          method: {
-            type:
-              fromAsset.assetType === 'fiat' || toAsset.assetType === 'fiat' ? 'fiat' : 'crypto',
-            name: `${fromAsset.coinShort} to ${toAsset.coinShort}`,
-            symbol: toAsset.coinShort,
-            ...createMethodIcon(toAsset),
-          },
-          note: `Converted ${rawAmount} ${fromAsset.coinShort} into ${toAmount} ${toAsset.coinShort}.`,
-        },
-        ...transactions,
-      ],
-    })
-
+    await get().loadWallet(true)
     return {
       ok: true,
-      message: `Converted ${rawAmount} ${fromAsset.coinShort} into ${toAmount} ${toAsset.coinShort}.`,
+      message: `Converted ${api.fromAmount} ${fromAsset.coinShort} into ${api.toAmount} ${toAsset.coinShort}.`,
       quote,
     }
   },
   spendFiat: (amount, note, methodName) => {
-    const { assets, transactions } = get()
+    const { assets, transactions, displayCurrency } = get()
     const fiatAsset = assets.find((asset) => asset.assetType === 'fiat')
     if (!fiatAsset) {
       return { ok: false, message: 'No fiat funding wallet is available.' }
@@ -128,6 +118,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     if (amount > fiatAsset.userBalance) {
       return { ok: false, message: 'Not enough fiat balance for this action.' }
     }
+
+    const usdEq = Number((amount * displayCurrency.usdPerUnit).toFixed(2))
 
     const createdAt = Math.floor(Date.now() / 1000)
     set({
@@ -141,7 +133,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           id: `txn-spend-${createdAt}`,
           type: 'withdrawal',
           amount,
-          eqAmount: amount,
+          eqAmount: usdEq,
           status: 'completed',
           createdAt,
           method: {

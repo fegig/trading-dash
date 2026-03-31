@@ -9,6 +9,7 @@ import PairBanner, { type MarketData } from '@/components/dashboard/PairBanner'
 import type { GradientBadgeTone } from '@/components/common/gradientBadgeTones'
 import { useAuthStore, usePlatformStore, useTradeStore, useUserStore, useVerificationStore, useWalletStore } from '@/stores'
 import { formatCurrency, formatLength, formatNumber } from '@/util/formatCurrency'
+import { safeFormatCurrency } from '@/util/walletDisplay'
 import { isSubscriptionActive } from '@/util/subscription'
 import { formatDateWithTime } from '@/util/time'
 import { paths } from '@/navigation/paths'
@@ -180,12 +181,13 @@ export default function DashboardPage() {
       loadTrades: state.loadTrades,
     }))
   )
-  const { assets, transactions, loading: walletLoading, loadWallet } = useWalletStore(
+  const { assets, transactions, loading: walletLoading, loadWallet, displayCurrency } = useWalletStore(
     useShallow((state) => ({
       assets: state.assets,
       transactions: state.transactions,
       loading: state.loading,
       loadWallet: state.loadWallet,
+      displayCurrency: state.displayCurrency,
     }))
   )
   const {
@@ -215,11 +217,15 @@ export default function DashboardPage() {
   )
 
   useEffect(() => {
-    void Promise.all([loadTrades(userId), loadWallet(), loadCatalog(), loadVerification()])
+    void Promise.all([loadTrades(userId), loadWallet(true), loadCatalog(), loadVerification()])
   }, [loadCatalog, loadTrades, loadVerification, loadWallet, userId])
 
   const dashboardLoading = tradeLoading || walletLoading || platformLoading || verificationLoading
   const fiatAsset = assets.find((asset) => asset.assetType === 'fiat')
+  const fiatBalanceUsd = useMemo(
+    () => (fiatAsset ? fiatAsset.userBalance * Number(fiatAsset.price) : 0),
+    [fiatAsset]
+  )
 
   const walletAssets = useMemo(
     () =>
@@ -291,8 +297,10 @@ export default function DashboardPage() {
     return [
       {
         label: 'Cash funding',
-        value: fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable',
-        percentage: safePercentage(fiatAsset?.userBalance ?? 0),
+        value: fiatAsset
+          ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} · ${formatCurrency(fiatBalanceUsd, 'USD')}`
+          : 'Unavailable',
+        percentage: safePercentage(fiatBalanceUsd),
         accentClass: 'bg-sky-500/80',
       },
       {
@@ -314,7 +322,15 @@ export default function DashboardPage() {
         accentClass: 'bg-amber-500/80',
       },
     ]
-  }, [copyCapital, fiatAsset, investmentCapital, liveTradeMargin, portfolioValue])
+  }, [
+    copyCapital,
+    displayCurrency.code,
+    fiatAsset,
+    fiatBalanceUsd,
+    investmentCapital,
+    liveTradeMargin,
+    portfolioValue,
+  ])
 
   const metrics = [
     {
@@ -323,9 +339,11 @@ export default function DashboardPage() {
       subtext: 'Wallet balances plus funded mandates',
     },
     {
-      label: 'Fiat Ready',
-      value: fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable',
-      subtext: 'Available for trades, bots, copy, and investments',
+      label: 'Fiat ready',
+      value: fiatAsset
+        ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} · ${formatCurrency(fiatBalanceUsd, 'USD')}`
+        : 'Unavailable',
+      subtext: 'Your cash wallet in account currency and USD equivalent for platform pricing',
     },
     {
       label: 'Live Setups',

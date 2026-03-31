@@ -23,6 +23,7 @@ import * as schema from '../db/schema'
 import { rowToTradePosition } from '../lib/trade-map'
 import { getInternalUserIdByPublicId } from '../services/users-repo'
 import { provisionUserWallets } from '../services/wallet-provisioning'
+import { adjustFiatByUsd } from '../lib/wallet-ledger'
 
 type ActivityLogRow = InferSelectModel<typeof schema.activityLogs>
 type TradeRow = InferSelectModel<typeof schema.trades>
@@ -30,13 +31,34 @@ type FiatRow = InferSelectModel<typeof schema.fiatCurrencies>
 
 const user = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
-function apiUserRow(u: {
-  publicId: string
-  email: string
-  verificationStatus: number
+async function fiatMetaForUser(
+  db: AppVariables['db'],
   currencyId: number | null
-  bios?: unknown
-}) {
+): Promise<{ code: string; name: string } | null> {
+  if (currencyId == null) return null
+  const [r] = await db
+    .select({ code: schema.fiatCurrencies.code, name: schema.fiatCurrencies.name })
+    .from(schema.fiatCurrencies)
+    .where(eq(schema.fiatCurrencies.id, currencyId))
+    .limit(1)
+  if (!r) return null
+  const code =
+    r.code && r.code.trim()
+      ? r.code.trim().toUpperCase()
+      : r.name.substring(0, 3).toUpperCase()
+  return { code, name: r.name }
+}
+
+function apiUserRow(
+  u: {
+    publicId: string
+    email: string
+    verificationStatus: number
+    currencyId: number | null
+    bios?: unknown
+  },
+  fiat?: { code: string; name: string } | null
+) {
   const b =
     u.bios && typeof u.bios === 'object' && !Array.isArray(u.bios)
       ? (u.bios as Record<string, unknown>)
@@ -58,6 +80,8 @@ function apiUserRow(u: {
     phone,
     country: typeof b.country === 'string' ? b.country : '',
     loginOtpEnabled: b.loginOtpEnabled === true,
+    currency_code: fiat?.code ?? '',
+    currency_name: fiat?.name ?? '',
   }
 }
 
@@ -69,14 +93,18 @@ user.get('/me', requireUser, async (c) => {
     row.bios && typeof row.bios === 'object' && !Array.isArray(row.bios)
       ? (row.bios as Record<string, unknown>)
       : {}
+  const fiat = await fiatMetaForUser(c.var.db, row.currencyId)
   return c.json({
-    user: apiUserRow({
-      publicId: row.publicId,
-      email: row.email,
-      verificationStatus: row.verificationStatus,
-      currencyId: row.currencyId,
-      bios: row.bios,
-    }),
+    user: apiUserRow(
+      {
+        publicId: row.publicId,
+        email: row.email,
+        verificationStatus: row.verificationStatus,
+        currencyId: row.currencyId,
+        bios: row.bios,
+      },
+      fiat
+    ),
     bios,
   })
 })
@@ -121,14 +149,19 @@ user.post('/login', async (c) => {
   // Provision wallet assets + default settings (awaited so data is ready immediately)
   await provisionUserWallets(c.var.db, u.id)
 
+  const fiat = await fiatMetaForUser(c.var.db, u.currencyId)
+
   return c.json({
-    user: apiUserRow({
-      publicId: u.publicId,
-      email: u.email,
-      verificationStatus: u.verificationStatus,
-      currencyId: u.currencyId,
-      bios: u.bios,
-    }),
+    user: apiUserRow(
+      {
+        publicId: u.publicId,
+        email: u.email,
+        verificationStatus: u.verificationStatus,
+        currencyId: u.currencyId,
+        bios: u.bios,
+      },
+      fiat
+    ),
     token: bearer,
   })
 })
@@ -321,20 +354,51 @@ user.post('/closeTrade', async (c) => {
     }
   }
 
+  if (t.status !== 'open' && t.status !== 'pending') {
+    return c.json({ error: 'Trade is not open' }, 409)
+  }
+
   const now = Math.floor(Date.now() / 1000)
-  const mpx = Number(t.marketPrice)
+  const exitPx = parsed.data.marketPrice ?? Number(t.marketPrice)
+  const entryPx = Number(t.entryPrice)
   const invested = Number(t.invested)
   const fees = Number(t.fees)
-  const realized = Number((mpx * 0.001 - fees).toFixed(2))
+  let pnlUsd = 0
+  if (entryPx > 0 && exitPx > 0 && invested > 0) {
+    if (t.option === 'buy') {
+      pnlUsd = invested * (exitPx / entryPx - 1) - fees
+    } else {
+      pnlUsd = invested * (entryPx / exitPx - 1) - fees
+    }
+  }
+  pnlUsd = Number(pnlUsd.toFixed(8))
+  const roiPct = invested > 0 ? Number(((pnlUsd / invested) * 100).toFixed(4)) : 0
+
+  const marginUsd = Number(t.margin)
+  const liveFunded = t.executionVenue === 'live' && t.status === 'open'
+  const returnUsd = liveFunded ? marginUsd + pnlUsd : pnlUsd
+
+  const settled = await adjustFiatByUsd(
+    c.env,
+    c.var.db,
+    t.userId,
+    returnUsd,
+    liveFunded
+      ? `Trade close: released margin + P&L (~${returnUsd.toFixed(2)} USD equivalent).`
+      : `Trade close: P&L (~${returnUsd.toFixed(2)} USD equivalent).`,
+    'Trade settlement'
+  )
+  if (!settled.ok) return c.json({ error: settled.error }, 400)
 
   await c.var.db
     .update(schema.trades)
     .set({
       status: 'completed',
       closingTime: now,
-      closingPrice: String(mpx),
-      roi: String(realized),
-      pnl: String(realized),
+      closingPrice: String(exitPx),
+      roi: String(roiPct),
+      pnl: String(pnlUsd),
+      marketPrice: String(exitPx),
       note: `${t.note} Closed via API.`,
     })
     .where(eq(schema.trades.id, tradeId))

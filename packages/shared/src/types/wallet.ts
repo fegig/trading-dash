@@ -1,5 +1,18 @@
 export type WalletAssetType = 'crypto' | 'fiat'
 
+/** User's primary fiat (account currency). All `asset.price` values are USD per one unit of that asset. */
+export type WalletDisplayCurrency = {
+  code: string
+  name: string
+  /** USD value of 1 unit of account currency (e.g. 1 EUR ≈ 1.08). Always 1 for USD. */
+  usdPerUnit: number
+}
+
+export type WalletAssetsApiResponse = {
+  displayCurrency: WalletDisplayCurrency
+  assets: UserCoinsProps[]
+}
+
 export interface UserCoinsProps {
   walletAddress: string
   userBalance: number
@@ -8,6 +21,7 @@ export interface UserCoinsProps {
   coinChain: string
   coinId: string
   walletId: string
+  /** USD per 1 unit of this asset (crypto spot; for fiat = FX rate vs USD). */
   price: string
   change24hrs: string
   coinColor: string

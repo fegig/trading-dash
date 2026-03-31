@@ -38,6 +38,7 @@ export const endpoints = {
   wallet: {
     assets: '/wallet/assets',
     transactions: '/wallet/transactions',
+    convert: '/wallet/convert',
   },
   admin: {
     faqCategories: '/admin/getFAQcat',

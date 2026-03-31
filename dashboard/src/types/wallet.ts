@@ -1,5 +1,7 @@
 export type {
   WalletAssetType,
+  WalletDisplayCurrency,
+  WalletAssetsApiResponse,
   UserCoinsProps,
   TransactionType,
   TransactionStatus,

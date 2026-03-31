@@ -1,6 +1,7 @@
 import { createDbContext, releaseDbContext } from '../db/client'
 import * as schema from '../db/schema'
 import type { Env } from '../types/env'
+import { creditUserFiatUsd, spendUserFiatUsd } from '../lib/wallet-ledger'
 
 type BookEntry = { price: number; quantity: number }
 
@@ -87,21 +88,96 @@ export class LiveTradingRoom {
             : this.bids[0]?.price ?? body.price ?? 0
           : body.price ?? this.asks[0]?.price ?? 0
 
+      const lev = Math.max(1, body.leverage || 1)
+      const notionalUsd = body.amount * execPrice
+      const marginUsd = lev > 0 ? notionalUsd / lev : notionalUsd
+
       const ctxDb = await createDbContext(this.env.HYPERDRIVE.connectionString)
       try {
-        await ctxDb.db.insert(schema.liveOrders).values({
-          id: orderId,
-          userId: body.userId,
-          pair: body.pair,
-          side: body.side,
-          orderType: body.type,
-          amount: String(body.amount),
-          leverage: body.leverage,
-          price: String(execPrice ?? 0),
-          marginType: body.marginType,
-          status: 'filled',
-          createdAt: now,
-        })
+        const { db } = ctxDb
+
+        if (marginUsd > 0 && execPrice > 0) {
+          const spend = await spendUserFiatUsd(
+            this.env,
+            db,
+            body.userId,
+            marginUsd,
+            `Live order margin (~${marginUsd.toFixed(2)} USD) for ${body.pair} ${body.side}.`,
+            'Trade margin'
+          )
+          if (!spend.ok) {
+            return Response.json({ ok: false, error: spend.error }, { status: 400 })
+          }
+        }
+
+        try {
+          await db.insert(schema.liveOrders).values({
+            id: orderId,
+            userId: body.userId,
+            pair: body.pair,
+            side: body.side,
+            orderType: body.type,
+            amount: String(body.amount),
+            leverage: body.leverage,
+            price: String(execPrice ?? 0),
+            marginType: body.marginType,
+            status: 'filled',
+            createdAt: now,
+          })
+
+          const parts = body.pair.split('-').map((p) => p.trim().toUpperCase())
+          const base = parts[0] || 'BTC'
+          const quote = parts[1] || 'USDT'
+          const invested = Number(notionalUsd.toFixed(8))
+          const marginStr = Number(marginUsd.toFixed(8))
+
+          await db.insert(schema.trades).values({
+            id: orderId,
+            userId: body.userId,
+            pair: body.pair.toUpperCase(),
+            base,
+            quote,
+            option: body.side,
+            direction: body.side === 'buy' ? 'long' : 'short',
+            entryTime: now,
+            entryPrice: String(execPrice),
+            invested: String(invested),
+            currency: 'USD',
+            status: 'open',
+            roi: null,
+            leverage: lev,
+            size: String(body.amount),
+            margin: String(marginStr),
+            marginPercentage: '100',
+            marginType: body.marginType,
+            pnl: '0',
+            sl: '0',
+            tp: '0',
+            fees: '0',
+            liquidationPrice: '0',
+            marketPrice: String(execPrice),
+            strategy: 'live-desk',
+            confidence: 50,
+            riskReward: '1:1',
+            note: `Live ${body.side} ${body.pair} @ ${execPrice}`,
+            setup: 'live-order',
+            fundedWith: 'fiat',
+            executionVenue: 'live',
+            tags: [orderId],
+          })
+        } catch {
+          if (marginUsd > 0 && execPrice > 0) {
+            await creditUserFiatUsd(
+              this.env,
+              db,
+              body.userId,
+              marginUsd,
+              'Refund: live order recording failed.',
+              'Trade margin'
+            )
+          }
+          return Response.json({ ok: false, error: 'Could not record order' }, { status: 500 })
+        }
       } finally {
         await releaseDbContext(ctxDb)
       }

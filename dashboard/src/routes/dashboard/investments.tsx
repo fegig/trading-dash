@@ -11,6 +11,7 @@ import PageHero from '@/components/common/PageHero'
 import { usePlatformStore, useWalletStore } from '@/stores'
 import type { InvestmentCategory } from '@/types/platform'
 import { formatCurrency } from '@/util/formatCurrency'
+import { formatUsdAndAccountFiat, safeFormatCurrency } from '@/util/walletDisplay'
 import { estimatePositionRoi } from '@/util/investmentRoi'
 
 const investmentCategories: Array<'All' | InvestmentCategory> = [
@@ -53,10 +54,11 @@ export default function InvestmentsPage() {
       investProduct: state.investProduct,
     }))
   )
-  const { assets, loadWallet } = useWalletStore(
+  const { assets, loadWallet, displayCurrency } = useWalletStore(
     useShallow((state) => ({
       assets: state.assets,
       loadWallet: state.loadWallet,
+      displayCurrency: state.displayCurrency,
     }))
   )
 
@@ -126,10 +128,15 @@ export default function InvestmentsPage() {
         description="Each investment mandate is funded from the fiat wallet, surfaced through the shared store, and structured like a real allocation desk rather than a crypto-only placeholder. That gives us a cleaner production path for managed products."  
         stats={[
           { label: 'Active Positions', value: `${investmentPositions.length} mandates` },
-          { label: 'Capital Deployed', value: formatCurrency(investedCapital, 'USD') },
+          {
+            label: 'Capital Deployed',
+            value: `${formatCurrency(investedCapital, 'USD')} · ${formatUsdAndAccountFiat(investedCapital, displayCurrency).fiat}`,
+          },
           {
             label: 'Cash Available',
-            value: fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable',
+            value: fiatAsset
+              ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(fiatAsset.userBalance * displayCurrency.usdPerUnit, 'USD')})`
+              : 'Unavailable',
           },
           { label: 'Top Yield', value: maxApy },
         ]}
@@ -287,7 +294,10 @@ export default function InvestmentsPage() {
                   <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                     <MetricPanel label="Yield" value={`${investment.apy}% APY`} accent="text-green-300" />
                     <MetricPanel label="Term" value={formatTerm(investment.termDays)} />
-                    <MetricPanel label="Minimum" value={formatCurrency(investment.minAmount, 'USD')} />
+                    <MetricPanel
+                      label="Minimum"
+                      value={`${formatUsdAndAccountFiat(investment.minAmount, displayCurrency).usd} · ${formatUsdAndAccountFiat(investment.minAmount, displayCurrency).fiat}`}
+                    />
                     <MetricPanel label="Liquidity" value={investment.liquidity} />
                     <MetricPanel label="Distribution" value={investment.distribution} />
                     <MetricPanel
@@ -375,15 +385,26 @@ export default function InvestmentsPage() {
                 />
                 <div className="flex items-center justify-between text-xs text-neutral-500">
                   <span>Minimum ticket</span>
-                  <span>{formatCurrency(selectedInvestment.minAmount, 'USD')}</span>
+                  <span>
+                    {formatUsdAndAccountFiat(selectedInvestment.minAmount, displayCurrency).usd} (
+                    {formatUsdAndAccountFiat(selectedInvestment.minAmount, displayCurrency).fiat})
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-neutral-500">
                   <span>Your current position</span>
-                  <span>{currentPosition ? formatCurrency(currentPosition.amount, 'USD') : 'No allocation'}</span>
+                  <span>
+                    {currentPosition
+                      ? `${formatCurrency(currentPosition.amount, 'USD')} (${formatUsdAndAccountFiat(currentPosition.amount, displayCurrency).fiat})`
+                      : 'No allocation'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-neutral-500">
                   <span>Funding source</span>
-                  <span>{fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable'}</span>
+                  <span>
+                    {fiatAsset
+                      ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(fiatAsset.userBalance * displayCurrency.usdPerUnit, 'USD')})`
+                      : 'Unavailable'}
+                  </span>
                 </div>
               </div>
 
@@ -399,7 +420,12 @@ export default function InvestmentsPage() {
                 onClick={handleInvest}
                 className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
               >
-                Subscribe from cash wallet
+                Subscribe{' '}
+                {formatUsdAndAccountFiat(
+                  Number(amount || selectedInvestment.minAmount),
+                  displayCurrency
+                ).usd}{' '}
+                ({formatUsdAndAccountFiat(Number(amount || selectedInvestment.minAmount), displayCurrency).fiat})
               </button>
             </>
           ) : (

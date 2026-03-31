@@ -1,26 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useShallow } from 'zustand/react/shallow'
 import AssetAvatar from '../common/AssetAvatar'
 import { useWalletStore } from '@/stores'
 import { type UserCoinsProps } from '@/types/wallet'
 import { formatCurrency } from '@/util/formatCurrency'
+import { formatUsdAndAccountFiat, safeFormatCurrency } from '@/util/walletDisplay'
 
 export default function Swap({ coin }: { coin: UserCoinsProps }) {
-  const { assets, convertAssets, loadWallet } = useWalletStore(
+  const { assets, convertAssets, displayCurrency } = useWalletStore(
     useShallow((state) => ({
       assets: state.assets,
       convertAssets: state.convertAssets,
-      loadWallet: state.loadWallet,
+      displayCurrency: state.displayCurrency,
     }))
   )
 
   const [fromAmount, setFromAmount] = useState('')
   const [toAssetId, setToAssetId] = useState('')
-
-  useEffect(() => {
-    void loadWallet()
-  }, [loadWallet])
 
   const availableAssets = useMemo(
     () => assets.filter((asset) => asset.walletId !== coin.walletId),
@@ -33,13 +30,16 @@ export default function Swap({ coin }: { coin: UserCoinsProps }) {
 
   const quotePreview = useMemo(() => {
     if (!targetAsset || !Number.isFinite(rawAmount) || rawAmount <= 0) return null
-    const usdValue = rawAmount * Number(coin.price)
-    const fee = usdValue * 0.0035
-    const toAmount = (usdValue - fee) / Number(targetAsset.price)
+    const fromPx = Number(coin.price)
+    const toPx = Number(targetAsset.price)
+    const usdGross = rawAmount * fromPx
+    const feeUsd = usdGross * 0.0035
+    const toAmount = (usdGross - feeUsd) / toPx
     return {
       toAmount,
-      fee,
-      rate: Number(coin.price) / Number(targetAsset.price),
+      feeUsd,
+      usdGross,
+      rate: fromPx / toPx,
     }
   }, [coin.price, rawAmount, targetAsset])
 
@@ -49,14 +49,15 @@ export default function Swap({ coin }: { coin: UserCoinsProps }) {
       return
     }
 
-    const result = convertAssets(coin.walletId, targetAsset.walletId, rawAmount)
-    if (!result.ok) {
-      toast.error(result.message)
-      return
-    }
-
-    toast.success(result.message)
-    setFromAmount('')
+    void (async () => {
+      const result = await convertAssets(coin.walletId, targetAsset.walletId, rawAmount)
+      if (!result.ok) {
+        toast.error(result.message)
+        return
+      }
+      toast.success(result.message)
+      setFromAmount('')
+    })()
   }
 
   return (
@@ -76,7 +77,7 @@ export default function Swap({ coin }: { coin: UserCoinsProps }) {
             <div className="text-xs text-neutral-500">
               Balance:{' '}
               {coin.assetType === 'fiat'
-                ? formatCurrency(coin.userBalance, coin.coinShort)
+                ? safeFormatCurrency(coin.userBalance, coin.coinShort)
                 : `${coin.userBalance.toFixed(4)} ${coin.coinShort}`}
             </div>
           </div>
@@ -116,9 +117,18 @@ export default function Swap({ coin }: { coin: UserCoinsProps }) {
             placeholder="0.00"
             className="w-full bg-transparent text-lg text-white outline-none px-0"
           />
-          {fromAmount ? (
-            <div className="text-xs text-neutral-500">
-              Approx. {formatCurrency(rawAmount * Number(coin.price), 'USD')}
+          {fromAmount && quotePreview ? (
+            <div className="text-xs text-neutral-500 space-y-0.5">
+              <div>
+                {(() => {
+                  const { fiat, usd } = formatUsdAndAccountFiat(quotePreview.usdGross, displayCurrency)
+                  return (
+                    <>
+                      ≈ {fiat} ({usd} USD)
+                    </>
+                  )
+                })()}
+              </div>
             </div>
           ) : null}
         </div>
@@ -165,12 +175,14 @@ export default function Swap({ coin }: { coin: UserCoinsProps }) {
                 <div className="text-sm text-neutral-100">
                   {quotePreview
                     ? targetAsset.assetType === 'fiat'
-                      ? formatCurrency(quotePreview.toAmount, targetAsset.coinShort)
+                      ? safeFormatCurrency(quotePreview.toAmount, targetAsset.coinShort)
                       : `${quotePreview.toAmount.toFixed(6)} ${targetAsset.coinShort}`
                     : '0.00'}
                 </div>
                 <div className="text-xs text-neutral-500">
-                  {quotePreview ? `Fee ${formatCurrency(quotePreview.fee, 'USD')}` : 'Enter amount'}
+                  {quotePreview
+                    ? `Fee ${formatUsdAndAccountFiat(quotePreview.feeUsd, displayCurrency).fiat} (${formatCurrency(quotePreview.feeUsd, 'USD')})`
+                    : 'Enter amount'}
                 </div>
               </div>
             </div>
@@ -187,8 +199,12 @@ export default function Swap({ coin }: { coin: UserCoinsProps }) {
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span>Conversion Fee</span>
-          <span>{quotePreview ? formatCurrency(quotePreview.fee, 'USD') : '$0.00'}</span>
+          <span>Conversion fee</span>
+          <span>
+            {quotePreview
+              ? `${formatUsdAndAccountFiat(quotePreview.feeUsd, displayCurrency).fiat} (${formatCurrency(quotePreview.feeUsd, 'USD')})`
+              : '—'}
+          </span>
         </div>
       </div>
 

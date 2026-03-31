@@ -8,6 +8,7 @@ import { capacityTone, keywordTone } from '@/components/common/gradientBadgeTone
 import { usePlatformStore, useWalletStore } from '@/stores'
 import type { CopyTraderProfile } from '@/types/platform'
 import { formatCurrency } from '@/util/formatCurrency'
+import { formatUsdAndAccountFiat, safeFormatCurrency } from '@/util/walletDisplay'
 import { isSubscriptionActive } from '@/util/subscription'
 import { paths } from '@/navigation/paths'
 
@@ -48,10 +49,11 @@ export default function CopyTradingPage() {
       followTrader: state.followTrader,
     }))
   )
-  const { assets, loadWallet } = useWalletStore(
+  const { assets, loadWallet, displayCurrency } = useWalletStore(
     useShallow((state) => ({
       assets: state.assets,
       loadWallet: state.loadWallet,
+      displayCurrency: state.displayCurrency,
     }))
   )
 
@@ -121,10 +123,15 @@ export default function CopyTradingPage() {
         description="Copy-trading participation now flows through the shared store with tracked allocations, wallet debits, and persistent trader funding state so the desk behaves like a real managed product."
         stats={[
           { label: 'Following', value: `${followingTraderIds.length} traders` },
-          { label: 'Allocated Capital', value: formatCurrency(allocatedCapital, 'USD') },
+          {
+            label: 'Allocated Capital',
+            value: `${formatCurrency(allocatedCapital, 'USD')} · ${formatUsdAndAccountFiat(allocatedCapital, displayCurrency).fiat}`,
+          },
           {
             label: 'Cash Available',
-            value: fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable',
+            value: fiatAsset
+              ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(fiatAsset.userBalance * displayCurrency.usdPerUnit, 'USD')})`
+              : 'Unavailable',
           },
           { label: 'Average Return', value: averageReturn },
         ]}
@@ -353,7 +360,10 @@ export default function CopyTradingPage() {
                 />
                 <div className="flex items-center justify-between text-xs text-neutral-500">
                   <span>Minimum allocation</span>
-                  <span>{formatCurrency(selectedTrader.minAllocation, 'USD')}</span>
+                  <span>
+                    {formatUsdAndAccountFiat(selectedTrader.minAllocation, displayCurrency).usd} (
+                    {formatUsdAndAccountFiat(selectedTrader.minAllocation, displayCurrency).fiat})
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-neutral-500">
                   <span>Performance fee</span>
@@ -361,7 +371,11 @@ export default function CopyTradingPage() {
                 </div>
                 <div className="flex items-center justify-between text-xs text-neutral-500">
                   <span>Cash funding available</span>
-                  <span>{fiatAsset ? formatCurrency(fiatAsset.userBalance, 'USD') : 'Unavailable'}</span>
+                  <span>
+                    {fiatAsset
+                      ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(fiatAsset.userBalance * displayCurrency.usdPerUnit, 'USD')})`
+                      : 'Unavailable'}
+                  </span>
                 </div>
               </div>
 
