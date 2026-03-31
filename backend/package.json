@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@trading-dash/shared": "workspace:*",
+    "dotenv": "^17.3.1",
     "drizzle-orm": "^0.38.4",
     "hono": "^4.7.4",
     "mysql2": "^3.12.0",

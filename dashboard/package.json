@@ -5,15 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "deploy": "pnpm run build && wrangler deploy",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@trading-dash/shared": "workspace:*",
     "@flaticon/flaticon-uicons": "^3.3.1",
     "@tailwindcss/vite": "^4.2.2",
+    "@trading-dash/shared": "workspace:*",
     "apexcharts": "^5.10.4",
     "axios": "^1.13.6",
     "crypto-js": "^4.2.0",
@@ -31,7 +32,6 @@
     "tailwind-scrollbar": "^4.0.2",
     "tailwindcss": "^4.2.2",
     "victory": "^37.3.6",
-    "vite-tsconfig-paths": "^6.1.1",
     "wrangler": "^4.78.0",
     "zustand": "^5.0.12"
   },

@@ -211,7 +211,7 @@ export default function Swap({ coin }: { coin: UserCoinsProps }) {
       <button
         type="button"
         onClick={handleSwap}
-        className="rounded-full bg-green-500/15 hover:bg-green-500/25 !px-4 !py-2 text-sm text-green-300 font-medium"
+        className="rounded-full bg-green-500/15 hover:bg-green-500/25 px-4! py-2! text-sm text-green-300 font-medium"
       >
         Convert {coin.coinShort}
       </button>
