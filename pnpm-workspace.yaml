@@ -1,0 +1,8 @@
+packages:
+  - "dashboard"
+  - "backend"
+  - "packages/*"
+allowBuilds:
+  esbuild: false
+  sharp: false
+  workerd: true

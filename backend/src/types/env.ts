@@ -1,0 +1,25 @@
+import type { Connection } from 'mysql2/promise'
+import type { MySql2Database } from 'drizzle-orm/mysql2/driver'
+import type * as schema from '../db/schema'
+import type { SessionUser } from '../services/user-context'
+
+export type Env = {
+  HYPERDRIVE: Hyperdrive
+  VERIFICATION_UPLOADS: R2Bucket
+  RATE_LIMIT?: KVNamespace
+  LIVE_TRADING: DurableObjectNamespace
+  RESEND_API_KEY: string
+  SESSION_SECRET: string
+  API_KEY?: string
+  SESSION_COOKIE_NAME: string
+  CORS_ORIGIN: string
+  RESEND_FROM: string
+  /** Public dashboard URL for email links */
+  FRONTEND_URL?: string
+}
+
+export type AppVariables = {
+  db: MySql2Database<typeof schema>
+  dbConn: Connection
+  user: SessionUser | null
+}

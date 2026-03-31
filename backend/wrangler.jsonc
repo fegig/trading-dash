@@ -1,0 +1,33 @@
+{
+  // Deploy: create Hyperdrive + set id. Local dev uses localConnectionString.
+  // Optional KV: wrangler kv namespace create RATE_LIMIT — add binding below for distributed rate limits.
+  "name": "trading-dash-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "SESSION_COOKIE_NAME": "td_session",
+    "CORS_ORIGIN": "http://localhost:4000",
+    "RESEND_FROM": "Trading <onboarding@resend.dev>",
+    "FRONTEND_URL": "http://localhost:4000"
+  },
+  // Create: wrangler r2 bucket create trading-dash-verification
+  "r2_buckets": [
+    {
+      "binding": "VERIFICATION_UPLOADS",
+      "bucket_name": "trading-dash-verification",
+      "preview_bucket_name": "trading-dash-verification-preview"
+    }
+  ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000-0000-0000-0000-000000000001",
+      "localConnectionString": "mysql://root:What,man@123@localhost:3306/trading_dash_offline_db"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "LIVE_TRADING", "class_name": "LiveTradingRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_classes": ["LiveTradingRoom"] }]
+}

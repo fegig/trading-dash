@@ -1,0 +1,7 @@
+RESEND_API_KEY=
+SESSION_SECRET=change-me-min-32-chars-long-secret-key
+API_KEY=
+FRONTEND_URL=http://localhost:4000
+
+# R2: create buckets once — wrangler r2 bucket create trading-dash-verification
+# and trading-dash-verification-preview (names must match wrangler.jsonc r2_buckets).

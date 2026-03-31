@@ -1,0 +1,72 @@
+/** Central API path segments — align with backend Hono routes */
+export const endpoints = {
+  user: {
+    getOtherBalance: '/user/getOtherBalance',
+    wonLoss: '/user/wonLoss',
+    getActivityLog: '/user/getActivityLog',
+    getOpenTrades: '/user/getOpenTrades',
+    getClosedTrades: '/user/getClosedTrades',
+    getTradePositions: '/user/getTradePositions',
+    closeTrade: '/user/closeTrade',
+    login: '/user/login',
+    getFiat: '/user/getFiat',
+    getVerificationStatus: '/user/getVerificationStatus',
+    updateUserStatus: '/user/updateUserStatus',
+    addBios: '/user/addBios',
+    getAllFiats: '/user/getAllFiats',
+    updateCurrency: '/user/updateCurrency',
+    addAdminWallet: '/user/addAdminWallet',
+  },
+  auth: {
+    createToken: '/auth/createToken',
+    sendOTP: '/auth/sendOTP',
+    verifyOTP: '/auth/verifyOTP',
+    register: '/auth/register',
+    regRefferal: '/auth/regRefferal',
+    passwordReset: '/auth/passwordReset',
+    verifyToken: '/auth/verifyToken',
+    sendVerificationEmail: '/auth/sendVerificationEmail',
+    sendLoginOtpEmail: '/auth/sendLoginOtpEmail',
+    loginNotification: '/auth/loginNotification',
+  },
+  affiliate: {
+    summary: '/affiliate/summary',
+    referrals: '/affiliate/referrals',
+  },
+  wallet: {
+    assets: '/wallet/assets',
+    transactions: '/wallet/transactions',
+  },
+  admin: {
+    faqCategories: '/admin/getFAQcat',
+    faqByCategory: (catId: number) => `/admin/getFAQ?catId=${catId}`,
+  },
+  platform: {
+    tradingBots: '/platform/trading-bots',
+    copyTraders: '/platform/copy-traders',
+    investmentProducts: '/platform/investment-products',
+    copyAllocations: '/platform/copy-allocations',
+    botSubscriptions: '/platform/bot-subscriptions',
+    followingTraders: '/platform/following-traders',
+    investmentPositions: '/platform/investment-positions',
+  },
+  settings: {
+    toggles: '/settings/toggles',
+    activityLogs: '/settings/activity-logs',
+  },
+  verification: {
+    overview: '/verification/overview',
+    steps: '/verification/steps',
+    documents: '/verification/documents',
+    benefits: '/verification/benefits',
+    documentUpload: (documentId: string) =>
+      `/verification/documents/${encodeURIComponent(documentId)}/upload`,
+    documentDownload: (documentId: string) =>
+      `/verification/documents/${encodeURIComponent(documentId)}/download`,
+  },
+  live: {
+    orderBookWs: (pair: string) => `/live/ws/${encodeURIComponent(pair)}`,
+    placeOrder: '/live/orders',
+    cancelOrder: '/live/orders/cancel',
+  },
+} as const
