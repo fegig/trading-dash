@@ -118,7 +118,15 @@ export default function AccountBalance({ userCoins }: { userCoins: UserCoinsProp
                             {topCoins.filter((coin) => coin.coinShort !== 'USD').slice(0, 5).map((coin) => (
                                 <div className="flex  gap-1 justify-around" key={coin.coinId}>
                                     <div className="flex items-center gap-1 gradient-background rounded-lg px-2! py-1!">
-                                        <img alt={coin.coinShort} className="w-4 h-4" src={coin.iconUrl} />
+                                        <AssetAvatar
+                                            symbol={coin.coinShort}
+                                            name={coin.coinName}
+                                            assetType={coin.assetType}
+                                            iconUrl={coin.iconUrl}
+                                            iconClass={coin.iconClass}
+                                            sizeClassName="w-4 h-4"
+                                            textClassName="text-[8px]"
+                                        />
                                         <span className="text-[10px] text-neutral-500 ">{coin.coinShort}</span>
                                         <span className={`text-[10px] ${Number(coin.change24hrs) > 0 ? 'text-green-500' : 'text-red-500'}`}>{Number(coin.change24hrs) > 0 ? '+' : ''}{Number(coin.change24hrs).toFixed(2)}%</span>
                                     </div>

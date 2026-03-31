@@ -37,17 +37,6 @@ function coinColor(symbol: string): string {
   return COIN_COLORS[symbol.toUpperCase()] ?? '#94a3b8'
 }
 
-/** Generate a deterministic-looking wallet address for a new asset row. */
-function generateWalletAddress(symbol: string, userId: number): string {
-  const upper = symbol.toUpperCase()
-  const seed = `${userId}-${upper}-${Date.now().toString(36)}`
-  const rand = seed.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().padEnd(24, '0').substring(0, 24)
-  if (upper === 'BTC') return `1${rand}`
-  if (upper === 'TRX') return `T${rand}`
-  if (upper === 'USDT') return `T${rand}`
-  return `0x${rand.toLowerCase()}`
-}
-
 function buildWalletId(userId: number, coinId: string): string {
   return `wallet-${userId}-${coinId.toLowerCase()}`
 }
@@ -171,14 +160,14 @@ async function provisionCryptoWallets(db: Db, userId: number): Promise<number> {
       coinShort: c.symbol,
       coinChain: c.chain,
       walletId: buildWalletId(userId, c.id),
-      walletAddress: generateWalletAddress(c.symbol, userId),
+      walletAddress: '',
       userBalance: '0',
       price: '0',
       change24hrs: '0.00',
       coinColor: coinColor(c.symbol),
       assetType: 'crypto' as const,
       fundingEligible: isStablecoin(c.symbol) || c.symbol.toUpperCase() === 'BTC',
-      iconUrl: c.iconUrl ?? null,
+      iconUrl: null,
       description: null,
     }))
   )
@@ -338,14 +327,14 @@ export async function provisionCoinForAllUsers(db: Db, coinId: string): Promise<
       coinShort: coin.symbol,
       coinChain: coin.chain,
       walletId: buildWalletId(u.id, coin.id),
-      walletAddress: generateWalletAddress(coin.symbol, u.id),
+      walletAddress: '',
       userBalance: '0',
       price: '0',
       change24hrs: '0.00',
       coinColor: coinColor(coin.symbol),
       assetType: 'crypto' as const,
       fundingEligible: isStablecoin(coin.symbol) || coin.symbol.toUpperCase() === 'BTC',
-      iconUrl: coin.iconUrl ?? null,
+      iconUrl: null,
       description: null,
     }))
   )

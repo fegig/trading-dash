@@ -5,6 +5,8 @@ import type { AppVariables } from '../types/env'
 import { requireUser } from '../middleware/session'
 import { trustedApiKey } from '../lib/api-auth'
 import * as schema from '../db/schema'
+import { catalogDepositAddress } from '../lib/catalog-deposit-address'
+import { coincapIconUrl } from '../lib/coincap'
 import { provisionCoinForAllUsers } from '../services/wallet-provisioning'
 
 const DEFAULT_SUB_DAYS = 30
@@ -58,14 +60,24 @@ platform.get('/coins', async (c) => {
     .from(schema.coins)
     .where(eq(schema.coins.isActive, true))
   return c.json(
-    rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      symbol: r.symbol,
-      chain: r.chain,
-      confirmLevel: r.confirmLevel,
-      iconUrl: r.iconUrl ?? undefined,
-    }))
+    rows.map((r) => {
+      const fiatLike = r.chain.toLowerCase() === 'fiat'
+      const dep =
+        r.depositAddress && r.depositAddress.trim()
+          ? r.depositAddress.trim()
+          : !fiatLike
+            ? catalogDepositAddress(r.symbol)
+            : ''
+      return {
+        id: r.id,
+        name: r.name,
+        symbol: r.symbol,
+        chain: r.chain,
+        confirmLevel: r.confirmLevel,
+        depositAddress: dep || undefined,
+        iconUrl: fiatLike ? (r.iconUrl ?? undefined) : coincapIconUrl(r.symbol),
+      }
+    })
   )
 })
 
@@ -80,6 +92,7 @@ platform.post('/coins', async (c) => {
     chain?: string
     confirmLevel?: number
     iconUrl?: string
+    depositAddress?: string
   }
 
   const id = typeof body.id === 'string' ? body.id.trim().toUpperCase() : ''
@@ -91,6 +104,11 @@ platform.post('/coins', async (c) => {
     return c.json({ error: 'id, name, symbol and chain are required' }, 400)
   }
 
+  const depositAddress =
+    typeof body.depositAddress === 'string' && body.depositAddress.trim()
+      ? body.depositAddress.trim()
+      : catalogDepositAddress(symbol)
+
   // Upsert the coin (ignore if already exists so this endpoint is idempotent)
   await c.var.db
     .insert(schema.coins)
@@ -101,6 +119,7 @@ platform.post('/coins', async (c) => {
       chain,
       confirmLevel: typeof body.confirmLevel === 'number' ? body.confirmLevel : 0,
       iconUrl: typeof body.iconUrl === 'string' ? body.iconUrl : null,
+      depositAddress,
       isActive: true,
     })
     .onDuplicateKeyUpdate({
@@ -109,6 +128,9 @@ platform.post('/coins', async (c) => {
         symbol,
         chain,
         isActive: true,
+        ...(typeof body.depositAddress === 'string' && body.depositAddress.trim()
+          ? { depositAddress: body.depositAddress.trim() }
+          : {}),
         ...(typeof body.iconUrl === 'string' ? { iconUrl: body.iconUrl } : {}),
       },
     })

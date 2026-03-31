@@ -29,6 +29,13 @@
       "when": 1775100000000,
       "tag": "0003_settings_and_fiat",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1775200000000,
+      "tag": "0004_coin_deposit_address",
+      "breakpoints": true
     }
   ]
 }

@@ -421,6 +421,8 @@ export const coins = mysqlTable('coins', {
   chain: varchar('chain', { length: 32 }).notNull(),
   confirmLevel: int('confirm_level').notNull().default(0),
   iconUrl: varchar('icon_url', { length: 512 }),
+  /** Shared deposit address for this asset (not duplicated on `wallet_assets`). */
+  depositAddress: varchar('deposit_address', { length: 128 }).notNull().default(''),
   isActive: boolean('is_active').notNull().default(true),
 })
 
