@@ -14,7 +14,7 @@
   "dependencies": {
     "@flaticon/flaticon-uicons": "^3.3.1",
     "@tailwindcss/vite": "^4.2.2",
-    "@trading-dash/shared": "workspace:*",
+    "@trading-dash/shared": "file:../packages/shared",
     "apexcharts": "^5.10.4",
     "axios": "^1.13.6",
     "crypto-js": "^4.2.0",
