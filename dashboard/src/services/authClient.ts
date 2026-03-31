@@ -5,7 +5,7 @@ const baseURL =
   import.meta.env.VITE_API_URL ||
   ''
 
-/** Session/credential API (Bearer + cookies). Dashboard `util/request` stays on x-api-key. */
+/** Auth API: always sends `Authorization: Bearer` from `localStorage.token` when set; `withCredentials` sends cookies too (session cookie after login / ensureWebSession). */
 const API_KEY = import.meta.env.VITE_API_KEY
 
 const authClient: AxiosInstance = axios.create({

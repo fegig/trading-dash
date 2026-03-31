@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { CountryDropdown } from 'react-country-region-selector'
 import PhoneInput from 'react-phone-number-input'
 import axios from 'axios'
@@ -12,8 +13,10 @@ import {
   userNeedsOnboarding,
   userRequiresTwoFactorLogin,
 } from '@/util/authFlow'
-import { establishSessionAndNavigate } from '@/util/establishSession'
-import { useAuthStore, type ApiUser } from '@/stores'
+import { startSession } from '@/util/establishSession'
+import { useAuthStore, useVerificationStore, type ApiUser } from '@/stores'
+import { successToast, errorToast } from '@/components/common/sweetAlerts'
+import { formatDateWithTime } from '@/util/time'
 import NotFoundPage from '../NotFound'
 import {
   AuthAlert,
@@ -37,6 +40,17 @@ type LocationState = {
 
 const steps = ['Profile', 'Currency', 'Identity'] as const
 
+function documentStatusClass(status: 'approved' | 'review' | 'missing') {
+  switch (status) {
+    case 'approved':
+      return 'bg-green-500/10 text-green-300'
+    case 'review':
+      return 'bg-amber-500/10 text-amber-300'
+    default:
+      return 'bg-rose-500/10 text-rose-300'
+  }
+}
+
 function OnboardingProgress({ step }: { step: number }) {
   return (
     <div className="flex gap-2">
@@ -59,7 +73,7 @@ function onboardingContext(step: number) {
         <AuthContextBlock
           eyebrow="Profile setup"
           title="We save your name and phone before opening the full workspace."
-          body="This keeps the account-opening flow aligned with the existing onboarding logic while presenting it more clearly."
+          body="Accurate contact details help with security alerts and account recovery."
           iconClass="fi fi-rr-id-badge"
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -71,9 +85,9 @@ function onboardingContext(step: number) {
         <AuthContextBlock eyebrow="Required now" title="Before you continue" iconClass="fi fi-rr-user">
           <AuthRailList
             items={[
-              'Use the same password you chose when registering.',
-              'Provide a valid international phone number.',
-              'Your profile will continue through the existing onboarding sequence.',
+              'Use the name you want shown on your account.',
+              'Use a valid international phone number.',
+              'Next you will choose country and display currency.',
             ]}
           />
         </AuthContextBlock>
@@ -87,7 +101,7 @@ function onboardingContext(step: number) {
         <AuthContextBlock
           eyebrow="Region setup"
           title="Choose how balances and reporting should be displayed."
-          body="Country and fiat selection continue to use the same backend calls and wallet provisioning steps."
+          body="Your country and preferred fiat apply across balances and reports in the app."
           iconClass="fi fi-rr-globe"
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -99,9 +113,9 @@ function onboardingContext(step: number) {
         <AuthContextBlock eyebrow="Platform outcome" title="What this unlocks" iconClass="fi fi-rr-wallet">
           <AuthRailList
             items={[
-              'Balances and market figures display in your chosen fiat currency.',
-              'Your wallet setup stays aligned with the account profile.',
-              'You move directly into identity and workspace readiness next.',
+              'Balances and market figures use your chosen fiat.',
+              'Wallet views follow this preference.',
+              'Then you choose whether to verify identity now or later.',
             ]}
           />
         </AuthContextBlock>
@@ -113,22 +127,22 @@ function onboardingContext(step: number) {
     <>
       <AuthContextBlock
         eyebrow="Final step"
-        title="Identity can be completed now or later from inside the dashboard."
-        body="This step keeps the same decision points: skip into the workspace or head straight to verification."
+        title="Identity documents are optional here."
+        body="Skip straight to the dashboard or expand uploads if you already have files ready. Everything can be done later under Dashboard → Verification."
         iconClass="fi fi-rr-shield-check"
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <AuthMetric label="Current step" value="Identity readiness" accent="text-green-300" />
-          <AuthMetric label="Destination" value="Dashboard or verification" />
+          <AuthMetric label="Default" value="Continue without uploading" accent="text-green-300" />
+          <AuthMetric label="Optional" value="Upload ID / address now" />
         </div>
       </AuthContextBlock>
 
-      <AuthContextBlock eyebrow="After onboarding" title="Account posture" iconClass="fi fi-rr-apps">
+      <AuthContextBlock eyebrow="Session" title="How sign-in works" iconClass="fi fi-rr-apps">
         <AuthRailList
           items={[
-            'Enter the dashboard immediately if you want to complete identity later.',
-            'Go straight to verification if you want higher readiness before funding.',
-            'Two-factor login behavior remains unchanged if it is enabled on the account.',
+            'Your Bearer token stays in the browser and is sent on API requests.',
+            'We also set a secure session cookie when you finish onboarding so both work together.',
+            'Two-factor login still applies at sign-in if it is enabled on your account.',
           ]}
         />
       </AuthContextBlock>
@@ -146,7 +160,6 @@ export default function OnboardingPage() {
   const email = String(state?.email ?? authUser?.email ?? '')
 
   const [step, setStep] = useState(0)
-  const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [phone, setPhone] = useState<string | undefined>(undefined)
   const [country, setCountry] = useState<string | undefined>(undefined)
@@ -154,6 +167,31 @@ export default function OnboardingPage() {
   const [fiats, setFiats] = useState<Array<{ id: number; name: string; symbol: string }>>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadBusy, setUploadBusy] = useState(false)
+  /** Optional uploads collapsed by default — user can skip and verify later. */
+  const [showDocUpload, setShowDocUpload] = useState(false)
+
+  const {
+    documents,
+    selectedDocumentId,
+    loadVerification,
+    selectDocument,
+    uploadVerificationFile,
+    downloadVerificationFile,
+  } = useVerificationStore(
+    useShallow((s) => ({
+      documents: s.documents,
+      selectedDocumentId: s.selectedDocumentId,
+      loadVerification: s.loadVerification,
+      selectDocument: s.selectDocument,
+      uploadVerificationFile: s.uploadVerificationFile,
+      downloadVerificationFile: s.downloadVerificationFile,
+    }))
+  )
+
+  const selectedDocument =
+    documents.find((d) => d.id === selectedDocumentId) ?? documents[0] ?? null
 
   const prelim = state?.prelimUser ?? authUser
 
@@ -175,6 +213,11 @@ export default function OnboardingPage() {
     })
   }, [])
 
+  useEffect(() => {
+    if (step !== 2 || !showDocUpload) return
+    void loadVerification(true)
+  }, [step, showDocUpload, loadVerification])
+
   const validEntry = useMemo(() => {
     if (userId == null || email === '') return false
     return true
@@ -187,20 +230,21 @@ export default function OnboardingPage() {
   const finishWithSession = async (user: ApiUser, token?: string, redirectTo?: string) => {
     if (userRequiresTwoFactorLogin(user)) {
       const messageId = await sendLoginOtpChallenge(user)
-      persistPendingOtp({ user, messageId, token, redirectTo })
+      persistPendingOtp({ user, messageId, token, redirectTo, welcomeToast: true })
       navigate('/login/otp', { replace: true })
       return
     }
-    await establishSessionAndNavigate(user, navigate, { token, to: redirectTo })
+    await startSession(user, navigate, {
+      token,
+      to: redirectTo,
+      welcomeToast: true,
+      requestWebSession: true,
+    })
   }
 
   const runStep1 = async (event: React.FormEvent) => {
     event.preventDefault()
     setError(null)
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
-      return
-    }
     const name = displayName.trim()
     if (name.length < 2) {
       setError('Enter your name (at least 2 characters).')
@@ -218,7 +262,6 @@ export default function OnboardingPage() {
         firstName,
         lastName: lastName || firstName,
         phoneNumber: phone.replace(/\s/g, ''),
-        password,
       })
       setStep(1)
     } catch (err: unknown) {
@@ -250,9 +293,8 @@ export default function OnboardingPage() {
       await authService.updateUserCurrency({
         country,
         currency_id: currencyId,
-        userId: Number(userId),
       })
-      await authService.addAdminWallet(Number(userId))
+      await authService.addAdminWallet()
       setStep(2)
     } catch {
       setError('Could not save currency. Try again.')
@@ -265,23 +307,37 @@ export default function OnboardingPage() {
     setBusy(true)
     setError(null)
     try {
-      const response = await authService.loginWithPassword(email, password)
-      const data = response.data
-      const user = data?.user as ApiUser | undefined
-      if (!user) {
-        setError('Sign-in failed after setup. Try signing in from the login page.')
-        setBusy(false)
+      const token =
+        (typeof window !== 'undefined' ? localStorage.getItem('token') : null) ??
+        (typeof state?.apiToken === 'string' ? state.apiToken : null)
+
+      if (token) {
+        const name = displayName.trim()
+        const { firstName, lastName } = splitDisplayName(name)
+        const user: ApiUser = {
+          user_id: userId,
+          email,
+          verificationStatus: '1',
+          currency_id: currencyId ?? '',
+          firstName,
+          lastName: lastName || firstName,
+          phone: phone ?? '',
+          country: country ?? '',
+          token,
+        }
+        if (!userNeedsOnboarding(user)) {
+          await finishWithSession(user, token, redirectTo)
+          return
+        }
+        setError('Something is incomplete. Go back and confirm profile and currency, then try again.')
         return
       }
-      if (userNeedsOnboarding(user)) {
-        setError('Your profile is still incomplete. Contact support if this persists.')
-        setBusy(false)
-        return
-      }
-      const token = typeof data?.token === 'string' ? data.token : state?.apiToken
-      await finishWithSession(user, token, redirectTo)
+
+      setError(
+        'Your sign-in session expired. Open the login page and sign in with the email and password you used to register.'
+      )
     } catch {
-      setError('Sign-in failed. Use the login page with your email and password.')
+      setError('Something went wrong. Try the login page with your email and password.')
     } finally {
       setBusy(false)
     }
@@ -300,7 +356,7 @@ export default function OnboardingPage() {
       <AuthPanel
         eyebrow="Workspace setup"
         title="Set up your profile"
-        subtitle="Use the same password you chose at registration. We will save your name and phone for the workspace."
+        subtitle="Add your name and phone. You already chose a password when you registered."
         progress={<OnboardingProgress step={step} />}
         contextRail={onboardingContext(step)}
         footer={commonFooter}
@@ -334,21 +390,6 @@ export default function OnboardingPage() {
                 placeholder="e.g. +1 234 567 8900"
               />
             </div>
-          </div>
-
-          <div>
-            <AuthFieldLabel htmlFor="onb-password">Account password</AuthFieldLabel>
-            <input
-              id="onb-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={8}
-              className={authInputClass}
-              placeholder="Confirm your password"
-            />
           </div>
 
           <button type="submit" disabled={busy} className={authPrimaryButtonClass}>
@@ -419,35 +460,131 @@ export default function OnboardingPage() {
   return (
     <AuthPanel
       eyebrow="Workspace setup"
-      title="Identity verification"
-      subtitle="You can upload proof of identity now or continue into the dashboard and return from the verification page later."
+      title="Almost done"
+      subtitle="You can open the dashboard now. Identity documents are optional — add them here or later under Dashboard → Verification."
       progress={<OnboardingProgress step={step} />}
       contextRail={onboardingContext(step)}
     >
-      <div className="space-y-4">
+      <div className="space-y-5">
         {error ? <AuthAlert tone="danger">{error}</AuthAlert> : null}
 
         <AuthAlert tone="neutral">
-          Regulatory checks can be completed later under <strong className="text-neutral-300">Settings</strong> to unlock higher readiness.
+          <p className="text-sm text-neutral-300">
+            <strong className="text-neutral-200">Skipping uploads is fine.</strong> Your account stays on
+            standard limits until you complete verification in the app.
+          </p>
         </AuthAlert>
 
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void completeOnboardingSignIn()}
-          className={authPrimaryButtonClass}
-        >
-          {busy ? 'Opening workspace...' : 'Go to dashboard'}
-        </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void completeOnboardingSignIn()}
+            className={authPrimaryButtonClass}
+          >
+            {busy ? 'Opening workspace…' : 'Continue to dashboard'}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setShowDocUpload((v) => !v)}
+            className={authSecondaryButtonClass}
+          >
+            {showDocUpload ? 'Hide optional uploads' : 'Upload documents now (optional)'}
+          </button>
+        </div>
 
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void completeOnboardingSignIn('/dashboard/verification')}
-          className={authSecondaryButtonClass}
-        >
-          Upload documents now
-        </button>
+        {showDocUpload ? (
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+              Optional — verification documents
+            </div>
+            <div className="mt-3 space-y-2">
+              {documents.map((document) => (
+                <button
+                  key={document.id}
+                  type="button"
+                  onClick={() => selectDocument(document.id)}
+                  className={`w-full rounded-2xl border px-3 py-3 text-left text-sm transition ${
+                    selectedDocument?.id === document.id
+                      ? 'border-green-500/30 bg-green-500/5 text-green-100'
+                      : 'border-neutral-800 bg-neutral-950/60 text-neutral-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium">{document.title}</span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] capitalize ${documentStatusClass(document.status)}`}
+                    >
+                      {document.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-neutral-500">{document.subtitle}</p>
+                </button>
+              ))}
+            </div>
+
+            {selectedDocument ? (
+              <div className="mt-4 space-y-3 rounded-2xl border border-neutral-800 bg-neutral-950/50 p-4">
+                <div className="text-xs text-neutral-500">
+                  Last update: {formatDateWithTime(selectedDocument.updatedAt)}
+                </div>
+                {selectedDocument.hasFile ? (
+                  <div className="text-xs text-neutral-400">
+                    File: {selectedDocument.originalFilename ?? 'uploaded'}
+                  </div>
+                ) : null}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file || !selectedDocument) return
+                    setUploadBusy(true)
+                    void uploadVerificationFile(selectedDocument.id, file)
+                      .then((r) => {
+                        if (r.ok) successToast('Document uploaded for review')
+                        else errorToast(r.error ?? 'Upload failed')
+                      })
+                      .finally(() => setUploadBusy(false))
+                  }}
+                />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    disabled={uploadBusy}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`${authSecondaryButtonClass} sm:flex-1`}
+                  >
+                    {uploadBusy ? 'Uploading…' : selectedDocument.hasFile ? 'Replace file' : 'Upload file'}
+                  </button>
+                  {selectedDocument.hasFile ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void downloadVerificationFile(
+                          selectedDocument.id,
+                          selectedDocument.originalFilename ?? `${selectedDocument.id}-document`
+                        ).then((r) => {
+                          if (!r.ok) errorToast(r.error ?? 'Download failed')
+                        })
+                      }
+                      className={`${authSecondaryButtonClass} sm:flex-1`}
+                    >
+                      Download copy
+                    </button>
+                  ) : null}
+                </div>
+                <p className="text-[10px] text-neutral-600">
+                  JPEG, PNG, WebP, or PDF. Max 10 MB (same limits as Verification in the dashboard).
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </AuthPanel>
   )

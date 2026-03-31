@@ -10,6 +10,7 @@ import {
   sendVerificationEmailBodySchema,
   sendLoginOtpEmailBodySchema,
   loginNotificationBodySchema,
+  emailConfirmationUrl,
 } from '@trading-dash/shared'
 import type { Env } from '../types/env'
 import type { AppVariables } from '../types/env'
@@ -165,6 +166,8 @@ auth.post('/verifyOTP', async (c) => {
   return c.json({ ok: true })
 })
 
+
+
 auth.post('/passwordReset', async (c) => {
   const parsed = passwordResetBodySchema.safeParse(await c.req.json().catch(() => ({})))
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
@@ -184,7 +187,8 @@ auth.post('/passwordReset', async (c) => {
   })
 
   const base = (c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000'
-  const resetUrl = `${base}/auth/forgot?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(u.publicId)}`
+  // SPA routes live outside `/auth/*` so Vite dev proxy does not send browser navigations to the API.
+  const resetUrl = `${base}/forgot?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(u.publicId)}`
   const tpl = passwordResetEmailHtml({ resetUrl })
   await sendEmail(c.env, email, tpl.subject, tpl.html)
 
@@ -252,22 +256,6 @@ auth.post('/verifyToken', async (c) => {
   return c.json(true)
 })
 
-auth.post('/regRefferal', requireUser, async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { refBy?: string }
-  if (!body.refBy) return c.json({ error: 'refBy required' }, 400)
-  const ref = await c.var.db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.publicId, body.refBy))
-    .limit(1)
-  if (!ref[0]) return c.json({ ok: false })
-  await c.var.db.insert(schema.affiliateReferrals).values({
-    referrerUserId: ref[0].id,
-    referredUserId: c.var.user!.id,
-  })
-  return c.json({ ok: true })
-})
-
 auth.post('/sendVerificationEmail', requireUser, async (c) => {
   const parsed = sendVerificationEmailBodySchema.safeParse(await c.req.json().catch(() => ({})))
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
@@ -276,7 +264,7 @@ auth.post('/sendVerificationEmail', requireUser, async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const base = (c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000'
-  const verifyUrl = `${base}/auth/verify-email?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(String(userId))}`
+  const verifyUrl = emailConfirmationUrl(base, mailTo, token, String(userId))
   const tpl = verificationEmailHtml({ userName, verifyUrl })
   const r = await sendEmail(c.env, mailTo, tpl.subject, tpl.html)
   if (!r.ok) return c.json({ error: r.error }, 502)

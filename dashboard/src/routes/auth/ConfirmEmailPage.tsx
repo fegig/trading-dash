@@ -14,8 +14,8 @@ function ConfirmEmailContext() {
     <>
       <AuthContextBlock
         eyebrow="Verification result"
-        title="Email verification is part of the same account-opening flow."
-        body="We keep the existing token validation logic and only modernize the visual experience around it."
+        title="Email verification completes your sign-up."
+        body="We validate your link, update your account, and guide you to the next step."
         iconClass="fi fi-rr-badge-check"
       />
       <AuthContextBlock eyebrow="Next step" title="After confirmation" iconClass="fi fi-rr-route">

@@ -87,7 +87,7 @@ export async function getVerificationOverview(): Promise<VerificationOverview> {
 export async function getVerificationSteps(): Promise<VerificationStep[]> {
   try {
     const data = await get(endpoints.verification.steps)
-    if (Array.isArray(data) && data.length > 0) return data as VerificationStep[]
+    if (Array.isArray(data)) return data as VerificationStep[]
   } catch {
     /* mock */
   }
@@ -97,7 +97,8 @@ export async function getVerificationSteps(): Promise<VerificationStep[]> {
 export async function getVerificationDocuments(): Promise<VerificationDocument[]> {
   try {
     const data = await get(endpoints.verification.documents)
-    if (Array.isArray(data) && data.length > 0) return data as VerificationDocument[]
+    /** Empty array is valid — do not fall back to demo data (that caused fake “already uploaded”). */
+    if (Array.isArray(data)) return data as VerificationDocument[]
   } catch {
     /* mock */
   }
@@ -107,7 +108,7 @@ export async function getVerificationDocuments(): Promise<VerificationDocument[]
 export async function getVerificationBenefits(): Promise<VerificationBenefit[]> {
   try {
     const data = await get(endpoints.verification.benefits)
-    if (Array.isArray(data) && data.length > 0) return data as VerificationBenefit[]
+    if (Array.isArray(data)) return data as VerificationBenefit[]
   } catch {
     /* mock */
   }

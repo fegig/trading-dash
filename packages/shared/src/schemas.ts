@@ -68,15 +68,13 @@ export const getVerificationStatusBodySchema = z.object({
   userId: z.union([z.number(), z.string()]),
 })
 
+/** Session user only; do not send internal DB id or publicId (they were easy to mix up). */
 export const updateCurrencyBodySchema = z.object({
   country: z.string(),
   currency_id: z.number(),
-  userId: z.number(),
 })
 
-export const addAdminWalletBodySchema = z.object({
-  userId: z.number(),
-})
+export const addAdminWalletBodySchema = z.object({}).passthrough()
 
 export const affiliateSummaryBodySchema = z.object({
   userId: z.string(),

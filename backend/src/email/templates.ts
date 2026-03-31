@@ -42,6 +42,25 @@ export function passwordResetEmailHtml(params: { resetUrl: string; appName?: str
   }
 }
 
+export function onboardingWelcomeEmailHtml(params: {
+  dashboardUrl: string
+  firstName?: string
+  appName?: string
+}): { subject: string; html: string } {
+  const app = params.appName ?? 'BlockTrade'
+  const name = params.firstName?.trim() ? ` ${escapeHtml(params.firstName.trim())}` : ''
+  return {
+    subject: `${app} — you are all set`,
+    html: `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h1 style="font-size:20px">Welcome${name}</h1>
+      <p>Your profile and workspace preferences are ready. You can sign in anytime to trade, manage your wallet, and explore the platform.</p>
+      <p><a href="${escapeAttr(params.dashboardUrl)}" style="display:inline-block;padding:12px 20px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px">Open your dashboard</a></p>
+      <p style="color:#666;font-size:14px">If the button does not work, copy this link:<br/><span style="word-break:break-all">${escapeHtml(params.dashboardUrl)}</span></p>
+      <p style="color:#666;font-size:14px;margin-top:24px">Thank you for joining ${escapeHtml(app)}.</p>
+    </body></html>`,
+  }
+}
+
 export function loginNotificationEmailHtml(params: {
   device: string
   time: string

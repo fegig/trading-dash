@@ -9,7 +9,7 @@ import {
   userNeedsOnboarding,
   userRequiresTwoFactorLogin,
 } from '@/util/authFlow'
-import { establishSessionAndNavigate } from '@/util/establishSession'
+import { startSession } from '@/util/establishSession'
 import {
   AuthAlert,
   AuthContextBlock,
@@ -118,7 +118,7 @@ export default function LoginPage() {
           return
         }
 
-        await establishSessionAndNavigate(user, navigate, {
+        await startSession(user, navigate, {
           token: typeof data?.token === 'string' ? data.token : undefined,
         })
       })
@@ -153,8 +153,8 @@ export default function LoginPage() {
     <>
       <AuthContextBlock
         eyebrow="Account access"
-        title="Enter the same workspace used for trading, funding, and managed products."
-        body="The sign-in flow stays functionally identical while the surface now matches the dashboard’s calmer, more mature operating style."
+        title="One workspace for trading, funding, and managed products."
+        body="Sign in to reach live markets, your wallet, copy trading, bots, and investments."
         iconClass="fi fi-rr-shield-check"
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -183,7 +183,7 @@ export default function LoginPage() {
     <AuthPanel
       eyebrow="Secure sign-in"
       title="Access your BlockTrade workspace"
-      subtitle="Sign in with your existing credentials to continue into trading, wallet funding, managed products, and account controls."
+      subtitle="Sign in with your email and password to open trading, wallet funding, managed products, and account controls."
       contextRail={contextRail}
       footer={footer}
     >

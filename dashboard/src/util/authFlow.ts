@@ -20,8 +20,8 @@ export function userRequiresTwoFactorLogin(u: Record<string, unknown>): boolean 
 }
 
 /**
- * Profile / workspace setup still needed after email verification.
- * Aligns with legacy checks: name, phone, country, default currency.
+ * Profile / workspace setup still needed after email verification
+ * (name, phone, country, default currency).
  */
 export function userNeedsOnboarding(u: Record<string, unknown>): boolean {
   if (u.verificationStatus === '0') return false
@@ -83,6 +83,8 @@ export type PendingOtpPayload = {
   token?: string
   /** After OTP, navigate here instead of `/dashboard`. */
   redirectTo?: string
+  /** When set, send onboarding welcome email + toast after OTP (same as post-onboarding dashboard entry). */
+  welcomeToast?: boolean
 }
 
 /** SessionStorage key for OTP step (avoids huge history state). */

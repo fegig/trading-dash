@@ -1,4 +1,4 @@
-/** Format unix seconds for login notification emails (legacy parity). */
+/** Format unix seconds for login notification emails. */
 export function convertTime(timestamp: number) {
   const t = new Date(timestamp * 1000)
   let hours = t.getHours()

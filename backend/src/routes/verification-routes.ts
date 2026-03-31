@@ -10,6 +10,50 @@ import {
   buildVerificationR2Key,
 } from '../services/verification-uploads'
 
+/** Default KYC slots per user (ids must match dashboard upload paths). */
+const DEFAULT_DOCUMENT_SLOTS: Array<{
+  id: string
+  title: string
+  subtitle: string
+}> = [
+  {
+    id: 'doc-passport',
+    title: 'Government ID',
+    subtitle: 'Passport, national ID, or driver license',
+  },
+  {
+    id: 'doc-address',
+    title: 'Proof of address',
+    subtitle: 'Utility bill or bank statement (last 90 days)',
+  },
+  {
+    id: 'doc-source-funds',
+    title: 'Source of funds',
+    subtitle: 'Bank or brokerage statements if requested for higher limits',
+  },
+]
+
+async function ensureVerificationDocumentSlots(db: AppVariables['db'], userId: number): Promise<void> {
+  const existing = await db
+    .select({ id: schema.verificationDocuments.id })
+    .from(schema.verificationDocuments)
+    .where(eq(schema.verificationDocuments.userId, userId))
+    .limit(1)
+  if (existing.length > 0) return
+
+  const now = Math.floor(Date.now() / 1000)
+  await db.insert(schema.verificationDocuments).values(
+    DEFAULT_DOCUMENT_SLOTS.map((slot) => ({
+      id: slot.id,
+      userId,
+      title: slot.title,
+      subtitle: slot.subtitle,
+      status: 'missing' as const,
+      updatedAt: now,
+    }))
+  )
+}
+
 const verification = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
 verification.get('/overview', requireUser, async (c) => {
@@ -53,10 +97,12 @@ verification.get('/steps', requireUser, async (c) => {
 })
 
 verification.get('/documents', requireUser, async (c) => {
+  const userId = c.var.user!.id
+  await ensureVerificationDocumentSlots(c.var.db, userId)
   const rows = await c.var.db
     .select()
     .from(schema.verificationDocuments)
-    .where(eq(schema.verificationDocuments.userId, c.var.user!.id))
+    .where(eq(schema.verificationDocuments.userId, userId))
   return c.json(
     rows.map((r) => ({
       id: r.id,
@@ -75,6 +121,7 @@ verification.get('/documents', requireUser, async (c) => {
 verification.post('/documents/:documentId/upload', requireUser, async (c) => {
   const documentId = c.req.param('documentId')
   const userId = c.var.user!.id
+  await ensureVerificationDocumentSlots(c.var.db, userId)
   const bucket = c.env.VERIFICATION_UPLOADS
 
   const rows = await c.var.db

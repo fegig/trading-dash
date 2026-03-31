@@ -145,27 +145,28 @@ export const mockVerificationSteps: VerificationStep[] = [
   },
 ]
 
+/** Only used when the verification API is unreachable (offline dev). */
 export const mockVerificationDocuments: VerificationDocument[] = [
   {
     id: 'doc-passport',
     title: 'Government ID',
-    subtitle: 'International passport uploaded',
-    status: 'approved',
-    updatedAt: now - 60 * 60 * 24 * 31,
+    subtitle: 'Passport, national ID, or driver license',
+    status: 'missing',
+    updatedAt: now,
   },
   {
     id: 'doc-address',
     title: 'Proof of address',
-    subtitle: 'Utility statement from February 2026',
-    status: 'approved',
-    updatedAt: now - 60 * 60 * 24 * 18,
+    subtitle: 'Utility bill or bank statement (last 90 days)',
+    status: 'missing',
+    updatedAt: now,
   },
   {
     id: 'doc-source-funds',
     title: 'Source of funds',
-    subtitle: 'Bank statement package awaiting review',
-    status: 'review',
-    updatedAt: now - 60 * 60 * 4,
+    subtitle: 'Optional for higher limits',
+    status: 'missing',
+    updatedAt: now,
   },
 ]
 

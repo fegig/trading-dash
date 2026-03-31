@@ -47,14 +47,9 @@ export async function registerUser(payload: {
   userId: string
   email: string
   refBy: string | null
-  /** Sent when your API supports it; ignored by older backends. */
   password?: string
 }) {
   return authPost(endpoints.auth.register, payload)
-}
-
-export async function registerReferral(payload: Record<string, unknown>) {
-  return authPost(endpoints.auth.regRefferal, payload)
 }
 
 export async function createAuthToken(payload: {
@@ -85,7 +80,7 @@ export async function sendVerificationEmail(
   })
 }
 
-export async function getVerificationStatus(userId: number) {
+export async function getVerificationStatus(userId: number | string) {
   return authPost<{ data?: number }>(endpoints.user.getVerificationStatus, { userId })
 }
 
@@ -108,16 +103,22 @@ export async function listFiats() {
   )
 }
 
-export async function updateUserCurrency(payload: {
-  country: string
-  currency_id: number
-  userId: number
-}) {
+export async function updateUserCurrency(payload: { country: string; currency_id: number }) {
   return authPost(endpoints.user.updateCurrency, payload)
 }
 
-export async function addAdminWallet(userId: number) {
-  return authPost(endpoints.user.addAdminWallet, { userId })
+export async function addAdminWallet() {
+  return authPost(endpoints.user.addAdminWallet, {})
+}
+
+/** Welcome email after onboarding; server sends at most once per account. */
+export async function notifyOnboardingWelcome() {
+  return authPost<{ ok?: boolean; alreadySent?: boolean }>(endpoints.user.welcomeOnboarding, {})
+}
+
+/** Creates HttpOnly session cookie when the user only has Bearer (onboarding completion). */
+export async function ensureWebSession() {
+  return authPost<{ ok?: boolean }>(endpoints.user.ensureWebSession, {})
 }
 
 /** Fire-and-forget login notification when `OMS__FEI` device payload exists. */

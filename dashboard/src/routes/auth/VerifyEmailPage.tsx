@@ -18,27 +18,31 @@ export default function VerifyEmailPage() {
   const [resMsg, setResMsg] = useState<string | null>(null)
   const [verifiedStatus, setVerifiedStatus] = useState(false)
 
-  const userId = (location.state as { userId?: number } | null)?.userId
+  const userId = (location.state as { userId?: number | string } | null)?.userId
 
   useEffect(() => {
-    if (userId == null) return
-    const id = window.setInterval(() => {
-      authService
+    if (userId == null || verifiedStatus) return
+
+    const poll = () => {
+      void authService
         .getVerificationStatus(userId)
         .then((response) => response.data?.data)
         .then((data) => {
-          if (data === 1) setVerifiedStatus(true)
+          if (Number(data) === 1) setVerifiedStatus(true)
         })
         .catch(() => {})
-    }, 10000)
+    }
+
+    void poll()
+    const id = window.setInterval(poll, 10000)
     return () => clearInterval(id)
-  }, [userId])
+  }, [userId, verifiedStatus])
 
   const resendMail = () => {
     const state = location.state as {
       email?: string
       userName?: string
-      userId?: number
+      userId?: number | string
     } | null
     if (!state?.email || state.userId == null) return
 
@@ -56,7 +60,11 @@ export default function VerifyEmailPage() {
     return <NotFoundPage />
   }
 
-  const state = location.state as { email: string; userId: number }
+  const state = location.state as {
+    email: string
+    userId: number | string
+    showWelcome?: boolean
+  }
   const email = state.email
 
   const contextRail = (
@@ -64,16 +72,16 @@ export default function VerifyEmailPage() {
       <AuthContextBlock
         eyebrow="Email verification"
         title="Your account is almost ready."
-        body="The verification step still uses the same token and polling logic. The redesign simply makes the state clearer and calmer."
+        body="Use the link we emailed you. It opens a secure confirmation page in this app."
         iconClass="fi fi-rr-envelope"
       />
 
       <AuthContextBlock eyebrow="What to do" title="Before you continue" iconClass="fi fi-rr-time-forward">
         <AuthRailList
           items={[
-            'Open the latest verification email only.',
-            'Check spam or promotions folders if it does not arrive quickly.',
-            'Return here automatically after the address is confirmed.',
+            'Open only the latest verification email.',
+            'Check spam or promotions if nothing arrives within a few minutes.',
+            'This page updates when your address is confirmed.',
           ]}
         />
       </AuthContextBlock>
@@ -128,14 +136,21 @@ export default function VerifyEmailPage() {
       }
     >
       <div className="space-y-6">
+        {state.showWelcome ? (
+          <AuthAlert tone="success">
+            <p className="font-medium text-green-100">Welcome aboard — your account is created.</p>
+            <p className="mt-1 text-sm text-neutral-300">
+              Confirm your email with the link we sent, then continue setup from here.
+            </p>
+          </AuthAlert>
+        ) : null}
         <AuthAlert tone="neutral">
           <p className="flex gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/10 text-green-300">
               <i className="fi fi-rr-envelope text-lg" />
             </span>
             <span>
-              Verification links expire for security. If the latest email no longer works, request a
-              new one below.
+              Links expire for security. If yours no longer works, request a new email below.
             </span>
           </p>
         </AuthAlert>

@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { useAuthStore } from '../stores'
 
-/** Runs legacy session hydrate once (cookie + `_currentInfo`). */
+/** Hydrates auth store from cookie + stored session snapshot on load. */
 export function AuthBootstrap({ children }: { children: ReactNode }) {
   useEffect(() => {
     useAuthStore.getState().hydrate()

@@ -1,4 +1,5 @@
 export * from './endpoints'
+export * from './auth-paths'
 export * from './schemas'
 export * from './types/trade'
 export * from './types/account'

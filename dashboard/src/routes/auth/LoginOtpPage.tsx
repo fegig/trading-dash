@@ -7,7 +7,7 @@ import {
   readPendingOtp,
   sendLoginOtpChallenge,
 } from '@/util/authFlow'
-import { establishSessionAndNavigate } from '@/util/establishSession'
+import { startSession } from '@/util/establishSession'
 import type { ApiUser } from '@/stores'
 import {
   AuthAlert,
@@ -77,9 +77,10 @@ export default function LoginOtpPage() {
       })
       const user = payload.user as ApiUser
       clearPendingOtp()
-      await establishSessionAndNavigate(user, navigate, {
+      await startSession(user, navigate, {
         token: typeof payload.token === 'string' ? payload.token : undefined,
         to: payload.redirectTo,
+        welcomeToast: payload.welcomeToast === true,
       })
     } catch {
       setError('That code is invalid or expired. Request a new one below.')

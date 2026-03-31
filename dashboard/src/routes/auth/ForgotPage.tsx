@@ -37,8 +37,8 @@ export default function ForgotPage() {
     <>
       <AuthContextBlock
         eyebrow="Password reset"
-        title="Recover access without changing the account workflow."
-        body="Reset instructions are still sent through the existing service flow. The redesign only improves clarity and reassurance."
+        title="Recover access to your account."
+        body="If the address exists, we email a time-limited link to set a new password."
         iconClass="fi fi-rr-key"
       />
 

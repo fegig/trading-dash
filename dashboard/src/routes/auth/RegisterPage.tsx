@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router'
 import { useState } from 'react'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import * as authService from '@/services/authService'
 import { getRandomString } from '@/util/random'
 import {
@@ -42,20 +43,9 @@ export default function RegisterPage() {
 
     const userId = getRandomString(24)
     const payload = { userId, email, refBy: ref, password }
-    const refPayload = {
-      userId,
-      refBy: ref,
-      refId: getRandomString(24),
-      amount: '50',
-      date: Math.floor(Date.now() / 1000),
-    }
 
-    const chain = ref
-      ? authService.registerReferral(refPayload).catch(() => undefined)
-      : Promise.resolve()
-
-    chain
-      .then(() => authService.registerUser(payload))
+    authService
+      .registerUser(payload)
       .then(() => {
         const token = getRandomString(62)
         const time = Math.floor(Date.now() / 1000)
@@ -68,11 +58,15 @@ export default function RegisterPage() {
             expires,
             status: 'pending',
           })
-          .then(() => token)
+          .then(() => {
+            if (typeof window !== 'undefined') localStorage.setItem('token', token)
+            return token
+          })
       })
       .then((token) => authService.sendVerificationEmail(email, userId, token).then(() => token))
       .then((token) => {
-        navigate('/verify', { state: { email, userId, token } })
+        toast.success('Welcome! Check your email and open the confirmation link to continue.')
+        navigate('/verify', { state: { email, userId, token, showWelcome: true } })
       })
       .catch((err: unknown) => {
         if (axios.isAxiosError(err) && err.response?.data) {
@@ -110,22 +104,22 @@ export default function RegisterPage() {
     <>
       <AuthContextBlock
         eyebrow="Account opening"
-        title="Create your account once, then move through verification and setup with the same flow."
-        body="This redesign keeps the registration logic intact while presenting a more professional first-touch experience."
+        title="Create your workspace in a few steps."
+        body="You will verify your email, finish profile and currency preferences, then access the dashboard."
         iconClass="fi fi-rr-user-add"
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <AuthMetric label="Entry point" value="Email-based access" accent="text-green-300" />
-          <AuthMetric label="Next step" value="Email verification" />
+          <AuthMetric label="Step 1" value="Email and password" accent="text-green-300" />
+          <AuthMetric label="Step 2" value="Confirm your email" />
         </div>
       </AuthContextBlock>
 
-      <AuthContextBlock eyebrow="What happens next" title="After account creation" iconClass="fi fi-rr-route">
+      <AuthContextBlock eyebrow="What happens next" title="After you sign up" iconClass="fi fi-rr-route">
         <AuthRailList
           items={[
-            'Verify your email before opening the workspace.',
-            'Complete profile and currency setup without changing flow behavior.',
-            'Move into dashboard funding, trading, and managed product surfaces after onboarding.',
+            'We send a confirmation link to your inbox.',
+            'You complete profile and default currency on the next screens.',
+            'Then you land in the trading and wallet workspace.',
           ]}
         />
       </AuthContextBlock>

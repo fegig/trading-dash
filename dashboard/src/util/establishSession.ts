@@ -1,20 +1,33 @@
 import type { NavigateFunction } from 'react-router'
+import { toast } from 'react-toastify'
 import * as authService from '@/services/authService'
 import { useAuthStore, useCurrencyStore } from '@/stores'
 import type { ApiUser } from '@/stores'
 
 /**
- * Persist session and send the user to the dashboard.
- * Call after a successful credential check (e.g. login API returned a user).
+ * Client session is still **Bearer-first**: `login()` stores the token in `localStorage` and
+ * `authClient` sends `Authorization: Bearer` on auth API calls.
+ *
+ * When `requestWebSession` is true, we also call `POST /user/ensureWebSession` so the Worker can
+ * set an **HttpOnly session cookie** (in addition to Bearer). That helps cookie-only flows and
+ * matches what password login already returns. Bearer is not removed or replaced.
  */
-export async function establishSessionAndNavigate(
+export async function startSession(
   user: ApiUser,
   navigate: NavigateFunction,
-  options?: { token?: string; to?: string }
+  options?: { token?: string; to?: string; welcomeToast?: boolean; requestWebSession?: boolean }
 ): Promise<void> {
   const merged: ApiUser = options?.token ? { ...user, token: options.token } : user
   useAuthStore.getState().login(merged)
   authService.notifyLoginFromDeviceStorage(merged)
+
+  if (options?.requestWebSession) {
+    try {
+      await authService.ensureWebSession()
+    } catch {
+      /* cookie is best-effort; Bearer still works */
+    }
+  }
 
   const cid = user.currency_id
   if (cid != null && cid !== '') {
@@ -30,6 +43,15 @@ export async function establishSessionAndNavigate(
     } catch {
       /* optional enrichment */
     }
+  }
+
+  if (options?.welcomeToast) {
+    try {
+      await authService.notifyOnboardingWelcome()
+    } catch {
+      /* welcome email is best-effort */
+    }
+    toast.success('Welcome to your workspace. You are signed in.')
   }
 
   navigate(options?.to ?? '/dashboard', { replace: true })

@@ -15,7 +15,9 @@ import type { Env } from '../types/env'
 import type { AppVariables } from '../types/env'
 import { requireUser } from '../middleware/session'
 import { assertUserScope, trustedApiKey } from '../lib/api-auth'
-import { verifyPassword } from '../lib/password'
+import { sendEmail } from '../email/resend-client'
+import { onboardingWelcomeEmailHtml } from '../email/templates'
+import { hashPassword, verifyPassword } from '../lib/password'
 import { randomSessionId } from '../lib/otp'
 import * as schema from '../db/schema'
 import { rowToTradePosition } from '../lib/trade-map'
@@ -320,10 +322,32 @@ user.post('/getVerificationStatus', requireUser, async (c) => {
   const parsed = getVerificationStatusBodySchema.safeParse(await c.req.json().catch(() => ({})))
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
   const uid = parsed.data.userId
-  const ok =
-    c.var.user!.id === uid || String(c.var.user!.publicId) === String(uid)
-  if (!ok) return c.json({ error: 'Forbidden' }, 403)
-  return c.json({ data: c.var.user!.verificationStatus })
+  const u = c.var.user!
+  const publicMatch = String(u.publicId) === String(uid)
+  const n = typeof uid === 'number' ? uid : Number(uid)
+  const internalMatch = typeof n === 'number' && !Number.isNaN(n) && n === u.id
+  if (!publicMatch && !internalMatch) return c.json({ error: 'Forbidden' }, 403)
+  return c.json({ data: u.verificationStatus })
+})
+
+/** Issue HttpOnly session cookie for the current Bearer user (e.g. after register/onboarding without password login). */
+user.post('/ensureWebSession', requireUser, async (c) => {
+  const uid = c.var.user!.id
+  const sessId = randomSessionId()
+  const now = Math.floor(Date.now() / 1000)
+  const week = 60 * 60 * 24 * 7
+  await c.var.db.insert(schema.sessions).values({
+    id: sessId,
+    userId: uid,
+    expiresAt: now + week,
+  })
+  const cookieName = c.env.SESSION_COOKIE_NAME || 'td_session'
+  const secure = c.req.url.startsWith('https')
+  c.header(
+    'Set-Cookie',
+    `${cookieName}=${sessId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${week}${secure ? '; Secure' : ''}`
+  )
+  return c.json({ ok: true })
 })
 
 user.post('/updateUserStatus', requireUser, async (c) => {
@@ -342,10 +366,40 @@ user.post('/updateUserStatus', requireUser, async (c) => {
 
 user.post('/addBios', requireUser, async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
-  await c.var.db
-    .update(schema.users)
-    .set({ bios: body })
+  const password = typeof body.password === 'string' ? body.password : ''
+  const { password: _pw, userId: _uid, ...rest } = body
+
+  const [existing] = await c.var.db
+    .select({ passwordHash: schema.users.passwordHash, bios: schema.users.bios })
+    .from(schema.users)
     .where(eq(schema.users.id, c.var.user!.id))
+    .limit(1)
+
+  if (password.length > 0 && password.length < 8) {
+    return c.json({ error: 'Password must be at least 8 characters' }, 400)
+  }
+  if (password.length === 0 && !existing?.passwordHash) {
+    return c.json({ error: 'Password required' }, 400)
+  }
+
+  const prevBios =
+    existing?.bios && typeof existing.bios === 'object' && !Array.isArray(existing.bios)
+      ? (existing.bios as Record<string, unknown>)
+      : {}
+  const nextBios = { ...prevBios, ...rest }
+
+  if (password.length >= 8) {
+    const pwd = await hashPassword(password)
+    await c.var.db
+      .update(schema.users)
+      .set({ passwordHash: pwd, bios: nextBios })
+      .where(eq(schema.users.id, c.var.user!.id))
+  } else {
+    await c.var.db
+      .update(schema.users)
+      .set({ bios: nextBios })
+      .where(eq(schema.users.id, c.var.user!.id))
+  }
   return c.json({ ok: true })
 })
 
@@ -359,20 +413,69 @@ user.post('/getAllFiats', requireUser, async (c) => {
 user.post('/updateCurrency', requireUser, async (c) => {
   const parsed = updateCurrencyBodySchema.safeParse(await c.req.json().catch(() => ({})))
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
-  if (parsed.data.userId !== c.var.user!.id) return c.json({ error: 'Forbidden' }, 403)
+  const uid = c.var.user!.id
+  const [row] = await c.var.db
+    .select({ bios: schema.users.bios })
+    .from(schema.users)
+    .where(eq(schema.users.id, uid))
+    .limit(1)
+  const prevBios =
+    row?.bios && typeof row.bios === 'object' && !Array.isArray(row.bios)
+      ? (row.bios as Record<string, unknown>)
+      : {}
+  const bios = { ...prevBios, country: parsed.data.country }
 
   await c.var.db
     .update(schema.users)
-    .set({ currencyId: parsed.data.currency_id })
-    .where(eq(schema.users.id, c.var.user!.id))
+    .set({ currencyId: parsed.data.currency_id, bios })
+    .where(eq(schema.users.id, uid))
 
   return c.json({ ok: true })
 })
 
 user.post('/addAdminWallet', requireUser, async (c) => {
-  const parsed = addAdminWalletBodySchema.safeParse(await c.req.json().catch(() => ({})))
-  if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
-  if (parsed.data.userId !== c.var.user!.id) return c.json({ error: 'Forbidden' }, 403)
+  addAdminWalletBodySchema.safeParse(await c.req.json().catch(() => ({})))
+  return c.json({ ok: true })
+})
+
+/** Sends welcome email once after onboarding (tracked in user bios). */
+user.post('/welcomeOnboarding', requireUser, async (c) => {
+  const uid = c.var.user!.id
+  const [row] = await c.var.db
+    .select({
+      email: schema.users.email,
+      bios: schema.users.bios,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, uid))
+    .limit(1)
+  if (!row?.email) return c.json({ error: 'User not found' }, 404)
+
+  const prevBios =
+    row.bios && typeof row.bios === 'object' && !Array.isArray(row.bios)
+      ? (row.bios as Record<string, unknown>)
+      : {}
+  if (prevBios.onboardingWelcomeSent === true || prevBios.onboardingWelcomeSent === 1) {
+    return c.json({ ok: true, alreadySent: true })
+  }
+
+  const base = ((c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000').replace(
+    /\/$/,
+    ''
+  )
+  const dashboardUrl = `${base}/dashboard`
+  const firstName = typeof prevBios.firstName === 'string' ? prevBios.firstName : undefined
+  const tpl = onboardingWelcomeEmailHtml({ dashboardUrl, firstName })
+  const r = await sendEmail(c.env, row.email, tpl.subject, tpl.html)
+  if (!r.ok) return c.json({ error: r.error }, 502)
+
+  await c.var.db
+    .update(schema.users)
+    .set({
+      bios: { ...prevBios, onboardingWelcomeSent: true },
+    })
+    .where(eq(schema.users.id, uid))
+
   return c.json({ ok: true })
 })
 

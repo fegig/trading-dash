@@ -8,7 +8,7 @@
   "vars": {
     "SESSION_COOKIE_NAME": "td_session",
     "CORS_ORIGIN": "http://localhost:4000",
-    "RESEND_FROM": "Trading <onboarding@resend.dev>",
+    "RESEND_FROM": "Trading <no-reply@notify.codewithfegig.com>",
     "FRONTEND_URL": "http://localhost:4000"
   },
   // Create: wrangler r2 bucket create trading-dash-verification
