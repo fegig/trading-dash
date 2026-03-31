@@ -1,6 +1,7 @@
 import { createDbContext, releaseDbContext } from '../db/client'
 import * as schema from '../db/schema'
 import type { Env } from '../types/env'
+import { evaluateLiveTpslForPair } from '../lib/live-tpsl-eval'
 import { creditUserFiatUsd, spendUserFiatUsd } from '../lib/wallet-ledger'
 
 type BookEntry = { price: number; quantity: number }
@@ -45,11 +46,59 @@ export class LiveTradingRoom {
     }
   }
 
+  private scheduleTpslAlarm() {
+    void this.ctx.storage.getAlarm().then((t) => {
+      if (t == null) void this.ctx.storage.setAlarm(Date.now() + 1500)
+    })
+  }
+
+  async alarm() {
+    const stored = await this.ctx.storage.get<string>('pair')
+    const pairName =
+      (stored && stored.trim()) ||
+      (typeof this.ctx.id.name === 'string' ? this.ctx.id.name : '')
+    try {
+      this.ensureBook()
+      const mid =
+        this.asks.length > 0 && this.bids.length > 0
+          ? (this.asks[0].price + this.bids[0].price) / 2
+          : null
+      if (pairName && mid != null && mid > 0) {
+        const ctxDb = await createDbContext(this.env.HYPERDRIVE.connectionString)
+        try {
+          const n = await evaluateLiveTpslForPair(this.env, ctxDb.db, pairName.toUpperCase(), mid)
+          if (n > 0) {
+            this.broadcast({ type: 'trade_closed', pair: pairName.toUpperCase(), count: n })
+          }
+        } finally {
+          await releaseDbContext(ctxDb)
+        }
+        this.broadcast({
+          type: 'book_update',
+          asks: this.asks,
+          bids: this.bids,
+          price: mid,
+        })
+      }
+    } finally {
+      await this.ctx.storage.setAlarm(Date.now() + 10_000)
+    }
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
 
     if (request.headers.get('Upgrade') === 'websocket') {
       this.ensureBook()
+      try {
+        const path = new URL(request.url).pathname
+        const m = path.match(/\/live\/ws\/(.+)$/i)
+        if (m?.[1]) {
+          await this.ctx.storage.put('pair', decodeURIComponent(m[1]).trim().toUpperCase())
+        }
+      } catch {
+        /* ignore */
+      }
       const pair = new WebSocketPair()
       const [client, server] = Object.values(pair)
       this.ctx.acceptWebSocket(server)
@@ -62,6 +111,7 @@ export class LiveTradingRoom {
           price: this.asks[0] && this.bids[0] ? (this.asks[0].price + this.bids[0].price) / 2 : null,
         })
       )
+      this.scheduleTpslAlarm()
       return new Response(null, { status: 101, webSocket: client })
     }
 
@@ -77,7 +127,12 @@ export class LiveTradingRoom {
         marginType: 'isolated' | 'cross'
         userId: number
         userPublicId: string
+        takeProfitPrice?: number
+        stopLossPrice?: number
       }
+
+      this.scheduleTpslAlarm()
+      await this.ctx.storage.put('pair', body.pair.toUpperCase())
 
       const now = Math.floor(Date.now() / 1000)
       const orderId = crypto.randomUUID()
@@ -130,6 +185,10 @@ export class LiveTradingRoom {
           const quote = parts[1] || 'USDT'
           const invested = Number(notionalUsd.toFixed(8))
           const marginStr = Number(marginUsd.toFixed(8))
+          const tpPx =
+            body.takeProfitPrice != null && body.takeProfitPrice > 0 ? body.takeProfitPrice : 0
+          const slPx =
+            body.stopLossPrice != null && body.stopLossPrice > 0 ? body.stopLossPrice : 0
 
           await db.insert(schema.trades).values({
             id: orderId,
@@ -151,8 +210,8 @@ export class LiveTradingRoom {
             marginPercentage: '100',
             marginType: body.marginType,
             pnl: '0',
-            sl: '0',
-            tp: '0',
+            sl: String(slPx),
+            tp: String(tpPx),
             fees: '0',
             liquidationPrice: '0',
             marketPrice: String(execPrice),
@@ -210,8 +269,16 @@ export class LiveTradingRoom {
     return new Response('Not found', { status: 404 })
   }
 
-  webSocketMessage(_ws: WebSocket, _message: string | ArrayBuffer) {
-    /* optional client commands */
+  webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+    const text = typeof message === 'string' ? message : new TextDecoder().decode(message)
+    try {
+      const o = JSON.parse(text) as { type?: string }
+      if (o.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong', t: Date.now() }))
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   webSocketClose(ws: WebSocket) {

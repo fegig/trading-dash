@@ -9,7 +9,6 @@ import PairBanner, { type MarketData } from '@/components/dashboard/PairBanner'
 import type { GradientBadgeTone } from '@/components/common/gradientBadgeTones'
 import { useAuthStore, usePlatformStore, useTradeStore, useUserStore, useVerificationStore, useWalletStore } from '@/stores'
 import { formatCurrency, formatLength, formatNumber } from '@/util/formatCurrency'
-import { safeFormatCurrency } from '@/util/walletDisplay'
 import { isSubscriptionActive } from '@/util/subscription'
 import { formatDateWithTime } from '@/util/time'
 import { paths } from '@/navigation/paths'
@@ -181,13 +180,12 @@ export default function DashboardPage() {
       loadTrades: state.loadTrades,
     }))
   )
-  const { assets, transactions, loading: walletLoading, loadWallet, displayCurrency } = useWalletStore(
+  const { assets, transactions, loading: walletLoading, loadWallet } = useWalletStore(
     useShallow((state) => ({
       assets: state.assets,
       transactions: state.transactions,
       loading: state.loading,
       loadWallet: state.loadWallet,
-      displayCurrency: state.displayCurrency,
     }))
   )
   const {
@@ -297,9 +295,7 @@ export default function DashboardPage() {
     return [
       {
         label: 'Cash funding',
-        value: fiatAsset
-          ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} · ${formatCurrency(fiatBalanceUsd, 'USD')}`
-          : 'Unavailable',
+        value: fiatAsset ? formatCurrency(fiatBalanceUsd, 'USD') : 'Unavailable',
         percentage: safePercentage(fiatBalanceUsd),
         accentClass: 'bg-sky-500/80',
       },
@@ -322,15 +318,7 @@ export default function DashboardPage() {
         accentClass: 'bg-amber-500/80',
       },
     ]
-  }, [
-    copyCapital,
-    displayCurrency.code,
-    fiatAsset,
-    fiatBalanceUsd,
-    investmentCapital,
-    liveTradeMargin,
-    portfolioValue,
-  ])
+  }, [copyCapital, fiatAsset, fiatBalanceUsd, investmentCapital, liveTradeMargin, portfolioValue])
 
   const metrics = [
     {
@@ -340,10 +328,8 @@ export default function DashboardPage() {
     },
     {
       label: 'Fiat ready',
-      value: fiatAsset
-        ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} · ${formatCurrency(fiatBalanceUsd, 'USD')}`
-        : 'Unavailable',
-      subtext: 'Your cash wallet in account currency and USD equivalent for platform pricing',
+      value: fiatAsset ? formatCurrency(fiatBalanceUsd, 'USD') : 'Unavailable',
+      subtext: 'Cash wallet as USD equivalent (for desk pricing and margin)',
     },
     {
       label: 'Live Setups',

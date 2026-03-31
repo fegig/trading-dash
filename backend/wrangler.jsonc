@@ -1,40 +1,61 @@
 {
-  // Deploy: create Hyperdrive + set id. Local dev uses localConnectionString.
-  // Optional KV: wrangler kv namespace create RATE_LIMIT — add binding below for distributed rate limits.
-  "name": "trading-dash-api",
-  "main": "src/index.ts",
-  "compatibility_date": "2025-03-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "vars": {
-    "SESSION_COOKIE_NAME": "td_session",
-    "CORS_ORIGIN": "http://localhost:4000",
-    "RESEND_FROM": "Trading <no-reply@notify.codewithfegig.com>",
-    "FRONTEND_URL": "http://localhost:4000"
-  },
-  // Create: wrangler r2 bucket create trading-dash-verification
-  "r2_buckets": [
-    {
-      "binding": "VERIFICATION_UPLOADS",
-      "bucket_name": "trading-dash-verification",
-      "preview_bucket_name": "trading-dash-verification-preview"
-    }
-  ],
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "00000000-0000-0000-0000-000000000001",
-      "localConnectionString": "mysql://root:What,man@123@localhost:3306/trading_dash_offline_db"
-    }
-  ],
-  "durable_objects": {
-    "bindings": [{ "name": "LIVE_TRADING", "class_name": "LiveTradingRoom" }]
-  },
-  "migrations": [{ "tag": "v1", "new_classes": ["LiveTradingRoom"] }],
-  // Hourly bot auto-trading cron (Workers scheduled handler).
-  "triggers": { "crons": ["0 * * * *"] }
-  // Optional: CryptoCompare response cache — run:
-  //   wrangler kv namespace create CRYPTO_CACHE
-  //   wrangler kv namespace create CRYPTO_CACHE --preview
-  // Then add:
-  // "kv_namespaces": [{ "binding": "CRYPTO_CACHE", "id": "<prod_id>", "preview_id": "<preview_id>" }],
+
+	"name": "trading-dash-api",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-10-07",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"vars": {
+		"SESSION_COOKIE_NAME": "td_session",
+		"CORS_ORIGIN": "http://localhost:4000",
+		"RESEND_FROM": "Trading <no-reply@notify.codewithfegig.com>",
+		"FRONTEND_URL": "http://localhost:4000"
+	},
+	"r2_buckets": [
+		{
+			"binding": "VERIFICATION_UPLOADS",
+			"bucket_name": "trading-dash-verification",
+			"preview_bucket_name": "trading-dash-verification-preview"
+		}
+	],
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "0e14b390287e4def97bc9511058b6093",
+			"localConnectionString": "mysql://root:What,man@123@localhost:3306/trading_dash_offline_db"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "LIVE_TRADING",
+				"class_name": "LiveTradingRoom"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_classes": [
+				"LiveTradingRoom"
+			]
+		}
+	],
+	"triggers": {
+		"crons": [
+			"0 * * * *"
+		]
+	},
+	"kv_namespaces": [
+		{
+			"binding": "CRYPTO_CACHE",
+			"id": "ba3ae09c4802410ea92fff0cbde86820",
+			"preview_id": "555c01bfca8241e59dba83e2799d3e51"
+		},
+		{
+			"binding": "RATE_LIMIT",
+			"id": "9a6c7d392998430c960f0bd83c11cb7b"
+		}
+	]
 }

@@ -96,6 +96,8 @@ export const placeLiveOrderBodySchema = z.object({
   leverage: z.number().min(1).default(1),
   price: z.number().optional(),
   marginType: z.enum(['isolated', 'cross']).default('isolated'),
+  takeProfitPrice: z.number().positive().optional(),
+  stopLossPrice: z.number().positive().optional(),
 })
 
 export const cancelLiveOrderBodySchema = z.object({

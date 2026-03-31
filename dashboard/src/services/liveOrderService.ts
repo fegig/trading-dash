@@ -9,6 +9,8 @@ export async function placeLiveOrder(payload: {
   leverage: number
   price?: number
   marginType: 'isolated' | 'cross'
+  takeProfitPrice?: number
+  stopLossPrice?: number
 }) {
   return post(endpoints.live.placeOrder, { ...payload } as Record<string, unknown>)
 }

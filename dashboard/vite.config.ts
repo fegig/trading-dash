@@ -17,6 +17,7 @@ export default defineConfig({
       '^/(user|auth|wallet|affiliate|admin|platform|settings|verification|live|crypto)': {
         target: apiTarget,
         changeOrigin: true,
+        ws: true,
       },
     },
   },

@@ -3,6 +3,7 @@ import { formatCurrency, formatNumber } from '@/util/formatCurrency'
 import DepthSelector from './DepthSelector'
 import { MarketData } from './PairBanner'
 import { liveOrderBookWsUrl } from '@/util/liveWs'
+import { dispatchTradesRefresh } from '@/util/tradeRefreshEvents'
 
 interface OrderBookEntry {
   price: number
@@ -47,38 +48,99 @@ function OrderBook({ symbol }: { symbol: MarketData }) {
   useEffect(() => {
     if (!symbol.BASE || !symbol.QUOTE) return
     const pair = `${symbol.BASE}-${symbol.QUOTE}`.toUpperCase()
-    const url = liveOrderBookWsUrl(pair)
+    let cancelled = false
     let ws: WebSocket | null = null
-    try {
-      ws = new WebSocket(url)
-    } catch {
-      return
-    }
+    let pingId: ReturnType<typeof setInterval> | null = null
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data as string) as {
-          type?: string
-          asks?: OrderBookEntry[]
-          bids?: OrderBookEntry[]
-          price?: number
-        }
-        if (data.type === 'snapshot' || data.type === 'order_filled' || data.type === 'book_update') {
-          if (Array.isArray(data.asks) && data.asks.length > 0) setAsks(data.asks)
-          if (Array.isArray(data.bids) && data.bids.length > 0) setBids(data.bids)
-          if (typeof data.price === 'number' && Number.isFinite(data.price)) {
-            setMarketData((prev) => ({
-              ...prev,
-              PRICE: data.price as number,
-            }))
-          }
-        }
-      } catch {
-        /* ignore malformed */
+    const clearPing = () => {
+      if (pingId != null) {
+        clearInterval(pingId)
+        pingId = null
       }
     }
 
+    const scheduleReconnect = () => {
+      if (cancelled || reconnectTimer != null) return
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null
+        connect()
+      }, 3000)
+    }
+
+    const connect = () => {
+      if (cancelled) return
+      const url = liveOrderBookWsUrl(pair)
+      try {
+        ws = new WebSocket(url)
+      } catch {
+        scheduleReconnect()
+        return
+      }
+
+      ws.onopen = () => {
+        clearPing()
+        pingId = window.setInterval(() => {
+          if (ws?.readyState === WebSocket.OPEN) {
+            try {
+              ws.send(JSON.stringify({ type: 'ping' }))
+            } catch {
+              /* ignore */
+            }
+          }
+        }, 25000)
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data as string) as {
+            type?: string
+            asks?: OrderBookEntry[]
+            bids?: OrderBookEntry[]
+            price?: number
+          }
+          if (data.type === 'trade_closed' || data.type === 'order_filled') {
+            dispatchTradesRefresh()
+          }
+          if (data.type === 'snapshot' || data.type === 'order_filled' || data.type === 'book_update') {
+            if (Array.isArray(data.asks) && data.asks.length > 0) setAsks(data.asks)
+            if (Array.isArray(data.bids) && data.bids.length > 0) setBids(data.bids)
+            if (typeof data.price === 'number' && Number.isFinite(data.price)) {
+              setMarketData((prev) => ({
+                ...prev,
+                PRICE: data.price as number,
+              }))
+            }
+          }
+        } catch {
+          /* ignore malformed */
+        }
+      }
+
+      ws.onerror = () => {
+        try {
+          ws?.close()
+        } catch {
+          /* ignore */
+        }
+      }
+
+      ws.onclose = () => {
+        clearPing()
+        ws = null
+        if (!cancelled) scheduleReconnect()
+      }
+    }
+
+    connect()
+
     return () => {
+      cancelled = true
+      if (reconnectTimer != null) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
+      clearPing()
       ws?.close()
     }
   }, [symbol.BASE, symbol.QUOTE])

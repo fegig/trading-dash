@@ -2,15 +2,36 @@ import OrderBook from '@/components/dashboard/OrderBook';
 import OrderForm from '@/components/dashboard/OrderForm';
 import ChartArea from '@/components/dashboard/ChartArea';
 import PairBanner, { MarketData } from '@/components/dashboard/PairBanner';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import MiniTradeHistory from '@/components/dashboard/MiniTradeHistory';
 import Modal from '@/components/common/Modal';
+
+const TRADING_MODE_KEY = 'td-live-trading-mode';
+
+function readStoredTradingMode(): 'lite' | 'pro' {
+    try {
+        const v = localStorage.getItem(TRADING_MODE_KEY);
+        if (v === 'lite' || v === 'pro') return v;
+    } catch {
+        /* ignore */
+    }
+    return 'lite';
+}
 
 /** Live spot trading — chart, order book, order form */
 function LiveTrading() {
  const [symbol, setSymbol] = useState<MarketData | null>(null);
  const [isOrderBookModalOpen, setIsOrderBookModalOpen] = useState(false);
  const [isOrderFormModalOpen, setIsOrderFormModalOpen] = useState(false);
+ const [tradingMode, setTradingMode] = useState<'lite' | 'pro'>(readStoredTradingMode);
+
+ useEffect(() => {
+     try {
+         localStorage.setItem(TRADING_MODE_KEY, tradingMode);
+     } catch {
+         /* ignore */
+     }
+ }, [tradingMode]);
 
     return (
         <div className="relative">
@@ -24,12 +45,42 @@ function LiveTrading() {
                     <MiniTradeHistory/>
                 </div>
          
-                <div className="col-span-4 space-x-4 hidden justify-between lg:flex">
+                <div className="col-span-4 hidden lg:flex flex-col gap-3 min-h-0">
+                    <div
+                        className="flex rounded-full gradient-background p-0.5 shrink-0"
+                        role="group"
+                        aria-label="Trading mode"
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setTradingMode('lite')}
+                            className={`flex-1 py-2 text-xs font-semibold rounded-full transition-colors ${
+                                tradingMode === 'lite'
+                                    ? 'bg-green-500 text-neutral-950'
+                                    : 'text-neutral-500 hover:text-neutral-300'
+                            }`}
+                        >
+                            Lite
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setTradingMode('pro')}
+                            className={`flex-1 py-2 text-xs font-semibold rounded-full transition-colors ${
+                                tradingMode === 'pro'
+                                    ? 'bg-green-500 text-neutral-950'
+                                    : 'text-neutral-500 hover:text-neutral-300'
+                            }`}
+                        >
+                            Pro
+                        </button>
+                    </div>
+                    <div className="flex space-x-4 justify-between flex-1 min-h-0">
                     <OrderBook symbol={symbol || {
                         BASE: "BTC", 
                         QUOTE: "USDT"
                     }} />
-                    <OrderForm symbol={symbol || null}/>
+                    <OrderForm symbol={symbol || null} tradingMode={tradingMode} />
+                    </div>
                 </div>
             </main>
 
@@ -73,8 +124,38 @@ function LiveTrading() {
                 title="Place Order"
                 className="max-w-full w-full rounded-b-none rounded-t-xl fixed bottom-0 top-auto max-h-[80vh]"
             >
-                <div className="h-[70vh]">
-                    <OrderForm symbol={symbol || null} />
+                <div className="h-[70vh] flex flex-col min-h-0">
+                    <div
+                        className="flex rounded-full gradient-background p-0.5 shrink-0 mb-3 lg:hidden"
+                        role="group"
+                        aria-label="Trading mode"
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setTradingMode('lite')}
+                            className={`flex-1 py-2 text-xs font-semibold rounded-full transition-colors ${
+                                tradingMode === 'lite'
+                                    ? 'bg-green-500 text-neutral-950'
+                                    : 'text-neutral-500 hover:text-neutral-300'
+                            }`}
+                        >
+                            Lite
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setTradingMode('pro')}
+                            className={`flex-1 py-2 text-xs font-semibold rounded-full transition-colors ${
+                                tradingMode === 'pro'
+                                    ? 'bg-green-500 text-neutral-950'
+                                    : 'text-neutral-500 hover:text-neutral-300'
+                            }`}
+                        >
+                            Pro
+                        </button>
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                        <OrderForm symbol={symbol || null} tradingMode={tradingMode} />
+                    </div>
                 </div>
             </Modal>
         </div>

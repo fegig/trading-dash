@@ -5,6 +5,7 @@ import TradePreviewDrawer from '../trades/TradePreviewPanel'
 import { useTradeStore, useUserStore } from '@/stores'
 import type { HistoryType } from './TradeHistoryFilter'
 import TradeHistoryFilter from './TradeHistoryFilter'
+import { TRADE_REFRESH_EVENT } from '@/util/tradeRefreshEvents'
 
 
 export default function MiniTradeHistory() {
@@ -32,6 +33,12 @@ export default function MiniTradeHistory() {
     void loadTrades(userId)
   }, [loadTrades, userId])
 
+  useEffect(() => {
+    const onRefresh = () => void loadTrades(userId, true)
+    window.addEventListener(TRADE_REFRESH_EVENT, onRefresh)
+    return () => window.removeEventListener(TRADE_REFRESH_EVENT, onRefresh)
+  }, [loadTrades, userId])
+
   const filteredHistory = useMemo(
     () => trades.filter((trade) => historyType[trade.status]),
     [historyType, trades]
@@ -48,7 +55,7 @@ export default function MiniTradeHistory() {
     <>
       <TradeHistoryFilter historyType={historyType} setHistoryType={setHistoryType} showAllTrades={true} />
 
-      <div className="max-h-[375px] h-full overflow-y-auto scrollbar-none mt-4">
+      <div className="max-h-[500px] h-full overflow-y-auto scrollbar-none mt-4">
         <div className="flex flex-col space-y-4 pb-4">
           {filteredHistory.length === 0 ? (
             <div className="gradient-background rounded-2xl p-6 text-center justify-center items-center flex flex-col text-neutral-500 flex-1">

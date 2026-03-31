@@ -23,7 +23,7 @@ import * as schema from '../db/schema'
 import { rowToTradePosition } from '../lib/trade-map'
 import { getInternalUserIdByPublicId } from '../services/users-repo'
 import { provisionUserWallets } from '../services/wallet-provisioning'
-import { adjustFiatByUsd } from '../lib/wallet-ledger'
+import { settleTradeClose } from '../lib/settle-trade-close'
 
 type ActivityLogRow = InferSelectModel<typeof schema.activityLogs>
 type TradeRow = InferSelectModel<typeof schema.trades>
@@ -354,57 +354,16 @@ user.post('/closeTrade', async (c) => {
     }
   }
 
-  if (t.status !== 'open' && t.status !== 'pending') {
-    return c.json({ error: 'Trade is not open' }, 409)
-  }
-
-  const now = Math.floor(Date.now() / 1000)
   const exitPx = parsed.data.marketPrice ?? Number(t.marketPrice)
-  const entryPx = Number(t.entryPrice)
-  const invested = Number(t.invested)
-  const fees = Number(t.fees)
-  let pnlUsd = 0
-  if (entryPx > 0 && exitPx > 0 && invested > 0) {
-    if (t.option === 'buy') {
-      pnlUsd = invested * (exitPx / entryPx - 1) - fees
-    } else {
-      pnlUsd = invested * (entryPx / exitPx - 1) - fees
-    }
+  if (!(exitPx > 0) || !Number.isFinite(exitPx)) {
+    return c.json({ error: 'Valid market price required to close' }, 400)
   }
-  pnlUsd = Number(pnlUsd.toFixed(8))
-  const roiPct = invested > 0 ? Number(((pnlUsd / invested) * 100).toFixed(4)) : 0
-
-  const marginUsd = Number(t.margin)
-  const liveFunded = t.executionVenue === 'live' && t.status === 'open'
-  const returnUsd = liveFunded ? marginUsd + pnlUsd : pnlUsd
-
-  const settled = await adjustFiatByUsd(
-    c.env,
-    c.var.db,
-    t.userId,
-    returnUsd,
-    liveFunded
-      ? `Trade close: released margin + P&L (~${returnUsd.toFixed(2)} USD equivalent).`
-      : `Trade close: P&L (~${returnUsd.toFixed(2)} USD equivalent).`,
-    'Trade settlement'
-  )
-  if (!settled.ok) return c.json({ error: settled.error }, 400)
-
-  await c.var.db
-    .update(schema.trades)
-    .set({
-      status: 'completed',
-      closingTime: now,
-      closingPrice: String(exitPx),
-      roi: String(roiPct),
-      pnl: String(pnlUsd),
-      marketPrice: String(exitPx),
-      note: `${t.note} Closed via API.`,
-    })
-    .where(eq(schema.trades.id, tradeId))
-
-  const updated = await c.var.db.select().from(schema.trades).where(eq(schema.trades.id, tradeId)).limit(1)
-  return c.json({ ok: true, trade: updated[0] ? rowToTradePosition(updated[0]) : null })
+  const result = await settleTradeClose(c.env, c.var.db, tradeId, exitPx, 'Closed via API.')
+  if (!result.ok) {
+    const code = result.error === 'Trade is not open' ? 409 : 400
+    return c.json({ error: result.error }, code)
+  }
+  return c.json({ ok: true, trade: rowToTradePosition(result.trade) })
 })
 
 user.post('/getFiat', requireUser, async (c) => {

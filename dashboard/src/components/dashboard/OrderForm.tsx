@@ -1,12 +1,15 @@
 import { useState, useMemo } from "react";
-import { useShallow } from "zustand/react/shallow";
-import { formatLength } from "@/util/formatCurrency";
+import { formatCurrency } from "@/util/formatCurrency";
 import { MarketData } from "./PairBanner";
 import { errorToast, successToast } from "@/components/common/sweetAlerts";
 import { placeLiveOrder } from "@/services/liveOrderService";
 import { useWalletStore } from "@/stores";
-import { formatUsdAndAccountFiat } from "@/util/walletDisplay";
+import { dispatchTradesRefresh } from "@/util/tradeRefreshEvents";
 import Switch from "../common/SwitchOption";
+
+const LITE_LEVERAGE = 5
+const LITE_TP_RATIO = 0.02
+const LITE_SL_RATIO = 0.01
 
 type TradingType = 'isolated' | 'cross';
 type LongShort = 'long' | 'short';
@@ -65,20 +68,19 @@ interface MarginUsage {
 // Update the OrderForm component props type
 interface OrderFormProps {
     symbol: MarketData | null;
+    tradingMode?: 'lite' | 'pro';
 }
 
-function OrderForm({ symbol }: OrderFormProps) {
-    const displayCurrency = useWalletStore(useShallow((s) => s.displayCurrency));
-
+function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
     const [tradingType, setTradingType] = useState<TradingType>('isolated');
     const [tradingTypeValue, setTradingTypeValue] = useState<number>(0);
     const [orderType, setOrderType] = useState<OrderType>('market');
     const [longShort, setLongShort] = useState<LongShort>('long');
 
-    const [leverage, setLeverage] = useState('');
+    const [leverage, setLeverage] = useState('10');
     const [orderPrice, setOrderPrice] = useState('');
     const [triggerPrice, setTriggerPrice] = useState('');
-    const [amount, setAmount] = useState('100');
+    const [amount, setAmount] = useState('0.01');
     const [postOnly, setPostOnly] = useState(false);
 
     // Add new state for TP/SL
@@ -89,12 +91,21 @@ function OrderForm({ symbol }: OrderFormProps) {
     // Add new state for TP/SL toggle
     const [tpslEnabled, setTpslEnabled] = useState(false);
 
+    const [liteUsdMargin, setLiteUsdMargin] = useState('50');
+    const [liteUseTp, setLiteUseTp] = useState(true);
+    const [liteUseSl, setLiteUseSl] = useState(true);
+
     // Validate leverage input
     const handleLeverageChange = (value: string): void => {
+        if (value === '') {
+            setLeverage('');
+            return;
+        }
         const leverageNum = Number(value);
+        if (!Number.isFinite(leverageNum)) return;
         if (leverageNum > maxLeverage) {
             errorToast(`Maximum leverage allowed is ${maxLeverage}x`);
-            setLeverage(maxLeverage.toString());
+            setLeverage(String(maxLeverage));
             return;
         }
         if (leverageNum < 1) {
@@ -131,24 +142,53 @@ function OrderForm({ symbol }: OrderFormProps) {
         const levN = Number(levStr) || 1;
         const marginUsd =
             priceNum > 0 && Number(amount) > 0 ? (Number(amount) * priceNum) / levN : 0;
-        const marginDual =
-            marginUsd > 0
-                ? formatUsdAndAccountFiat(marginUsd, displayCurrency)
-                : null;
 
         const detailRows: Detail[] = [
             { name: 'Commission', value: commission.toFixed(2), unit: symbol?.QUOTE },
             { name: 'Av Liquidation Price', value: liquidationPrice.toFixed(2), unit: symbol?.QUOTE },
             {
-                name: 'Margin (USD, wallet debit)',
-                value: marginDual ? `${marginDual.usd} (${marginDual.fiat})` : marginRequired.toFixed(2),
-                unit: marginDual ? undefined : symbol?.QUOTE,
+                name: 'Est. margin (USD)',
+                value: marginUsd > 0 ? formatCurrency(marginUsd, 'USD') : marginRequired.toFixed(2),
+                unit: marginUsd > 0 ? undefined : symbol?.QUOTE,
             },
             { name: 'Max Position Amount', value: maxPosition.toFixed(2), unit: symbol?.QUOTE },
         ];
 
         return { marginUsage: marginUsageRows, details: detailRows };
-    }, [amount, leverage, orderPrice, orderType, longShort, symbol, displayCurrency]);
+    }, [amount, leverage, orderPrice, orderType, longShort, symbol]);
+
+    const litePreview = useMemo(() => {
+        if (tradingMode !== 'lite') return null;
+        const p = symbol?.PRICE ?? 0;
+        const m = Number(liteUsdMargin);
+        if (!(p > 0) || !(m > 0)) return null;
+        const base = (m * LITE_LEVERAGE) / p;
+        const tp =
+            liteUseTp && longShort === 'long'
+                ? p * (1 + LITE_TP_RATIO)
+                : liteUseTp && longShort === 'short'
+                  ? p * (1 - LITE_TP_RATIO)
+                  : null;
+        const sl =
+            liteUseSl && longShort === 'long'
+                ? p * (1 - LITE_SL_RATIO)
+                : liteUseSl && longShort === 'short'
+                  ? p * (1 + LITE_SL_RATIO)
+                  : null;
+        return { base, tp, sl, price: p };
+    }, [tradingMode, symbol?.PRICE, liteUsdMargin, longShort, liteUseTp, liteUseSl]);
+
+    const finishOrderResponse = (res: unknown) => {
+        const status = res && typeof res === 'object' && 'status' in res ? (res as { status?: number }).status : undefined;
+        if (status && status >= 400) {
+            const msg = (res as { data?: { error?: string } })?.data?.error;
+            errorToast(msg ?? 'Order rejected. Check session and balance.');
+            return;
+        }
+        successToast('Order placed successfully');
+        void useWalletStore.getState().loadWallet(true);
+        dispatchTradesRefresh();
+    };
 
     // Update place order handler
     const handlePlaceOrder = (): void => {
@@ -157,15 +197,69 @@ function OrderForm({ symbol }: OrderFormProps) {
             return;
         }
 
+        if (tradingMode === 'lite') {
+            const price = symbol.PRICE ?? 0;
+            if (!(price > 0)) {
+                errorToast('Waiting for live price. Check connection or wait for the chart to load.');
+                return;
+            }
+            const marginUsd = Number(liteUsdMargin);
+            if (!Number.isFinite(marginUsd) || marginUsd <= 0) {
+                errorToast('Enter a valid USD margin amount');
+                return;
+            }
+            const lev = LITE_LEVERAGE;
+            const amountBase = (marginUsd * lev) / price;
+            if (!(amountBase > 0)) {
+                errorToast('Amount too small for this price');
+                return;
+            }
+            const { assets, displayCurrency } = useWalletStore.getState();
+            const fiatRow = assets.find((a) => a.assetType === 'fiat');
+            const usdBuyingPower =
+                fiatRow && displayCurrency.usdPerUnit > 0
+                    ? fiatRow.userBalance * displayCurrency.usdPerUnit
+                    : 0;
+            if (usdBuyingPower > 0 && marginUsd > usdBuyingPower + 1e-6) {
+                errorToast(
+                    `Not enough buying power. Margin ${formatCurrency(marginUsd, 'USD')} vs ~${formatCurrency(usdBuyingPower, 'USD')} USD available.`
+                );
+                return;
+            }
+            const takeProfitPrice = liteUseTp
+                ? longShort === 'long'
+                    ? price * (1 + LITE_TP_RATIO)
+                    : price * (1 - LITE_TP_RATIO)
+                : undefined;
+            const stopLossPrice = liteUseSl
+                ? longShort === 'long'
+                    ? price * (1 - LITE_SL_RATIO)
+                    : price * (1 + LITE_SL_RATIO)
+                : undefined;
+            const pair = `${symbol.BASE}-${symbol.QUOTE}`.toUpperCase();
+            void placeLiveOrder({
+                pair,
+                side: longShort === 'long' ? 'buy' : 'sell',
+                type: 'market',
+                amount: amountBase,
+                leverage: lev,
+                marginType: 'isolated',
+                takeProfitPrice,
+                stopLossPrice,
+            })
+                .then(finishOrderResponse)
+                .catch(() => {
+                    errorToast('Could not place order. Is the API running?');
+                });
+            return;
+        }
+
         if (!amount || Number(amount) <= 0) {
             errorToast('Please enter a valid amount');
             return;
         }
 
-        if (!leverage || Number(leverage) < 1) {
-            errorToast('Please enter valid leverage');
-            return;
-        }
+        const effectiveLeverage = Math.max(1, Math.min(maxLeverage, Number(leverage) || 1));
 
         if (orderType !== 'market' && (!orderPrice || Number(orderPrice) <= 0)) {
             errorToast('Please enter a valid order price');
@@ -181,26 +275,49 @@ function OrderForm({ symbol }: OrderFormProps) {
             return;
         }
 
+        const priceForMargin =
+            orderType === 'market' ? symbol.PRICE ?? 0 : Number(orderPrice);
+        const priceOk = Number.isFinite(priceForMargin) && priceForMargin > 0;
+        const marginUsdEst =
+            priceOk && Number(amount) > 0
+                ? (Number(amount) * priceForMargin) / effectiveLeverage
+                : 0;
+
+        const { assets, displayCurrency } = useWalletStore.getState();
+        const fiatRow = assets.find((a) => a.assetType === 'fiat');
+        const usdBuyingPower =
+            fiatRow && displayCurrency.usdPerUnit > 0
+                ? fiatRow.userBalance * displayCurrency.usdPerUnit
+                : 0;
+
+        if (marginUsdEst > 0 && usdBuyingPower > 0 && marginUsdEst > usdBuyingPower + 1e-6) {
+            errorToast(
+                `Not enough buying power. Est. margin ${formatCurrency(marginUsdEst, 'USD')} vs ~${formatCurrency(usdBuyingPower, 'USD')} USD available (size is in ${symbol.BASE}, not USD).`
+            );
+            return;
+        }
+
         const pair = `${symbol.BASE}-${symbol.QUOTE}`.toUpperCase();
+        const tp =
+            tpslEnabled && takeProfitPrice && Number(takeProfitPrice) > 0
+                ? Number(takeProfitPrice)
+                : undefined;
+        const sl =
+            tpslEnabled && stopLossPrice && Number(stopLossPrice) > 0
+                ? Number(stopLossPrice)
+                : undefined;
         void placeLiveOrder({
             pair,
             side: longShort === 'long' ? 'buy' : 'sell',
             type: orderType,
             amount: Number(amount),
-            leverage: Math.max(1, Number(leverage) || 1),
+            leverage: effectiveLeverage,
             price: orderType !== 'market' ? Number(orderPrice) : undefined,
             marginType: tradingType,
+            takeProfitPrice: tp,
+            stopLossPrice: sl,
         })
-            .then((res) => {
-                const status = res && 'status' in res ? (res as { status?: number }).status : undefined;
-                if (status && status >= 400) {
-                    const msg = (res as { data?: { error?: string } })?.data?.error;
-                    errorToast(msg ?? 'Order rejected. Check session and balance.');
-                    return;
-                }
-                successToast('Order placed successfully');
-                void useWalletStore.getState().loadWallet(true);
-            })
+            .then(finishOrderResponse)
             .catch(() => {
                 errorToast('Could not place order. Is the API running?');
             });
@@ -238,60 +355,126 @@ function OrderForm({ symbol }: OrderFormProps) {
     return (
         <div className="gradient-background p-4 space-y-4   w-full">
 
-            <div className="border-b border-neutral-500/30 space-y-4 pb-4">
-
-
-                <div className="flex items-center justify-between gradient-background rounded-full! p-0!">
-                    <div className="flex-1 max-w-[50%]">
-                        <select
-                            className="w-full outline-0 border-0 px-3 py-2 text-neutral-500 capitalize text-xs text-center"
-                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTradingType(e.target.value as TradingType)}
-                        >
-                            {['isolated', 'cross'].map((type) => (
-                                <option value={type} key={type}>{type}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex-1 max-w-[50%]">
-                        <input
-                            type="number"
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTradingTypeValue(Number(e.target.value))}
-                            className="w-full text-neutral-500 font-medium text-xs text-center px-3 py-2 rounded-full"
-                            value={tradingTypeValue}
-
-                        />
-                    </div>
+            {tradingMode === 'lite' ? (
+                <div className="rounded-2xl border border-green-500/25 bg-green-500/8 p-3 space-y-1">
+                    <div className="text-xs font-semibold text-green-300">Lite mode</div>
+                    <p className="text-[11px] text-neutral-400 leading-relaxed">
+                        Preset market order, {LITE_LEVERAGE}× isolated margin, USD margin input, and optional +2% take-profit / −1% stop-loss vs. the live price.
+                        Order book updates over WebSocket; TP/SL are monitored on the server about every 10s.
+                    </p>
                 </div>
+            ) : null}
+
+            <div className="border-b border-neutral-500/30 space-y-4 pb-4">
+                {tradingMode === 'pro' ? (
+                    <div className="flex items-center justify-between gradient-background rounded-full! p-0!">
+                        <div className="flex-1 max-w-[50%]">
+                            <select
+                                className="w-full outline-0 border-0 px-3 py-2 text-neutral-500 capitalize text-xs text-center"
+                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTradingType(e.target.value as TradingType)}
+                            >
+                                {['isolated', 'cross'].map((type) => (
+                                    <option value={type} key={type}>{type}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex-1 max-w-[50%]">
+                            <input
+                                type="number"
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTradingTypeValue(Number(e.target.value))}
+                                className="w-full text-neutral-500 font-medium text-xs text-center px-3 py-2 rounded-full"
+                                value={tradingTypeValue}
+                            />
+                        </div>
+                    </div>
+                ) : null}
 
                 <div className="flex  gradient-background p-0! rounded-full!">
-                    {
-                        ['long', 'short'].map((type) => (
-                            <button className={`flex-1 capitalize text-neutral-500 py-2 text-xs  transition-all rounded-full ${longShort === type ? 'bg-green-500 text-neutral-950' : 'text-neutral-500'}`}
-                                key={type} onClick={() => setLongShort(type as LongShort)}>
-                                {type}
-
-                            </button>
-                        ))
-                    }
-
-
+                    {['long', 'short'].map((type) => (
+                        <button
+                            type="button"
+                            className={`flex-1 capitalize text-neutral-500 py-2 text-xs  transition-all rounded-full ${longShort === type ? 'bg-green-500 text-neutral-950' : 'text-neutral-500'}`}
+                            key={type}
+                            onClick={() => setLongShort(type as LongShort)}
+                        >
+                            {type}
+                        </button>
+                    ))}
                 </div>
 
-                <div className="flex gradient-background p-0! rounded-full!">
-                    {
-                        ['market', 'limit', 'stop'].map((type) => (
-                            <button className={`flex-1  capitalize text-neutral-500 py-2 text-xs rounded-full  transition-all ${orderType === type ? 'bg-green-500 text-neutral-950' : 'text-neutral-500'}`}
-                                key={type} onClick={() => setOrderType(type as OrderType)}>
+                {tradingMode === 'pro' ? (
+                    <div className="flex gradient-background p-0! rounded-full!">
+                        {['market', 'limit', 'stop'].map((type) => (
+                            <button
+                                type="button"
+                                className={`flex-1  capitalize text-neutral-500 py-2 text-xs rounded-full  transition-all ${orderType === type ? 'bg-green-500 text-neutral-950' : 'text-neutral-500'}`}
+                                key={type}
+                                onClick={() => setOrderType(type as OrderType)}
+                            >
                                 {type}
-
                             </button>
-                        ))
-                    }
-                </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center text-[11px] text-neutral-500 py-1">
+                        Market order · {LITE_LEVERAGE}× leverage · Isolated margin
+                    </div>
+                )}
             </div>
 
-
             <div className="space-y-4 border-b border-neutral-500/30 pb-4">
+                {tradingMode === 'lite' ? (
+                    <div className="space-y-3">
+                        <div className="space-y-2">
+                            <label className="text-sm text-neutral-500">Margin to use (USD)</label>
+                            <input
+                                type="number"
+                                className="w-full text-white font-medium text-sm px-3 py-2 rounded-xl bg-neutral-900/80 border border-neutral-800"
+                                value={liteUsdMargin}
+                                onChange={(e) => {
+                                    const v = e.target.value
+                                    if (/^\d*\.?\d*$/.test(v)) setLiteUsdMargin(v)
+                                }}
+                                min="0"
+                                step="any"
+                            />
+                            <p className="text-[11px] text-neutral-500">
+                                Position size in {symbol?.BASE ?? 'base'} is computed as (margin × {LITE_LEVERAGE}) ÷ price.
+                            </p>
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                                <Switch isOn={liteUseTp} onToggle={() => setLiteUseTp(!liteUseTp)} />
+                                <span className="text-xs text-neutral-400">Take profit +2%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Switch isOn={liteUseSl} onToggle={() => setLiteUseSl(!liteUseSl)} />
+                                <span className="text-xs text-neutral-400">Stop loss −1%</span>
+                            </div>
+                        </div>
+                        {litePreview ? (
+                            <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3 text-[11px] text-neutral-400 space-y-1">
+                                <div>
+                                    Est. size:{' '}
+                                    <span className="text-neutral-200 tabular-nums">
+                                        {litePreview.base.toFixed(6)} {symbol?.BASE}
+                                    </span>
+                                </div>
+                                {litePreview.tp != null ? (
+                                    <div>TP ≈ {formatCurrency(litePreview.tp, 'USD')}</div>
+                                ) : null}
+                                {litePreview.sl != null ? (
+                                    <div>SL ≈ {formatCurrency(litePreview.sl, 'USD')}</div>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <p className="text-[11px] text-amber-500/90">Enter margin and wait for a live price to preview size and TP/SL.</p>
+                        )}
+                    </div>
+                ) : null}
+
+                {tradingMode === 'pro' ? (
+                <>
                 <div className="flex items-center justify-between space-x-2">
 
 
@@ -357,16 +540,19 @@ function OrderForm({ symbol }: OrderFormProps) {
 
                 </div>
                 <div className="flex-1   space-y-2">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col gap-0.5">
                         <label className="text-sm text-neutral-500">Position Amount</label>
-                        <span className="text-xs text-neutral-500">Available Margin: <span className="text-white">{formatLength(90000)} {symbol?.QUOTE}</span></span>
+                        <span className="text-[11px] text-neutral-500 leading-snug">
+                            Size in <span className="text-neutral-300">{symbol?.BASE ?? 'base'}</span> units (not USD).
+                            Margin is charged in USD equivalent from your fiat wallet.
+                        </span>
                     </div>
 
 
                     <div className="gradient-background p-0! flex items-center justify-between ">
                         <input
                             type="number"
-                            placeholder="100"
+                            placeholder="0.01"
                             onChange={(e) => setAmount(e.target.value)}
                             className="w-full text-white font-medium text-xs text-left px-3 py-2 rounded-full"
                             value={amount}
@@ -442,37 +628,34 @@ function OrderForm({ symbol }: OrderFormProps) {
                         <div className="text-xs text-neutral-500">POST ONLY</div>
                     </div>
                 </div>
-
+                </>
+                ) : null}
 
             </div>
 
             <div className="space-y-4 border-b border-neutral-500/30 pb-4">
-                <div className="flex flex-col space-y-1">
-                    {details.map((type, index) => (
-                        <div className="flex items-center justify-between" key={index}>
-                            <div className="text-xs text-neutral-500">
-                                {type.name}
+                {tradingMode === 'pro' ? (
+                    <div className="flex flex-col space-y-1">
+                        {details.map((type, index) => (
+                            <div className="flex items-center justify-between" key={index}>
+                                <div className="text-xs text-neutral-500">{type.name}</div>
+                                <div className="text-xs text-white">
+                                    {type.value}{' '}
+                                    <span className="text-xs text-neutral-500">{type.unit}</span>
+                                </div>
                             </div>
-                            <div className="text-xs text-white">
-                                {type.value} {' '}
-                                <span className="text-xs text-neutral-500">
-                                    {type.unit}
-                                </span>
-                            </div>
-
-                        </div>
-
-
-
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                ) : null}
                 <button
+                    type="button"
                     className="w-full bg-green-500 text-neutral-950 py-3 rounded-lg font-bold hover:bg-green-600 text-sm"
                     onClick={handlePlaceOrder}
                 >
-                    Place Order
+                    {tradingMode === 'lite' ? 'Place quick order' : 'Place Order'}
                 </button>
             </div>
+            {tradingMode === 'pro' ? (
             <div className="space-y-4">
                 <div>Margin Usage</div>
                 <div className="flex flex-col space-y-1">
@@ -501,6 +684,7 @@ function OrderForm({ symbol }: OrderFormProps) {
 
                 </div>
             </div>
+            ) : null}
 
 
 
