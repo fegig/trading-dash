@@ -17,7 +17,7 @@
     "lint": "pnpm run -r lint",
     "typecheck": "pnpm run -r typecheck",
     "deploy:backend": "pnpm run deploy --filter backend",
-    "deploy:dashboard": "pnpm run deploy --filter dashboard",
+    "deploy:dash": "pnpm run deploy --filter dashboard",
     "db:generate": "pnpm run db:generate --filter backend",
     "db:migrate": "pnpm run db:migrate --filter backend"
   }
