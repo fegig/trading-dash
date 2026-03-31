@@ -30,11 +30,6 @@ type WalletState = {
   spendFiat: (amount: number, note: string, methodName: string) => { ok: boolean; message: string }
 }
 
-function createMethodIcon(asset: UserCoinsProps) {
-  return asset.iconUrl
-    ? { icon: asset.iconUrl, iconClass: undefined }
-    : { icon: undefined, iconClass: asset.iconClass ?? 'fi fi-sr-wallet' }
-}
 
 export const useWalletStore = create<WalletState>((set, get) => ({
   displayCurrency: DEFAULT_DISPLAY,
