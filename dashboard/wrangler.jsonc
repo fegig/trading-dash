@@ -6,5 +6,25 @@
     "assets": {
         "directory": "dist",
         "not_found_handling": "single-page-application"
+    },
+    "env": {
+        "development": {
+            "vars": {
+                "VITE_API_URL": "http://localhost:8787",
+                "VITE_WS_URL": "ws://localhost:8787",
+                "VITE_API_KEY": "hdsuuj-489hjs-Hkdwse-0823kjhsd",
+                "VITE_APP_URL": "http://localhost:4000",
+                "VITE_APP_ENV": "development"
+            }
+        },
+        "production": {
+            "vars": {
+                "VITE_API_URL": "https://trading-dash-api.fegigtech.workers.dev",
+                "VITE_WS_URL": "wss://trading-dash-api.fegigtech.workers.dev",
+                "VITE_API_KEY": "hdsuuj-489hjs-Hkdwse-0823kjhsd",
+                "VITE_APP_URL": "https://trading-dash.fegigtech.workers.dev",
+                "VITE_APP_ENV": "production"
+            }
+        }
     }
 }

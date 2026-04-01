@@ -1,9 +1,6 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
-const baseURL =
-  import.meta.env.VITE_AUTH_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  ''
+const baseURL = import.meta.env.VITE_API_URL || ''
 
 /** Auth API: always sends `Authorization: Bearer` from `localStorage.token` when set; `withCredentials` sends cookies too (session cookie after login / ensureWebSession). */
 const API_KEY = import.meta.env.VITE_API_KEY

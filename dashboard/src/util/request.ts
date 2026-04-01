@@ -1,7 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse, AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL || import.meta.env.VITE_AUTH_API_BASE_URL || ''
+const BASE_URL = import.meta.env.VITE_API_URL || ''
 const API_KEY = import.meta.env.VITE_API_KEY
 
 const client: AxiosInstance = axios.create({

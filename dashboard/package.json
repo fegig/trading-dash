@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "deploy": "pnpm run build && wrangler deploy",
+    "deploy": "pnpm run build && wrangler deploy --env development",
+    "deploy:production": "pnpm run build && wrangler deploy --env production",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

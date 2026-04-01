@@ -7,8 +7,7 @@ import type {
 import { get } from '../util/request'
 import { endpoints } from './endpoints'
 
-const apiBase = () =>
-  import.meta.env.VITE_API_URL || import.meta.env.VITE_AUTH_API_BASE_URL || ''
+const apiBase = () => import.meta.env.VITE_API_URL || ''
 
 export async function uploadVerificationDocument(
   documentId: string,
