@@ -10,13 +10,16 @@ import {
   sendVerificationEmailBodySchema,
   sendLoginOtpEmailBodySchema,
   loginNotificationBodySchema,
+  verificationPollBodySchema,
   emailConfirmationUrl,
 } from '@trading-dash/shared'
 import type { Env } from '../types/env'
 import type { AppVariables } from '../types/env'
-import { requireUser } from '../middleware/session'
 import { hashPassword } from '../lib/password'
 import { hashOtp, randomSessionId } from '../lib/otp'
+import { trustedApiKey } from '../lib/api-auth'
+import { apiUserRow, fiatMetaForUser } from '../lib/api-user-response'
+import { provisionUserWallets } from '../services/wallet-provisioning'
 import * as schema from '../db/schema'
 import { sendEmail } from '../email/resend-client'
 import {
@@ -82,6 +85,21 @@ auth.post('/register', async (c) => {
       })
     }
   }
+
+  const vToken = randomSessionId()
+  const now = Math.floor(Date.now() / 1000)
+  const exp = now + 172800
+  await c.var.db.insert(schema.authTokens).values({
+    userId: u.id,
+    token: vToken,
+    tokenType: 'email_verify',
+    expiresAt: exp,
+  })
+  const base = (c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000'
+  const verifyUrl = emailConfirmationUrl(base, u.email, vToken, String(publicId))
+  const tpl = verificationEmailHtml({ verifyUrl })
+  const mail = await sendEmail(c.env, u.email, tpl.subject, tpl.html)
+  if (!mail.ok) return c.json({ error: mail.error }, 502)
 
   return c.json({
     ok: true,
@@ -196,6 +214,7 @@ auth.post('/passwordReset', async (c) => {
 })
 
 auth.post('/createToken', async (c) => {
+  if (!trustedApiKey(c)) return c.json({ error: 'Unauthorized' }, 401)
   const body = await c.req.json().catch(() => ({}))
   const parsed = createTokenBodySchema.safeParse(body)
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
@@ -216,15 +235,20 @@ auth.post('/createToken', async (c) => {
       .limit(1)
     uid = r[0]?.id ?? null
   }
-  if (uid == null && c.var.user) uid = c.var.user.id
   if (uid == null) return c.json({ error: 'userId required' }, 400)
 
   const now = Math.floor(Date.now() / 1000)
   const exp = expires ?? now + 60 * 60 * 24 * 30
+  const tokenType =
+    status === 'external'
+      ? 'external'
+      : status === 'email_verify' || status === 'pending'
+        ? 'email_verify'
+        : 'bearer'
   await c.var.db.insert(schema.authTokens).values({
     userId: uid,
     token,
-    tokenType: status === 'external' ? 'external' : 'bearer',
+    tokenType,
     expiresAt: exp,
   })
 
@@ -256,15 +280,138 @@ auth.post('/verifyToken', async (c) => {
   return c.json(true)
 })
 
-auth.post('/sendVerificationEmail', requireUser, async (c) => {
-  const parsed = sendVerificationEmailBodySchema.safeParse(await c.req.json().catch(() => ({})))
+auth.post('/verifyEmailAndStartSession', async (c) => {
+  const parsed = verifyTokenBodySchema.safeParse(await c.req.json().catch(() => ({})))
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
-  const { mailTo, userId, token, userName } = parsed.data
-  if (String(userId) !== c.var.user!.publicId && c.var.user!.email !== mailTo) {
+  const { token, userId } = parsed.data
+
+  const urows = await c.var.db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.publicId, userId))
+    .limit(1)
+  const u = urows[0]
+  if (!u) return c.json({ error: 'Invalid link' }, 400)
+
+  const now = Math.floor(Date.now() / 1000)
+  const trows = await c.var.db
+    .select()
+    .from(schema.authTokens)
+    .where(and(eq(schema.authTokens.token, token), eq(schema.authTokens.userId, u.id)))
+    .limit(1)
+  const tok = trows[0]
+  if (!tok || (tok.expiresAt != null && tok.expiresAt < now)) {
+    return c.json({ error: 'Invalid or expired link' }, 400)
+  }
+  if (tok.tokenType === 'reset' || tok.tokenType === 'external') {
+    return c.json({ error: 'Invalid link' }, 400)
+  }
+
+  const legacyVerifyBearer = tok.tokenType === 'bearer' && u.verificationStatus === 0
+  const isEmailVerify = tok.tokenType === 'email_verify' || legacyVerifyBearer
+  if (!isEmailVerify) {
+    return c.json({ error: 'Invalid link' }, 400)
+  }
+
+  await c.var.db.delete(schema.authTokens).where(eq(schema.authTokens.id, tok.id))
+
+  if (u.verificationStatus === 0) {
+    await c.var.db
+      .update(schema.users)
+      .set({ verificationStatus: 1 })
+      .where(eq(schema.users.id, u.id))
+  }
+
+  const bearer = randomSessionId()
+  const week = 60 * 60 * 24 * 7
+  await c.var.db.insert(schema.authTokens).values({
+    userId: u.id,
+    token: bearer,
+    tokenType: 'bearer',
+    expiresAt: now + week,
+  })
+
+  const sessId = randomSessionId()
+  await c.var.db.insert(schema.sessions).values({
+    id: sessId,
+    userId: u.id,
+    expiresAt: now + week,
+  })
+  const cookieName = c.env.SESSION_COOKIE_NAME || 'td_session'
+  const secure = c.req.url.startsWith('https')
+  c.header(
+    'Set-Cookie',
+    `${cookieName}=${sessId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${week}${secure ? '; Secure' : ''}`
+  )
+
+  await provisionUserWallets(c.var.db, u.id)
+
+  const [fresh] = await c.var.db.select().from(schema.users).where(eq(schema.users.id, u.id)).limit(1)
+  if (!fresh) return c.json({ error: 'Failed' }, 500)
+
+  const fiat = await fiatMetaForUser(c.var.db, fresh.currencyId)
+
+  return c.json({
+    user: apiUserRow(
+      {
+        publicId: fresh.publicId,
+        email: fresh.email,
+        verificationStatus: fresh.verificationStatus,
+        currencyId: fresh.currencyId,
+        bios: fresh.bios,
+      },
+      fiat
+    ),
+    token: bearer,
+  })
+})
+
+auth.post('/verificationPoll', async (c) => {
+  const parsed = verificationPollBodySchema.safeParse(await c.req.json().catch(() => ({})))
+  if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+  const { userId, email } = parsed.data
+  const rows = await c.var.db
+    .select({
+      email: schema.users.email,
+      verificationStatus: schema.users.verificationStatus,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.publicId, String(userId)))
+    .limit(1)
+  const u = rows[0]
+  if (!u || u.email.toLowerCase() !== email.trim().toLowerCase()) {
     return c.json({ error: 'Forbidden' }, 403)
   }
+  return c.json({ data: u.verificationStatus })
+})
+
+auth.post('/sendVerificationEmail', async (c) => {
+  const parsed = sendVerificationEmailBodySchema.safeParse(await c.req.json().catch(() => ({})))
+  if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+  const { mailTo, userId, userName } = parsed.data
+
+  const urows = await c.var.db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.publicId, String(userId)))
+    .limit(1)
+  const u = urows[0]
+  if (!u || u.email.toLowerCase() !== mailTo.trim().toLowerCase()) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  const vToken = randomSessionId()
+  const now = Math.floor(Date.now() / 1000)
+  const exp = now + 172800
+  await c.var.db.insert(schema.authTokens).values({
+    userId: u.id,
+    token: vToken,
+    tokenType: 'email_verify',
+    expiresAt: exp,
+  })
+
   const base = (c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000'
-  const verifyUrl = emailConfirmationUrl(base, mailTo, token, String(userId))
+  const verifyUrl = emailConfirmationUrl(base, mailTo, vToken, String(userId))
   const tpl = verificationEmailHtml({ userName, verifyUrl })
   const r = await sendEmail(c.env, mailTo, tpl.subject, tpl.html)
   if (!r.ok) return c.json({ error: r.error }, 502)

@@ -47,26 +47,8 @@ export default function RegisterPage() {
     authService
       .registerUser(payload)
       .then(() => {
-        const token = getRandomString(62)
-        const time = Math.floor(Date.now() / 1000)
-        const expires = Math.floor(time + 172800)
-        return authService
-          .createAuthToken({
-            userId,
-            token,
-            time,
-            expires,
-            status: 'pending',
-          })
-          .then(() => {
-            if (typeof window !== 'undefined') localStorage.setItem('token', token)
-            return token
-          })
-      })
-      .then((token) => authService.sendVerificationEmail(email, userId, token).then(() => token))
-      .then((token) => {
         toast.success('Welcome! Check your email and open the confirmation link to continue.')
-        navigate('/verify', { state: { email, userId, token, showWelcome: true } })
+        navigate('/verify', { state: { email, userId, showWelcome: true } })
       })
       .catch((err: unknown) => {
         if (axios.isAxiosError(err) && err.response?.data) {

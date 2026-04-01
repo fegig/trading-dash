@@ -27,6 +27,8 @@ export const endpoints = {
     register: '/auth/register',
     passwordReset: '/auth/passwordReset',
     verifyToken: '/auth/verifyToken',
+    verifyEmailAndStartSession: '/auth/verifyEmailAndStartSession',
+    verificationPoll: '/auth/verificationPoll',
     sendVerificationEmail: '/auth/sendVerificationEmail',
     sendLoginOtpEmail: '/auth/sendLoginOtpEmail',
     loginNotification: '/auth/loginNotification',

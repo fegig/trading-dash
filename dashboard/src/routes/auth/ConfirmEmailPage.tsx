@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
 import * as authService from '@/services/authService'
+import { useAuthStore, type ApiUser } from '@/stores'
 import {
   AuthContextBlock,
   AuthPanel,
@@ -44,11 +45,15 @@ export default function ConfirmEmailPage() {
     let cancelled = false
 
     authService
-      .verifyEmailToken(token, userId)
-      .then((response) => response.data as boolean)
-      .then(async (valid) => {
+      .verifyEmailAndStartSession(token, userId)
+      .then((response) => {
+        const status = response.status
+        const body = response.data as { error?: string; user?: Record<string, unknown>; token?: string }
+        return { status, body }
+      })
+      .then(async ({ status, body }) => {
         if (cancelled) return
-        if (!valid) {
+        if (status >= 400 || body.error || !body.token || !body.user) {
           setBody(
             <AuthPanel
               eyebrow="Link expired"
@@ -71,61 +76,43 @@ export default function ConfirmEmailPage() {
           )
           return
         }
-        try {
-          const nextResponse = await authService.updateUserVerificationStatus(1, userId)
-          const data = nextResponse.data as boolean
-          if (cancelled) return
-          if (data) {
-            setBody(
-              <AuthPanel
-                eyebrow="Email verified"
-                title="Your address is confirmed"
-                subtitle={`${email} is verified. Finish your profile setup or sign in when you are ready.`}
-                contextRail={<ConfirmEmailContext />}
-              >
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate('/onboarding', {
-                        replace: true,
-                        state: { userId, email },
-                      })
-                    }
-                    className={authPrimaryButtonClass}
-                  >
-                    Continue setup
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/login?confirmed=1', { replace: true })}
-                    className={authSecondaryButtonClass}
-                  >
-                    Sign in
-                  </button>
-                </div>
-              </AuthPanel>
-            )
-          }
-        } catch {
-          if (cancelled) return
-          setBody(
-            <AuthPanel
-              eyebrow="Already verified"
-              title="This address has already been confirmed"
-              subtitle="You can sign in with your credentials and continue from the account workspace."
-              contextRail={<ConfirmEmailContext />}
-            >
+        const prelimUser = { ...(body.user as ApiUser), token: body.token }
+        useAuthStore.getState().login(prelimUser)
+        setBody(
+          <AuthPanel
+            eyebrow="Email verified"
+            title="Your address is confirmed"
+            subtitle={`${email} is verified. Finish your profile setup or sign in when you are ready.`}
+            contextRail={<ConfirmEmailContext />}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={() => navigate('/login', { replace: true })}
+                onClick={() =>
+                  navigate('/onboarding', {
+                    replace: true,
+                    state: {
+                      userId,
+                      email,
+                      apiToken: body.token,
+                      prelimUser: { ...prelimUser, token: body.token },
+                    },
+                  })
+                }
                 className={authPrimaryButtonClass}
+              >
+                Continue setup
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/login?confirmed=1', { replace: true })}
+                className={authSecondaryButtonClass}
               >
                 Sign in
               </button>
-            </AuthPanel>
-          )
-        }
+            </div>
+          </AuthPanel>
+        )
       })
       .catch(() => {
         if (!cancelled) {

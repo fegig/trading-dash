@@ -52,6 +52,7 @@ export async function registerUser(payload: {
   return authPost(endpoints.auth.register, payload)
 }
 
+/** Server-only: requires `x-api-key`. Prefer `sendVerificationEmail` / register for email links. */
 export async function createAuthToken(payload: {
   userId: string
   token: string
@@ -62,22 +63,29 @@ export async function createAuthToken(payload: {
   return authPost(endpoints.auth.createToken, payload)
 }
 
-export async function createVerifyToken(userId: number | string, token: string) {
-  return authPost(endpoints.auth.createToken, { userId, token })
+/** Consumes email verification link token; returns API-issued bearer + user (sets session cookie). */
+export async function verifyEmailAndStartSession(token: string, userId: string) {
+  return authPost<{ user?: LoginApiUser; token?: string }>(endpoints.auth.verifyEmailAndStartSession, {
+    token,
+    userId,
+  })
 }
 
 export async function sendVerificationEmail(
   mailTo: string,
   userId: number | string,
-  token: string,
+  _tokenUnused?: string,
   userName?: string
 ) {
   return authPost(endpoints.auth.sendVerificationEmail, {
     mailTo,
     userId,
-    token,
     userName,
   })
+}
+
+export async function pollVerificationStatus(userId: number | string, email: string) {
+  return authPost<{ data?: number }>(endpoints.auth.verificationPoll, { userId, email })
 }
 
 export async function getVerificationStatus(userId: number | string) {

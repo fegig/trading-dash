@@ -108,8 +108,14 @@ export const cancelLiveOrderBodySchema = z.object({
 export const sendVerificationEmailBodySchema = z.object({
   mailTo: z.string().email(),
   userId: userIdSchema,
-  token: z.string(),
+  /** Ignored — server generates the verification token. */
+  token: z.string().optional(),
   userName: z.string().optional(),
+})
+
+export const verificationPollBodySchema = z.object({
+  userId: userIdSchema,
+  email: z.string().email(),
 })
 
 export const sendLoginOtpEmailBodySchema = z.object({

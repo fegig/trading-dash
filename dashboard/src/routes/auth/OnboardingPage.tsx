@@ -140,8 +140,7 @@ function onboardingContext(step: number) {
       <AuthContextBlock eyebrow="Session" title="How sign-in works" iconClass="fi fi-rr-apps">
         <AuthRailList
           items={[
-            'Your Bearer token stays in the browser and is sent on API requests.',
-            'We also set a secure session cookie when you finish onboarding so both work together.',
+            'We also set a secure session cookie when you finish onboarding.',
             'Two-factor login still applies at sign-in if it is enabled on your account.',
           ]}
         />

@@ -3,7 +3,7 @@ import { sessions, users, authTokens } from '../db/schema'
 import type { Env } from '../types/env'
 import type { AppVariables } from '../types/env'
 import type { SessionUser } from '../services/user-context'
-import { and, eq, gt, isNull, or } from 'drizzle-orm'
+import { and, eq, gt, isNull, notInArray, or } from 'drizzle-orm'
 
 async function loadUserFromSessionId(
   db: AppVariables['db'],
@@ -49,7 +49,8 @@ async function loadUserFromBearer(db: AppVariables['db'], token: string): Promis
     .where(
       and(
         eq(authTokens.token, token),
-        or(isNull(authTokens.expiresAt), gt(authTokens.expiresAt, now))
+        or(isNull(authTokens.expiresAt), gt(authTokens.expiresAt, now)),
+        notInArray(authTokens.tokenType, ['email_verify', 'reset', 'external'])
       )
     )
     .limit(1)

@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
 import * as authService from '@/services/authService'
-import { getRandomString } from '@/util/random'
 import NotFoundPage from '../NotFound'
 import {
   AuthAlert,
@@ -24,8 +23,10 @@ export default function VerifyEmailPage() {
     if (userId == null || verifiedStatus) return
 
     const poll = () => {
+      const email = (location.state as { email?: string } | null)?.email
+      if (!email) return
       void authService
-        .getVerificationStatus(userId)
+        .pollVerificationStatus(userId, email)
         .then((response) => response.data?.data)
         .then((data) => {
           if (Number(data) === 1) setVerifiedStatus(true)
@@ -36,7 +37,7 @@ export default function VerifyEmailPage() {
     void poll()
     const id = window.setInterval(poll, 10000)
     return () => clearInterval(id)
-  }, [userId, verifiedStatus])
+  }, [userId, verifiedStatus, location.state])
 
   const resendMail = () => {
     const state = location.state as {
@@ -46,12 +47,11 @@ export default function VerifyEmailPage() {
     } | null
     if (!state?.email || state.userId == null) return
 
-    const token = getRandomString(62)
     authService
-      .createVerifyToken(state.userId, token)
-      .then(() => authService.sendVerificationEmail(state.email!, state.userId!, token, state.userName))
+      .sendVerificationEmail(state.email!, state.userId!, undefined, state.userName)
       .then((response) => {
-        if (response.data === '200' || response.data === 200) setResMsg('Verification email sent.')
+        const d = response?.data as { ok?: boolean } | undefined
+        if (d?.ok) setResMsg('Verification email sent.')
       })
       .catch(() => {})
   }
