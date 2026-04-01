@@ -5,6 +5,7 @@ import type { AppVariables } from '../types/env'
 import { requireUser } from '../middleware/session'
 import * as schema from '../db/schema'
 import { provisionDefaultSettings } from '../services/wallet-provisioning'
+import { mergeUserBiosFields } from '../lib/user-bios'
 
 const settings = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
@@ -55,23 +56,9 @@ settings.put('/toggles/:toggleId', requireUser, async (c) => {
     .set({ enabled: body.enabled })
     .where(and(eq(schema.settingToggles.userId, uid), eq(schema.settingToggles.toggleId, toggleId)))
 
-  // When the 2FA login toggle changes, sync it to user.bios so login flow picks it up
+  // When the 2FA login toggle changes, sync it to `user_bios` so login flow picks it up
   if (toggleId === 'two-factor-login') {
-    const [userRow] = await c.var.db
-      .select({ bios: schema.users.bios })
-      .from(schema.users)
-      .where(eq(schema.users.id, uid))
-      .limit(1)
-
-    const prevBios =
-      userRow?.bios && typeof userRow.bios === 'object' && !Array.isArray(userRow.bios)
-        ? (userRow.bios as Record<string, unknown>)
-        : {}
-
-    await c.var.db
-      .update(schema.users)
-      .set({ bios: { ...prevBios, loginOtpEnabled: body.enabled } })
-      .where(eq(schema.users.id, uid))
+    await mergeUserBiosFields(c.var.db, uid, { loginOtpEnabled: body.enabled })
   }
 
   return c.json({ ok: true, toggleId, enabled: body.enabled })

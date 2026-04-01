@@ -24,11 +24,27 @@ export const users = mysqlTable(
     currencyId: int('currency_id'),
     verificationStatus: int('verification_status').notNull().default(0),
     refBy: varchar('ref_by', { length: 36 }),
-    bios: json('bios').$type<Record<string, unknown>>(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => [index('users_email_idx').on(t.email)]
 )
+
+/** One row per user: profile + onboarding flags (no JSON blob). */
+export const userBios = mysqlTable('user_bios', {
+  id: int('id').primaryKey().autoincrement(),
+  userId: int('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  firstName: varchar('first_name', { length: 128 }).notNull().default(''),
+  lastName: varchar('last_name', { length: 128 }).notNull().default(''),
+  phone: varchar('phone', { length: 64 }).notNull().default(''),
+  country: varchar('country', { length: 128 }).notNull().default(''),
+  loginOtpEnabled: boolean('login_otp_enabled').notNull().default(false),
+  onboardingWelcomeSent: boolean('onboarding_welcome_sent').notNull().default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
 
 export const sessions = mysqlTable('sessions', {
   id: varchar('id', { length: 64 }).primaryKey(),

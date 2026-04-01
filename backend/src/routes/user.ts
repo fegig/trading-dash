@@ -25,6 +25,12 @@ import { getInternalUserIdByPublicId } from '../services/users-repo'
 import { provisionUserWallets } from '../services/wallet-provisioning'
 import { settleTradeClose } from '../lib/settle-trade-close'
 import { apiUserRow, fiatMetaForUser } from '../lib/api-user-response'
+import {
+  biosSnapshotForApi,
+  getUserBiosRow,
+  mergeUserBiosFields,
+  patchFromAddBiosBody,
+} from '../lib/user-bios'
 
 type ActivityLogRow = InferSelectModel<typeof schema.activityLogs>
 type TradeRow = InferSelectModel<typeof schema.trades>
@@ -36,10 +42,8 @@ user.get('/me', requireUser, async (c) => {
   const uid = c.var.user!.id
   const [row] = await c.var.db.select().from(schema.users).where(eq(schema.users.id, uid)).limit(1)
   if (!row) return c.json({ error: 'Not found' }, 404)
-  const bios =
-    row.bios && typeof row.bios === 'object' && !Array.isArray(row.bios)
-      ? (row.bios as Record<string, unknown>)
-      : {}
+  const biosRow = await getUserBiosRow(c.var.db, uid)
+  const bios = biosSnapshotForApi(biosRow)
   const fiat = await fiatMetaForUser(c.var.db, row.currencyId)
   return c.json({
     user: apiUserRow(
@@ -48,7 +52,7 @@ user.get('/me', requireUser, async (c) => {
         email: row.email,
         verificationStatus: row.verificationStatus,
         currencyId: row.currencyId,
-        bios: row.bios,
+        bios,
       },
       fiat
     ),
@@ -97,6 +101,8 @@ user.post('/login', async (c) => {
   await provisionUserWallets(c.var.db, u.id)
 
   const fiat = await fiatMetaForUser(c.var.db, u.currencyId)
+  const biosRow = await getUserBiosRow(c.var.db, u.id)
+  const bios = biosSnapshotForApi(biosRow)
 
   return c.json({
     user: apiUserRow(
@@ -105,7 +111,7 @@ user.post('/login', async (c) => {
         email: u.email,
         verificationStatus: u.verificationStatus,
         currencyId: u.currencyId,
-        bios: u.bios,
+        bios,
       },
       fiat
     ),
@@ -378,11 +384,12 @@ user.post('/addBios', requireUser, async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
   const password = typeof body.password === 'string' ? body.password : ''
   const { password: _pw, userId: _uid, ...rest } = body
+  const uid = c.var.user!.id
 
   const [existing] = await c.var.db
-    .select({ passwordHash: schema.users.passwordHash, bios: schema.users.bios })
+    .select({ passwordHash: schema.users.passwordHash })
     .from(schema.users)
-    .where(eq(schema.users.id, c.var.user!.id))
+    .where(eq(schema.users.id, uid))
     .limit(1)
 
   if (password.length > 0 && password.length < 8) {
@@ -392,23 +399,14 @@ user.post('/addBios', requireUser, async (c) => {
     return c.json({ error: 'Password required' }, 400)
   }
 
-  const prevBios =
-    existing?.bios && typeof existing.bios === 'object' && !Array.isArray(existing.bios)
-      ? (existing.bios as Record<string, unknown>)
-      : {}
-  const nextBios = { ...prevBios, ...rest }
+  await mergeUserBiosFields(c.var.db, uid, patchFromAddBiosBody(rest))
 
   if (password.length >= 8) {
     const pwd = await hashPassword(password)
     await c.var.db
       .update(schema.users)
-      .set({ passwordHash: pwd, bios: nextBios })
-      .where(eq(schema.users.id, c.var.user!.id))
-  } else {
-    await c.var.db
-      .update(schema.users)
-      .set({ bios: nextBios })
-      .where(eq(schema.users.id, c.var.user!.id))
+      .set({ passwordHash: pwd })
+      .where(eq(schema.users.id, uid))
   }
   return c.json({ ok: true })
 })
@@ -424,20 +422,11 @@ user.post('/updateCurrency', requireUser, async (c) => {
   const parsed = updateCurrencyBodySchema.safeParse(await c.req.json().catch(() => ({})))
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
   const uid = c.var.user!.id
-  const [row] = await c.var.db
-    .select({ bios: schema.users.bios })
-    .from(schema.users)
-    .where(eq(schema.users.id, uid))
-    .limit(1)
-  const prevBios =
-    row?.bios && typeof row.bios === 'object' && !Array.isArray(row.bios)
-      ? (row.bios as Record<string, unknown>)
-      : {}
-  const bios = { ...prevBios, country: parsed.data.country }
 
+  await mergeUserBiosFields(c.var.db, uid, { country: parsed.data.country })
   await c.var.db
     .update(schema.users)
-    .set({ currencyId: parsed.data.currency_id, bios })
+    .set({ currencyId: parsed.data.currency_id })
     .where(eq(schema.users.id, uid))
 
   return c.json({ ok: true })
@@ -448,24 +437,20 @@ user.post('/addAdminWallet', requireUser, async (c) => {
   return c.json({ ok: true })
 })
 
-/** Sends welcome email once after onboarding (tracked in user bios). */
+/** Sends welcome email once after onboarding (tracked in `user_bios.onboarding_welcome_sent`). */
 user.post('/welcomeOnboarding', requireUser, async (c) => {
   const uid = c.var.user!.id
   const [row] = await c.var.db
     .select({
       email: schema.users.email,
-      bios: schema.users.bios,
     })
     .from(schema.users)
     .where(eq(schema.users.id, uid))
     .limit(1)
   if (!row?.email) return c.json({ error: 'User not found' }, 404)
 
-  const prevBios =
-    row.bios && typeof row.bios === 'object' && !Array.isArray(row.bios)
-      ? (row.bios as Record<string, unknown>)
-      : {}
-  if (prevBios.onboardingWelcomeSent === true || prevBios.onboardingWelcomeSent === 1) {
+  const biosRow = await getUserBiosRow(c.var.db, uid)
+  if (biosRow?.onboardingWelcomeSent === true) {
     return c.json({ ok: true, alreadySent: true })
   }
 
@@ -477,17 +462,12 @@ user.post('/welcomeOnboarding', requireUser, async (c) => {
     ''
   )
   const dashboardUrl = `${base}/dashboard`
-  const firstName = typeof prevBios.firstName === 'string' ? prevBios.firstName : undefined
+  const firstName = biosRow?.firstName?.trim() ? biosRow.firstName : undefined
   const tpl = onboardingWelcomeEmailHtml({ dashboardUrl, firstName })
   const r = await sendEmail(c.env, row.email, tpl.subject, tpl.html)
   if (!r.ok) return c.json({ error: r.error }, 502)
 
-  await c.var.db
-    .update(schema.users)
-    .set({
-      bios: { ...prevBios, onboardingWelcomeSent: true },
-    })
-    .where(eq(schema.users.id, uid))
+  await mergeUserBiosFields(c.var.db, uid, { onboardingWelcomeSent: true })
 
   return c.json({ ok: true })
 })

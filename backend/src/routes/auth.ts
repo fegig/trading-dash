@@ -19,6 +19,7 @@ import { hashPassword } from '../lib/password'
 import { hashOtp, randomSessionId } from '../lib/otp'
 import { trustedApiKey } from '../lib/api-auth'
 import { apiUserRow, fiatMetaForUser } from '../lib/api-user-response'
+import { biosSnapshotForApi, getUserBiosRow } from '../lib/user-bios'
 import { provisionUserWallets } from '../services/wallet-provisioning'
 import * as schema from '../db/schema'
 import { sendEmail } from '../email/resend-client'
@@ -350,6 +351,8 @@ auth.post('/verifyEmailAndStartSession', async (c) => {
   if (!fresh) return c.json({ error: 'Failed' }, 500)
 
   const fiat = await fiatMetaForUser(c.var.db, fresh.currencyId)
+  const biosRow = await getUserBiosRow(c.var.db, fresh.id)
+  const bios = biosSnapshotForApi(biosRow)
 
   return c.json({
     user: apiUserRow(
@@ -358,7 +361,7 @@ auth.post('/verifyEmailAndStartSession', async (c) => {
         email: fresh.email,
         verificationStatus: fresh.verificationStatus,
         currencyId: fresh.currencyId,
-        bios: fresh.bios,
+        bios,
       },
       fiat
     ),
