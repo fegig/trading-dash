@@ -42,6 +42,15 @@ const user = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
 user.get('/me', requireUser, async (c) => {
   const uid = c.var.user!.id
+  const [anyWallet] = await c.var.db
+    .select({ id: schema.walletAssets.id })
+    .from(schema.walletAssets)
+    .where(eq(schema.walletAssets.userId, uid))
+    .limit(1)
+  if (!anyWallet) {
+    await provisionUserWallets(c.var.db, uid)
+  }
+
   const [row] = await c.var.db.select().from(schema.users).where(eq(schema.users.id, uid)).limit(1)
   if (!row) return c.json({ error: 'Not found' }, 404)
   const biosRow = await getUserBiosRow(c.var.db, uid)
@@ -353,6 +362,8 @@ user.post('/getVerificationStatus', requireUser, async (c) => {
 /** Issue HttpOnly session cookie for the current Bearer user (e.g. after register/onboarding without password login). */
 user.post('/ensureWebSession', requireUser, async (c) => {
   const uid = c.var.user!.id
+  await provisionUserWallets(c.var.db, uid)
+
   const sessId = randomSessionId()
   const now = Math.floor(Date.now() / 1000)
   const week = 60 * 60 * 24 * 7
@@ -478,6 +489,7 @@ user.post('/welcomeOnboarding', requireUser, async (c) => {
 
   const biosRow = await getUserBiosRow(c.var.db, uid)
   if (biosRow?.onboardingWelcomeSent === true) {
+    await provisionUserWallets(c.var.db, uid)
     return c.json({ ok: true, alreadySent: true })
   }
 
