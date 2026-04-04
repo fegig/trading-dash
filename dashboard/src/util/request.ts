@@ -76,6 +76,26 @@ export const update = async (
   return response
 }
 
+export const patch = async (
+  endpoint: string,
+  payload: Record<string, unknown>,
+  contentType = 'application/json'
+) => {
+  try {
+    const response = await client.patch(endpoint, payload, {
+      headers: {
+        'Content-Type': contentType,
+      },
+    })
+    return response
+  } catch (error: unknown) {
+    if (error instanceof AxiosError) {
+      console.error('Error patching data:', error.response?.data)
+      return error.response
+    }
+  }
+}
+
 export const remove = (endpoint: string) => {
   return client.delete(endpoint)
 }

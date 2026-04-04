@@ -26,6 +26,7 @@ export function apiUserRow(
     email: string
     verificationStatus: number
     currencyId: number | null
+    role?: string
     bios?: unknown
   },
   fiat?: { code: string; name: string } | null
@@ -45,6 +46,7 @@ export function apiUserRow(
     email: u.email,
     verificationStatus: String(u.verificationStatus) as '0' | '1' | '2' | '3',
     currency_id: u.currencyId ?? '',
+    role: u.role ?? 'user',
     firstName: typeof b.firstName === 'string' ? b.firstName : '',
     lastName: typeof b.lastName === 'string' ? b.lastName : '',
     phone,

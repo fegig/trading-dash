@@ -23,6 +23,7 @@ export const users = mysqlTable(
     passwordHash: varchar('password_hash', { length: 255 }),
     currencyId: int('currency_id'),
     verificationStatus: int('verification_status').notNull().default(0),
+    role: varchar('role', { length: 20 }).notNull().default('user'),
     refBy: varchar('ref_by', { length: 36 }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },

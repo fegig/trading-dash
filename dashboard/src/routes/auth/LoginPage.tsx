@@ -38,6 +38,10 @@ export default function LoginPage() {
     hydrate()
     const { isLoggedIn, user } = useAuthStore.getState()
     if (!isLoggedIn || !user) return
+    if (user.role === 'admin') {
+      navigate('/admin', { replace: true })
+      return
+    }
     if (userNeedsOnboarding(user)) {
       navigate('/onboarding', {
         replace: true,
@@ -86,6 +90,14 @@ export default function LoginPage() {
               email: String(user.email ?? email),
               userId: user.user_id as number,
             },
+          })
+          return
+        }
+
+        if (user.role === 'admin') {
+          await startSession(user, navigate, {
+            token: typeof data?.token === 'string' ? data.token : undefined,
+            to: '/admin',
           })
           return
         }

@@ -52,6 +52,7 @@ user.get('/me', requireUser, async (c) => {
         email: row.email,
         verificationStatus: row.verificationStatus,
         currencyId: row.currencyId,
+        role: row.role,
         bios,
       },
       fiat
@@ -111,6 +112,7 @@ user.post('/login', async (c) => {
         email: u.email,
         verificationStatus: u.verificationStatus,
         currencyId: u.currencyId,
+        role: u.role,
         bios,
       },
       fiat

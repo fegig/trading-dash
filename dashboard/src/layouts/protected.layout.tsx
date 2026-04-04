@@ -23,6 +23,10 @@ function DashboardLayout() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />
+  }
+
   if (user && userNeedsOnboarding(user)) {
     return (
       <Navigate

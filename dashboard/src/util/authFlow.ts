@@ -22,8 +22,10 @@ export function userRequiresTwoFactorLogin(u: Record<string, unknown>): boolean 
 /**
  * Profile / workspace setup still needed after email verification
  * (name, phone, country, default currency).
+ * Admins are always exempt — they skip onboarding entirely.
  */
 export function userNeedsOnboarding(u: Record<string, unknown>): boolean {
+  if (u.role === 'admin') return false
   if (u.verificationStatus === '0') return false
 
   const fn = u.firstName

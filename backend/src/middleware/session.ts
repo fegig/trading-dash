@@ -17,6 +17,7 @@ async function loadUserFromSessionId(
       email: users.email,
       currencyId: users.currencyId,
       verificationStatus: users.verificationStatus,
+      role: users.role,
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
@@ -30,6 +31,7 @@ async function loadUserFromSessionId(
         email: row[0].email,
         currencyId: row[0].currencyId,
         verificationStatus: row[0].verificationStatus,
+        role: row[0].role ?? 'user',
       }
     : null
 }
@@ -43,6 +45,7 @@ async function loadUserFromBearer(db: AppVariables['db'], token: string): Promis
       email: users.email,
       currencyId: users.currencyId,
       verificationStatus: users.verificationStatus,
+      role: users.role,
     })
     .from(authTokens)
     .innerJoin(users, eq(authTokens.userId, users.id))
@@ -62,6 +65,7 @@ async function loadUserFromBearer(db: AppVariables['db'], token: string): Promis
     email: row[0].email,
     currencyId: row[0].currencyId,
     verificationStatus: row[0].verificationStatus,
+    role: row[0].role ?? 'user',
   }
 }
 

@@ -14,6 +14,7 @@ import { settingsRoutes } from './routes/settings'
 import { verificationRoutes } from './routes/verification-routes'
 import { liveRoutes } from './routes/live'
 import { cryptoRoutes } from './routes/crypto'
+import { setupRoutes } from './routes/setup' // TODO: remove after creating admin
 
 export function createApp() {
   const app = new Hono<{ Bindings: Env; Variables: AppVariables }>()
@@ -43,6 +44,7 @@ export function createApp() {
   app.route('/verification', verificationRoutes)
   app.route('/live', liveRoutes)
   app.route('/crypto', cryptoRoutes)
+  app.route('/setup', setupRoutes) // TODO: remove after creating admin
 
   return app
 }

@@ -4,4 +4,5 @@ export type SessionUser = {
   email: string
   currencyId: number | null
   verificationStatus: number
+  role: string
 }

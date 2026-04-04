@@ -15,6 +15,7 @@ export type ApiUser = Record<string, unknown> & {
   verificationStatus?: string
   lastLog?: number
   token?: string
+  role?: string
 }
 
 function toProfile(u: ApiUser): UserProfile {

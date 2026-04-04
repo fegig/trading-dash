@@ -4,6 +4,7 @@ import { AuthBootstrap } from './components/AuthBootstrap'
 import CookieConsent from './components/common/CookieConsent'
 import SmoothScroll from './components/common/SmoothScroll'
 import DashboardLayout from './layouts/protected.layout'
+import AdminLayout from './layouts/admin.layout'
 import LandingLayout from './layouts/landing.layout'
 import AuthLayout from './layouts/auth.layout'
 import HomePage from './routes/landing/HomePage'
@@ -20,6 +21,13 @@ import ConfirmEmailPage from './routes/auth/ConfirmEmailPage'
 import LoginOtpPage from './routes/auth/LoginOtpPage'
 import OnboardingPage from './routes/auth/OnboardingPage'
 import NotFoundPage from './routes/NotFound'
+import AdminDashboardPage from './routes/admin/AdminDashboardPage'
+import AdminUsersPage from './routes/admin/AdminUsersPage'
+import AdminUserDetailPage from './routes/admin/AdminUserDetailPage'
+import AdminTradesPage from './routes/admin/AdminTradesPage'
+import AdminBotsPage from './routes/admin/AdminBotsPage'
+import AdminCopyTradersPage from './routes/admin/AdminCopyTradersPage'
+import AdminInvestmentsPage from './routes/admin/AdminInvestmentsPage'
 import AllTradesPage from './routes/dashboard/trades'
 import Wallets from './routes/dashboard/Wallets'
 import DashboardPage from './routes/dashboard/dashboard'
@@ -72,6 +80,16 @@ function App() {
             <Route path="verification" element={<VerificationPage />} />
             <Route path="help" element={<HelpPageDash />} />
             <Route path="logout" element={<LogoutPage />} />
+          </Route>
+
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="users/:id" element={<AdminUserDetailPage />} />
+            <Route path="trades" element={<AdminTradesPage />} />
+            <Route path="bots" element={<AdminBotsPage />} />
+            <Route path="copy-traders" element={<AdminCopyTradersPage />} />
+            <Route path="investments" element={<AdminInvestmentsPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />
