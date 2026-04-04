@@ -12,8 +12,31 @@ import {
 import { get } from '../../util/request'
 import { endpoints } from '../../services/endpoints'
 import { fetchUsdSpotMap } from '../../util/cryptoUsdPrices'
+import { formatDateWithTime, formatDuration } from '../../util/time'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Same labels as user-facing short holds; `formatDuration` renders like the dashboard. */
+const HOLDING_PRESETS: { label: string; sec: number }[] = [
+  { label: '1 min', sec: 60 },
+  { label: '5 min', sec: 300 },
+  { label: '15 min', sec: 900 },
+  { label: '30 min', sec: 1800 },
+  { label: '1 hr', sec: 3600 },
+  { label: '4 hr', sec: 14400 },
+  { label: '1 day', sec: 86400 },
+]
+
+function unixSecondsToDatetimeLocal(t: number): string {
+  const d = new Date(t * 1000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function datetimeLocalToUnixSeconds(s: string): number {
+  const ms = new Date(s).getTime()
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN
+}
 
 const ASSET_TYPES = [
   { id: 'crypto', label: 'Crypto', icon: 'fi-rr-bitcoin' },
@@ -70,6 +93,11 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [fiatBalances, setFiatBalances] = useState<Record<string, number>>({})
   const [loadingPairs, setLoadingPairs] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [openedAtLocal, setOpenedAtLocal] = useState(() =>
+    unixSecondsToDatetimeLocal(Math.floor(Date.now() / 1000) - 3600)
+  )
+  const [durationSec, setDurationSec] = useState(3600)
+  const [customMinutes, setCustomMinutes] = useState('60')
 
   const today = new Date()
   const isWeekend = today.getUTCDay() === 0 || today.getUTCDay() === 6
@@ -159,6 +187,9 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
     const profit = Number(estimatedProfit)
     if (!(amt > 0)) return toast.error('Enter a valid amount')
     if (!Number.isFinite(profit)) return toast.error('Enter estimated profit/loss')
+    if (outcome === 'win' && !(profit > 0)) {
+      return toast.error('Win trades require estimated profit greater than zero')
+    }
     const ep = Number(entryPrice)
     const entry =
       Number.isFinite(ep) && ep > 0 ? ep : selectedPair.price > 0 ? selectedPair.price : 0
@@ -174,6 +205,8 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
       }
     }
 
+    if (!validateTiming()) return
+
     const payload: CreateTradePayload = {
       userIds: selectedUsers.map((u) => u.id),
       outcome,
@@ -183,6 +216,8 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
       amount: amt,
       estimatedProfit: profit,
       leverage: Number(leverage) || 1,
+      entryTime: entryUnix,
+      durationSeconds: durationSec,
     }
 
     setSubmitting(true)
@@ -210,6 +245,30 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
     selectedUsers.length === 0
       ? 0
       : Math.min(...selectedUsers.map((u) => fiatBalances[u.id] ?? 0))
+
+  const entryUnix = datetimeLocalToUnixSeconds(openedAtLocal)
+  const closingUnix = Number.isFinite(entryUnix) ? entryUnix + durationSec : NaN
+  const nowSec = Math.floor(Date.now() / 1000)
+
+  function validateTiming(): boolean {
+    if (!Number.isFinite(entryUnix)) {
+      toast.error('Invalid opened date/time')
+      return false
+    }
+    if (entryUnix > nowSec + 120) {
+      toast.error('Opened time cannot be in the future')
+      return false
+    }
+    if (durationSec < 60) {
+      toast.error('Holding period must be at least 1 minute')
+      return false
+    }
+    if (!Number.isFinite(closingUnix) || closingUnix > nowSec + 120) {
+      toast.error('Closed time cannot be in the future — shorten the hold or open earlier')
+      return false
+    }
+    return true
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
@@ -515,6 +574,87 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                 </div>
               </div>
 
+              <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Session timing
+                </p>
+                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  <span className="text-neutral-400">Opened</span> and <span className="text-neutral-400">Closed</span>{' '}
+                  use the same date &amp; time style as the user trade dashboard (open and closed orders).
+                </p>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Opened</label>
+                  <input
+                    type="datetime-local"
+                    value={openedAtLocal}
+                    onChange={(e) => setOpenedAtLocal(e.target.value)}
+                    className="w-full sm:max-w-md px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50 scheme-dark"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1.5">Holding period</label>
+                  <div className="flex flex-wrap gap-2">
+                    {HOLDING_PRESETS.map((p) => (
+                      <button
+                        key={p.sec}
+                        type="button"
+                        onClick={() => {
+                          setDurationSec(p.sec)
+                          setCustomMinutes(String(Math.round(p.sec / 60)))
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          durationSec === p.sec
+                            ? 'bg-amber-500/15 text-amber-400 border-amber-500/35'
+                            : 'bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <label htmlFor="admin-trade-custom-mins" className="text-xs text-neutral-500 whitespace-nowrap">
+                      Custom (minutes)
+                    </label>
+                    <input
+                      id="admin-trade-custom-mins"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={customMinutes}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setCustomMinutes(v)
+                        const m = Number(v)
+                        if (Number.isFinite(m) && m >= 1) {
+                          setDurationSec(Math.min(Math.round(m * 60), 366 * 86400))
+                        }
+                      }}
+                      className="w-24 px-2 py-1.5 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50"
+                    />
+                  </div>
+                </div>
+                {Number.isFinite(entryUnix) && (
+                  <div className="rounded-lg bg-neutral-800/60 border border-neutral-700 px-3 py-2 text-xs space-y-1.5">
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-2">
+                      <span className="text-neutral-500 shrink-0">Closed</span>
+                      <span className="text-neutral-200 tabular-nums sm:text-right">
+                        {Number.isFinite(closingUnix) ? formatDateWithTime(closingUnix) : '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-neutral-500">Duration</span>
+                      <span className="text-neutral-400">{formatDuration(durationSec * 1000)}</span>
+                    </div>
+                    {Number.isFinite(closingUnix) && closingUnix > nowSec + 120 && (
+                      <p className="text-red-400/95 pt-1 border-t border-neutral-700/80">
+                        Closed time is still in the future — choose a shorter hold or an earlier open time.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {amount && estimatedProfit && (
                 <div className="p-3 rounded-lg bg-neutral-800/40 border border-neutral-700 text-sm space-y-1.5">
                   <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Preview</p>
@@ -589,9 +729,25 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                     {outcome === 'win' ? '+' : '-'}${Number(estimatedProfit).toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between py-2">
+                <div className="flex justify-between py-2 border-b border-neutral-800">
                   <span className="text-neutral-400">Leverage</span>
                   <span className="text-white">{leverage}×</span>
+                </div>
+                <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:items-start py-2 border-b border-neutral-800">
+                  <span className="text-neutral-400 shrink-0">Opened</span>
+                  <span className="text-white text-sm tabular-nums sm:text-right wrap-break-word">
+                    {Number.isFinite(entryUnix) ? formatDateWithTime(entryUnix) : '—'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:items-start py-2 border-b border-neutral-800">
+                  <span className="text-neutral-400 shrink-0">Closed</span>
+                  <span className="text-white text-sm tabular-nums sm:text-right wrap-break-word">
+                    {Number.isFinite(closingUnix) ? formatDateWithTime(closingUnix) : '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-neutral-400">Hold</span>
+                  <span className="text-white">{formatDuration(durationSec * 1000)}</span>
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-amber-500/8 border border-amber-500/20 text-xs text-amber-400">
@@ -629,11 +785,17 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                 if (step === 4) {
                   const amt = Number(amount)
                   if (!(amt > 0)) return toast.error('Enter a valid amount')
+                  const profit = Number(estimatedProfit)
+                  if (!Number.isFinite(profit)) return toast.error('Enter estimated profit/loss')
+                  if (outcome === 'win' && !(profit > 0)) {
+                    return toast.error('Win trades require estimated profit greater than zero')
+                  }
                   for (const u of selectedUsers) {
                     if ((fiatBalances[u.id] ?? 0) + 1e-9 < amt) {
                       return toast.error('Amount exceeds fiat balance for one or more users')
                     }
                   }
+                  if (!validateTiming()) return
                 }
                 setStep((s) => s + 1)
               }}

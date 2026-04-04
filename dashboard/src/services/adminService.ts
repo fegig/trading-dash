@@ -228,6 +228,10 @@ export type CreateTradePayload = {
   estimatedProfit: number
   leverage?: number
   closingPrice?: number
+  /** Unix seconds — when the position opened (backdating allowed). */
+  entryTime?: number
+  /** Holding length in seconds; closing = entryTime + durationSeconds. */
+  durationSeconds?: number
 }
 
 export async function createAdminTrades(

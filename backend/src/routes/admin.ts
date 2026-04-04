@@ -712,6 +712,9 @@ admin.post('/trades/create', requireAdmin, async (c) => {
   if (!(entryPrice > 0)) return c.json({ error: 'entryPrice required' }, 400)
   if (!(amount > 0)) return c.json({ error: 'amount required' }, 400)
   if (!Number.isFinite(estimatedProfit)) return c.json({ error: 'estimatedProfit required' }, 400)
+  if (outcome === 'win' && estimatedProfit <= 0) {
+    return c.json({ error: 'Win trades require estimated profit greater than zero' }, 400)
+  }
 
   const signedProfit = outcome === 'win' ? Math.abs(estimatedProfit) : -Math.abs(estimatedProfit)
   const pnlRatio = amount > 0 ? signedProfit / amount : 0
@@ -725,8 +728,39 @@ admin.post('/trades/create', requireAdmin, async (c) => {
   const quote = quotePart?.trim() ?? 'USD'
 
   const now = Math.floor(Date.now() / 1000)
-  const entryTime = now - 3600
-  const closingTime = now
+  const maxPast = now - Math.floor(10 * 365.25 * 86400)
+
+  let entryTime = Number(body.entryTime)
+  if (!Number.isFinite(entryTime) || entryTime <= 0) {
+    entryTime = now - 3600
+  }
+  entryTime = Math.floor(entryTime)
+  if (entryTime < maxPast) {
+    return c.json({ error: 'entryTime is too far in the past' }, 400)
+  }
+  if (entryTime > now + 120) {
+    return c.json({ error: 'entryTime cannot be in the future' }, 400)
+  }
+
+  let durationSeconds = Number(body.durationSeconds)
+  if (!Number.isFinite(durationSeconds)) {
+    durationSeconds = 3600
+  }
+  durationSeconds = Math.floor(durationSeconds)
+  if (durationSeconds < 60) {
+    return c.json({ error: 'durationSeconds must be at least 60 (1 minute)' }, 400)
+  }
+  if (durationSeconds > 366 * 86400) {
+    return c.json({ error: 'durationSeconds exceeds maximum (366 days)' }, 400)
+  }
+
+  const closingTime = entryTime + durationSeconds
+  if (closingTime <= entryTime) {
+    return c.json({ error: 'Invalid entry time or duration' }, 400)
+  }
+  if (closingTime > now + 120) {
+    return c.json({ error: 'Closing time cannot be in the future' }, 400)
+  }
 
   const createdTrades: string[] = []
   const errors: { userId: string; error: string }[] = []
