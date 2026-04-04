@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, ne } from 'drizzle-orm'
 import type { InferSelectModel } from 'drizzle-orm'
 import type { AppVariables } from '../types/env'
 import * as schema from '../db/schema'
@@ -315,7 +315,10 @@ export async function provisionCoinForAllUsers(db: Db, coinId: string): Promise<
     .where(eq(schema.walletAssets.coinId, coinId))
   const alreadySet = new Set(already.map((r) => r.userId))
 
-  const allUsers = await db.select({ id: schema.users.id }).from(schema.users)
+  const allUsers = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(ne(schema.users.role, 'admin'))
   const toProvision = allUsers.filter((u) => !alreadySet.has(u.id))
   if (toProvision.length === 0) return 0
 

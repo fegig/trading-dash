@@ -12,8 +12,11 @@ import { rowToTradePosition } from '../lib/trade-map'
 import { fetchUsdSpots } from '../lib/cc-prices'
 import { sendEmail } from '../email/resend-client'
 import { adminWalletAdjustmentEmailHtml } from '../email/templates'
+import { registerAdminCatalogRoutes } from './admin-catalog'
 
 const admin = new Hono<{ Bindings: Env; Variables: AppVariables }>()
+
+registerAdminCatalogRoutes(admin)
 
 async function sendWalletAdjustNotifyEmail(
   env: Env,

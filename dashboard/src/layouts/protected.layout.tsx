@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router"
 import { useAuthStore } from "../stores"
 import { userNeedsOnboarding } from "@/util/authFlow"
+import GlobalNoticesBanner from "../components/GlobalNoticesBanner"
 import Header from "./header"
 import Footer from "./footer"
 import SidebarMenu from "./sidebar"
@@ -55,6 +56,7 @@ function DashboardLayout() {
           </div>
         </aside>
         <main className="flex-1 min-w-0 min-h-0 overflow-y-auto scrollBar px-4 md:px-6 py-4 md:py-6 pb-12! lg:pl-66 xl:pl-72">
+          <GlobalNoticesBanner />
           <Outlet />
         </main>
       </div>

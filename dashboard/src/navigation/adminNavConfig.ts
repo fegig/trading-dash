@@ -37,4 +37,11 @@ export const adminNavGroups: AdminNavGroup[] = [
       { label: 'Investments', path: '/admin/investments', iconClass: 'fi-rr-chart-pie' },
     ],
   },
+  {
+    title: 'Catalog',
+    items: [
+      { label: 'Coins', path: '/admin/catalog/coins', iconClass: 'fi-rr-coins' },
+      { label: 'Fiat currencies', path: '/admin/catalog/fiat', iconClass: 'fi-rr-bank' },
+    ],
+  },
 ]

@@ -8,6 +8,7 @@ import * as schema from '../db/schema'
 import { catalogDepositAddress } from '../lib/catalog-deposit-address'
 import { coincapIconUrl } from '../lib/coincap'
 import { provisionCoinForAllUsers } from '../services/wallet-provisioning'
+import { insertGlobalNotice } from '../lib/global-notices'
 import { spendUserFiatUsd } from '../lib/wallet-ledger'
 
 const DEFAULT_SUB_DAYS = 30
@@ -64,6 +65,9 @@ platform.post('/coins', async (c) => {
   if (!id || !name || !symbol || !chain) {
     return c.json({ error: 'id, name, symbol and chain are required' }, 400)
   }
+  if (chain.toLowerCase() === 'fiat') {
+    return c.json({ error: 'Use fiat catalog for fiat chains' }, 400)
+  }
 
   const depositAddress =
     typeof body.depositAddress === 'string' && body.depositAddress.trim()
@@ -97,6 +101,15 @@ platform.post('/coins', async (c) => {
     })
 
   const provisioned = await provisionCoinForAllUsers(c.var.db, id)
+
+  if (provisioned > 0) {
+    await insertGlobalNotice(c.var.db, {
+      kind: 'coin_added',
+      title: `New supported asset: ${symbol}`,
+      body: `${name} (${symbol}) is now available in your wallet. You can deposit and trade when funding is enabled for your account.`,
+      meta: { coinId: id, symbol, name },
+    })
+  }
 
   return c.json({ ok: true, coinId: id, usersProvisioned: provisioned })
 })

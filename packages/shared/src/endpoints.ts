@@ -19,6 +19,8 @@ export const endpoints = {
     welcomeOnboarding: '/user/welcomeOnboarding',
     ensureWebSession: '/user/ensureWebSession',
     me: '/user/me',
+    notices: '/user/notices',
+    dismissNotice: '/user/notices/dismiss',
   },
   auth: {
     createToken: '/auth/createToken',
@@ -63,6 +65,12 @@ export const endpoints = {
     copyTrader: (id: string) => `/admin/copy-traders/${encodeURIComponent(id)}`,
     investments: '/admin/investments',
     investment: (id: string) => `/admin/investments/${encodeURIComponent(id)}`,
+    catalogCoins: '/admin/catalog/coins',
+    catalogCoin: (id: string) => `/admin/catalog/coins/${encodeURIComponent(id)}`,
+    catalogCoinRemove: (id: string) =>
+      `/admin/catalog/coins/${encodeURIComponent(id)}/remove`,
+    catalogFiat: '/admin/catalog/fiat',
+    catalogFiatRow: (id: number) => `/admin/catalog/fiat/${id}`,
   },
   platform: {
     tradingBots: '/platform/trading-bots',

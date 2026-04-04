@@ -444,14 +444,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_24rem]">
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
-              Recent Trade Activity
-            </h2>
-            <Link to={paths.dashboardTrades} className="text-xs text-green-400 hover:text-green-300">
-              View all trades
-            </Link>
-          </div>
+     
           <MiniTradeHistory />
         </section>
 

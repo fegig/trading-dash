@@ -86,6 +86,33 @@ export const fiatCurrencies = mysqlTable('fiat_currencies', {
   code: varchar('code', { length: 8 }).notNull().default(''),
 })
 
+/** Platform-wide dashboard notices (coin catalog changes, etc.). */
+export const globalNotices = mysqlTable(
+  'global_notices',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    kind: varchar('kind', { length: 32 }).notNull(),
+    title: varchar('title', { length: 255 }).notNull(),
+    body: text('body').notNull(),
+    metaJson: text('meta_json'),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    expiresAt: bigint('expires_at', { mode: 'number' }),
+  },
+  (t) => [index('global_notices_created_idx').on(t.createdAt)]
+)
+
+export const userNoticeDismissals = mysqlTable(
+  'user_notice_dismissals',
+  {
+    userId: int('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    noticeId: varchar('notice_id', { length: 36 }).notNull(),
+    dismissedAt: bigint('dismissed_at', { mode: 'number' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.noticeId] })]
+)
+
 export const walletAssets = mysqlTable(
   'wallet_assets',
   {

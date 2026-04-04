@@ -1,3 +1,4 @@
+import { AxiosError, type AxiosResponse } from 'axios'
 import { get, post, patch, remove } from '../util/request'
 import { endpoints } from './endpoints'
 
@@ -366,4 +367,128 @@ export async function updateAdminInvestment(
 
 export async function deleteAdminInvestment(id: string): Promise<void> {
   await remove(endpoints.admin.investment(id))
+}
+
+// ─── Catalog: coins & fiat ───────────────────────────────────────────────────
+
+export type AdminCatalogCoin = {
+  id: string
+  name: string
+  symbol: string
+  chain: string
+  confirmLevel: number
+  depositAddress: string
+  iconUrl: string | null
+  isActive: boolean
+}
+
+export async function getAdminCatalogCoins(): Promise<AdminCatalogCoin[]> {
+  const data = await get(endpoints.admin.catalogCoins)
+  return (data as { data?: AdminCatalogCoin[] })?.data ?? []
+}
+
+export async function createAdminCatalogCoin(
+  payload: Record<string, unknown>
+): Promise<{ coinId: string; usersProvisioned: number }> {
+  const res = (await post(endpoints.admin.catalogCoins, payload)) as AxiosResponse | undefined
+  if (!res || res.status >= 400) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to create coin'
+    throw new Error(msg)
+  }
+  const body = res.data as { coinId?: string; usersProvisioned?: number }
+  return {
+    coinId: String(body.coinId ?? ''),
+    usersProvisioned: Number(body.usersProvisioned ?? 0),
+  }
+}
+
+export async function updateAdminCatalogCoin(
+  id: string,
+  payload: Record<string, unknown>
+): Promise<{ usersProvisioned: number }> {
+  const res = (await patch(endpoints.admin.catalogCoin(id), payload)) as AxiosResponse | undefined
+  if (!res || res.status >= 400) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to update coin'
+    throw new Error(msg)
+  }
+  const body = res.data as { usersProvisioned?: number }
+  return { usersProvisioned: Number(body.usersProvisioned ?? 0) }
+}
+
+export async function removeAdminCatalogCoin(id: string): Promise<{
+  rowsDeleted: number
+  creditedUsd: number
+  liquidationErrors: string[]
+}> {
+  const res = (await post(
+    endpoints.admin.catalogCoinRemove(id),
+    {} as Record<string, unknown>
+  )) as AxiosResponse | undefined
+  if (!res || res.status >= 400) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to remove coin'
+    throw new Error(msg)
+  }
+  const body = res.data as {
+    rowsDeleted?: number
+    creditedUsd?: number
+    liquidationErrors?: string[]
+  }
+  return {
+    rowsDeleted: Number(body.rowsDeleted ?? 0),
+    creditedUsd: Number(body.creditedUsd ?? 0),
+    liquidationErrors: Array.isArray(body.liquidationErrors) ? body.liquidationErrors : [],
+  }
+}
+
+export type AdminCatalogFiat = {
+  id: number
+  name: string
+  symbol: string
+  code: string
+}
+
+export async function getAdminCatalogFiat(): Promise<AdminCatalogFiat[]> {
+  const data = await get(endpoints.admin.catalogFiat)
+  return (data as { data?: AdminCatalogFiat[] })?.data ?? []
+}
+
+export async function createAdminCatalogFiat(
+  payload: { name: string; symbol: string; code: string }
+): Promise<number | undefined> {
+  const res = (await post(
+    endpoints.admin.catalogFiat,
+    payload as unknown as Record<string, unknown>
+  )) as AxiosResponse | undefined
+  if (!res || res.status >= 400) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to create fiat currency'
+    throw new Error(msg)
+  }
+  const body = res.data as { id?: number }
+  return typeof body.id === 'number' ? body.id : undefined
+}
+
+export async function updateAdminCatalogFiat(
+  id: number,
+  payload: Partial<{ name: string; symbol: string; code: string }>
+): Promise<void> {
+  const res = (await patch(
+    endpoints.admin.catalogFiatRow(id),
+    payload as Record<string, unknown>
+  )) as AxiosResponse | undefined
+  if (!res || res.status >= 400) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to update fiat currency'
+    throw new Error(msg)
+  }
+}
+
+export async function deleteAdminCatalogFiat(id: number): Promise<void> {
+  try {
+    await remove(endpoints.admin.catalogFiatRow(id))
+  } catch (e) {
+    if (e instanceof AxiosError && e.response?.data && typeof e.response.data === 'object') {
+      const msg = (e.response.data as { error?: string }).error
+      if (msg) throw new Error(msg)
+    }
+    throw e instanceof Error ? e : new Error('Failed to delete fiat currency')
+  }
 }

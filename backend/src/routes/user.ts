@@ -31,6 +31,7 @@ import {
   mergeUserBiosFields,
   patchFromAddBiosBody,
 } from '../lib/user-bios'
+import { dismissNotice, listActiveNoticesForUser } from '../lib/global-notices'
 
 type ActivityLogRow = InferSelectModel<typeof schema.activityLogs>
 type TradeRow = InferSelectModel<typeof schema.trades>
@@ -410,6 +411,29 @@ user.post('/addBios', requireUser, async (c) => {
       .set({ passwordHash: pwd })
       .where(eq(schema.users.id, uid))
   }
+  return c.json({ ok: true })
+})
+
+user.get('/notices', requireUser, async (c) => {
+  const uid = c.var.user!.id
+  const [row] = await c.var.db
+    .select({ role: schema.users.role })
+    .from(schema.users)
+    .where(eq(schema.users.id, uid))
+    .limit(1)
+  if (row?.role === 'admin') {
+    return c.json({ data: [] })
+  }
+  const data = await listActiveNoticesForUser(c.var.db, uid)
+  return c.json({ data })
+})
+
+user.post('/notices/dismiss', requireUser, async (c) => {
+  const uid = c.var.user!.id
+  const body = (await c.req.json().catch(() => ({}))) as { noticeId?: string }
+  const noticeId = typeof body.noticeId === 'string' ? body.noticeId.trim() : ''
+  if (!noticeId) return c.json({ error: 'noticeId required' }, 400)
+  await dismissNotice(c.var.db, uid, noticeId)
   return c.json({ ok: true })
 })
 

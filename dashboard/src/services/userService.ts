@@ -1,5 +1,5 @@
 import type { AxiosResponse } from 'axios'
-import { post } from '../util/request'
+import { get, post } from '../util/request'
 import { endpoints } from './endpoints'
 import type { BalancePayload, WonLossPayload } from '../types/trade'
 
@@ -30,6 +30,34 @@ export async function getWonLoss(userId: string): Promise<WonLossPayload | null>
     return null
   }
   return null
+}
+
+export type DashboardNotice = {
+  id: string
+  kind: string
+  title: string
+  body: string
+  meta: Record<string, unknown> | null
+  createdAt: number
+}
+
+export async function getDashboardNotices(): Promise<DashboardNotice[]> {
+  try {
+    const data = await get(endpoints.user.notices)
+    const rows = (data as { data?: DashboardNotice[] })?.data
+    return Array.isArray(rows) ? rows : []
+  } catch {
+    return []
+  }
+}
+
+export async function dismissDashboardNotice(noticeId: string): Promise<boolean> {
+  try {
+    const res = await post(endpoints.user.dismissNotice, { noticeId })
+    return (res as AxiosResponse | undefined)?.status === 200
+  } catch {
+    return false
+  }
 }
 
 export async function getActivityLog(userId: string) {
