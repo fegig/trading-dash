@@ -50,6 +50,34 @@
       "when": 1775400000000,
       "tag": "0006_user_bios_flat",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1775500000000,
+      "tag": "0007_admin_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1775600000000,
+      "tag": "0008_global_notices",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1775700000000,
+      "tag": "0009_platform_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1775800000000,
+      "tag": "0010_platform_settings_og_favicon",
+      "breakpoints": true
     }
   ]
 }

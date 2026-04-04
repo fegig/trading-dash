@@ -7,6 +7,6 @@ CREATE TABLE `platform_settings` (
   `email_logo_r2_key` varchar(512),
   `updated_at` bigint NOT NULL
 );
-
+--> statement-breakpoint
 INSERT INTO `platform_settings` (`id`, `site_name`, `support_email`, `support_phone`, `site_logo_r2_key`, `email_logo_r2_key`, `updated_at`)
 VALUES (1, '', '', '', NULL, NULL, UNIX_TIMESTAMP());
