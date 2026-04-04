@@ -60,5 +60,11 @@
 			"binding": "RATE_LIMIT",
 			"id": "9a6c7d392998430c960f0bd83c11cb7b"
 		}
-	]
+	],
+		"observability": {
+		  "logs": {
+			"enabled": true,
+			"invocation_logs": true
+		  }
+		}
 }
