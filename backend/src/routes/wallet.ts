@@ -21,6 +21,7 @@ import {
   WALLET_METHOD_DEPOSIT_REQUEST,
   DEPOSIT_INTENT_TTL_SEC,
 } from '../lib/wallet-request-constants'
+import { walletTransactionsBaseColumns } from '../lib/wallet-transactions-columns'
 import * as schema from '../db/schema'
 
 type Db = AppVariables['db']
@@ -33,6 +34,31 @@ async function resolveUserCryptoWallet(db: Db, userId: number, walletId: string)
     .limit(1)
   if (!row || row.assetType !== 'crypto') return null
   return row
+}
+
+/** Lists transactions; retries without extended columns if migration 0012 is not applied yet. */
+async function walletTransactionsForUser(db: Db, userId: number) {
+  const where = eq(schema.walletTransactions.userId, userId)
+  const order = desc(schema.walletTransactions.createdAt)
+  try {
+    return await db
+      .select()
+      .from(schema.walletTransactions)
+      .where(where)
+      .orderBy(order)
+      .limit(200)
+  } catch (err) {
+    console.warn(
+      '[wallet/transactions] full select failed (apply migration 0012_wallet_transactions_pending_meta if missing columns). Retrying without extended columns.',
+      err
+    )
+    return await db
+      .select(walletTransactionsBaseColumns)
+      .from(schema.walletTransactions)
+      .where(where)
+      .orderBy(order)
+      .limit(200)
+  }
 }
 
 const wallet = new Hono<{ Bindings: Env; Variables: AppVariables }>()
@@ -157,31 +183,32 @@ wallet.get('/assets', requireUser, async (c) => {
 })
 
 wallet.get('/transactions', requireUser, async (c) => {
-  const rows = await c.var.db
-    .select()
-    .from(schema.walletTransactions)
-    .where(eq(schema.walletTransactions.userId, c.var.user!.id))
-    .orderBy(desc(schema.walletTransactions.createdAt))
-    .limit(200)
+  const rows = await walletTransactionsForUser(c.var.db, c.var.user!.id)
 
-  const data = rows.map((t) => ({
-    id: t.id,
-    type: t.type,
-    amount: Number(t.amount),
-    eqAmount: Number(t.eqAmount),
-    status: t.status,
-    createdAt: t.createdAt,
-    method: {
-      type: t.methodType,
-      name: t.methodName,
-      symbol: t.methodSymbol,
-      icon: t.methodIcon ?? undefined,
-      iconClass: t.methodIconClass ?? undefined,
-    },
-    note: t.note ?? undefined,
-    counterpartyAddress: t.counterpartyAddress?.trim() || undefined,
-    expiresAt: t.expiresAt ?? undefined,
-  }))
+  const data = rows.map((t) => {
+    const ext = t as {
+      counterpartyAddress?: string | null
+      expiresAt?: number | null
+    }
+    return {
+      id: t.id,
+      type: t.type,
+      amount: Number(t.amount),
+      eqAmount: Number(t.eqAmount),
+      status: t.status,
+      createdAt: t.createdAt,
+      method: {
+        type: t.methodType,
+        name: t.methodName,
+        symbol: t.methodSymbol,
+        icon: t.methodIcon ?? undefined,
+        iconClass: t.methodIconClass ?? undefined,
+      },
+      note: t.note ?? undefined,
+      counterpartyAddress: ext.counterpartyAddress?.trim() || undefined,
+      expiresAt: ext.expiresAt ?? undefined,
+    }
+  })
   return c.json(data)
 })
 

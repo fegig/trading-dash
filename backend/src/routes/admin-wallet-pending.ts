@@ -12,30 +12,83 @@ import {
   WALLET_METHOD_WITHDRAWAL_REQUEST,
   WALLET_METHOD_DEPOSIT_REQUEST,
 } from '../lib/wallet-request-constants'
+import { walletTransactionsBaseColumns } from '../lib/wallet-transactions-columns'
+
+async function getWalletTransactionById(
+  db: AppVariables['db'],
+  id: string
+): Promise<typeof schema.walletTransactions.$inferSelect | undefined> {
+  try {
+    const [row] = await db
+      .select()
+      .from(schema.walletTransactions)
+      .where(eq(schema.walletTransactions.id, id))
+      .limit(1)
+    return row
+  } catch (err) {
+    console.warn('[admin/wallet/pending confirm] full tx row select failed; retrying base columns.', err)
+    const [row] = await db
+      .select(walletTransactionsBaseColumns)
+      .from(schema.walletTransactions)
+      .where(eq(schema.walletTransactions.id, id))
+      .limit(1)
+    return row as unknown as typeof schema.walletTransactions.$inferSelect
+  }
+}
 
 export function registerAdminWalletPendingRoutes(
   admin: Hono<{ Bindings: Env; Variables: AppVariables }>
 ) {
   admin.get('/wallet/pending', requireAdmin, async (c) => {
-    const rows = await c.var.db
-      .select({
-        tx: schema.walletTransactions,
-        userEmail: schema.users.email,
-        userPublicId: schema.users.publicId,
-      })
-      .from(schema.walletTransactions)
-      .innerJoin(schema.users, eq(schema.walletTransactions.userId, schema.users.id))
-      .where(
-        and(
-          eq(schema.walletTransactions.status, 'pending'),
-          inArray(schema.walletTransactions.methodName, [
-            WALLET_METHOD_WITHDRAWAL_REQUEST,
-            WALLET_METHOD_DEPOSIT_REQUEST,
-          ])
-        )
+    const pendingWhere = and(
+      eq(schema.walletTransactions.status, 'pending'),
+      inArray(schema.walletTransactions.methodName, [
+        WALLET_METHOD_WITHDRAWAL_REQUEST,
+        WALLET_METHOD_DEPOSIT_REQUEST,
+      ])
+    )
+    const order = desc(schema.walletTransactions.createdAt)
+
+    let rows: Array<{
+      tx: typeof schema.walletTransactions.$inferSelect
+      userEmail: string
+      userPublicId: string
+    }>
+
+    try {
+      rows = await c.var.db
+        .select({
+          tx: schema.walletTransactions,
+          userEmail: schema.users.email,
+          userPublicId: schema.users.publicId,
+        })
+        .from(schema.walletTransactions)
+        .innerJoin(schema.users, eq(schema.walletTransactions.userId, schema.users.id))
+        .where(pendingWhere)
+        .orderBy(order)
+        .limit(200)
+    } catch (err) {
+      console.warn(
+        '[admin/wallet/pending] full tx select failed (apply migration 0012). Retrying with base columns.',
+        err
       )
-      .orderBy(desc(schema.walletTransactions.createdAt))
-      .limit(200)
+      const flat = await c.var.db
+        .select({
+          ...walletTransactionsBaseColumns,
+          userEmail: schema.users.email,
+          userPublicId: schema.users.publicId,
+        })
+        .from(schema.walletTransactions)
+        .innerJoin(schema.users, eq(schema.walletTransactions.userId, schema.users.id))
+        .where(pendingWhere)
+        .orderBy(order)
+        .limit(200)
+      rows = flat.map((r) => ({
+        tx: r as unknown as typeof schema.walletTransactions.$inferSelect,
+        userEmail: r.userEmail,
+        userPublicId: r.userPublicId,
+      }))
+    }
 
     const data = rows.map(({ tx, userEmail, userPublicId }) => ({
       id: tx.id,
@@ -50,7 +103,7 @@ export function registerAdminWalletPendingRoutes(
       methodName: tx.methodName,
       counterpartyAddress: tx.counterpartyAddress?.trim() || null,
       expiresAt: tx.expiresAt ?? null,
-      walletAssetId: tx.walletAssetId,
+      walletAssetId: tx.walletAssetId ?? null,
     }))
 
     return c.json({ data })
@@ -60,11 +113,7 @@ export function registerAdminWalletPendingRoutes(
     const id = c.req.param('id')?.trim()
     if (!id) return c.json({ error: 'Invalid id' }, 400)
 
-    const [tx] = await c.var.db
-      .select()
-      .from(schema.walletTransactions)
-      .where(eq(schema.walletTransactions.id, id))
-      .limit(1)
+    const tx = await getWalletTransactionById(c.var.db, id)
 
     if (!tx) return c.json({ error: 'Not found' }, 404)
     if (tx.status !== 'pending') return c.json({ error: 'Not pending' }, 409)
