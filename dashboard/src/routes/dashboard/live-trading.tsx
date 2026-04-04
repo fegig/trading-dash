@@ -37,6 +37,10 @@ function LiveTrading() {
         <div className="relative">
             <main className="p-6 grid grid-cols-12 lg:gap-6 gap-3">
                 <div className='col-span-8 space-y-4 max-lg:col-span-full'>
+                    <p className="text-[11px] text-neutral-500 leading-relaxed px-0.5 -mt-1">
+                        Market fills use the <span className="text-neutral-400">chart / banner price</span> so entry matches what you see.
+                        The book is a visual depth ladder; after you trade it re-aligns to your fill for server-side TP/SL checks.
+                    </p>
                     <PairBanner setSymbol={setSymbol} />
                     <ChartArea symbol={symbol || {
                         BASE: "BTC", 

@@ -54,7 +54,9 @@ function verificationBadge(status: string | undefined) {
     case '2':
       return { text: 'Under review', tone: 'amber' as const }
     case '1':
-      return { text: 'Unverified', tone: 'neutral' as const }
+      return { text: 'KYC pending', tone: 'neutral' as const }
+    case '0':
+      return { text: 'Email pending', tone: 'rose' as const }
     default:
       return { text: 'Unknown', tone: 'rose' as const }
   }

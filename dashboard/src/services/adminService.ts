@@ -222,6 +222,8 @@ export async function getAdminTrades(params: {
 export type CreateTradePayload = {
   userIds: string[]
   outcome: 'win' | 'loss'
+  /** Position side; stored like live desk (long=buy, short=sell). */
+  direction?: 'long' | 'short'
   assetType: 'crypto' | 'stock' | 'forex' | 'commodity'
   pair: string
   entryPrice: number
@@ -229,6 +231,8 @@ export type CreateTradePayload = {
   estimatedProfit: number
   leverage?: number
   closingPrice?: number
+  takeProfitPrice?: number
+  stopLossPrice?: number
   /** Unix seconds — when the position opened (backdating allowed). */
   entryTime?: number
   /** Holding length in seconds; closing = entryTime + durationSeconds. */

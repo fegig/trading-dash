@@ -83,6 +83,7 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [userSearch, setUserSearch] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<AdminUserRow[]>([])
   const [outcome, setOutcome] = useState<'win' | 'loss'>('win')
+  const [direction, setDirection] = useState<'long' | 'short'>('long')
   const [assetType, setAssetType] = useState<'crypto' | 'stock' | 'forex' | 'commodity'>('crypto')
   const [pairs, setPairs] = useState<{ pair: string; price: number }[]>([])
   const [selectedPair, setSelectedPair] = useState<{ pair: string; price: number } | null>(null)
@@ -210,6 +211,7 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
     const payload: CreateTradePayload = {
       userIds: selectedUsers.map((u) => u.id),
       outcome,
+      direction,
       assetType,
       pair: selectedPair.pair,
       entryPrice: entry,
@@ -418,6 +420,34 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
               </div>
 
               <div>
+                <p className="text-sm font-medium text-neutral-300 mb-2">Position side</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {(['long', 'short'] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDirection(d)}
+                      className={`py-3 rounded-xl border text-sm font-semibold transition-colors ${
+                        direction === d
+                          ? d === 'long'
+                            ? 'bg-sky-500/15 text-sky-400 border-sky-500/40'
+                            : 'bg-orange-500/15 text-orange-400 border-orange-500/40'
+                          : 'bg-neutral-800 text-neutral-400 border-neutral-700 hover:border-neutral-500'
+                      }`}
+                    >
+                      <i
+                        className={`fi ${d === 'long' ? 'fi-rr-arrow-trend-up' : 'fi-rr-arrow-trend-down'} text-lg block mb-1`}
+                      />
+                      {d === 'long' ? 'Long' : 'Short'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-neutral-500 mt-2">
+                  Stored like live trading (long = buy, short = sell). P&amp;L still follows the win/loss you chose.
+                </p>
+              </div>
+
+              <div>
                 <p className="text-sm font-medium text-neutral-300 mb-2">Asset type</p>
                 {isWeekend && (
                   <p className="text-xs text-amber-400 mb-2 flex items-center gap-1.5">
@@ -511,7 +541,7 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-white">{selectedPair.pair}</p>
                     <p className="text-xs text-neutral-500">
-                      {outcome.toUpperCase()} · {assetType}
+                      {outcome.toUpperCase()} · {direction} · {assetType}
                     </p>
                   </div>
                 </div>
@@ -694,6 +724,10 @@ function CreateTradeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
                   <span className={outcome === 'win' ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
                     {outcome.toUpperCase()}
                   </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-neutral-800">
+                  <span className="text-neutral-400">Side</span>
+                  <span className="text-white font-medium uppercase">{direction}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-neutral-800">
                   <span className="text-neutral-400">Asset Type</span>

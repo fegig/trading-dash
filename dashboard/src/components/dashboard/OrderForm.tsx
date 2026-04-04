@@ -244,6 +244,7 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
                 amount: amountBase,
                 leverage: lev,
                 marginType: 'isolated',
+                price,
                 takeProfitPrice,
                 stopLossPrice,
             })
@@ -298,21 +299,51 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
         }
 
         const pair = `${symbol.BASE}-${symbol.QUOTE}`.toUpperCase();
-        const tp =
-            tpslEnabled && takeProfitPrice && Number(takeProfitPrice) > 0
-                ? Number(takeProfitPrice)
-                : undefined;
-        const sl =
-            tpslEnabled && stopLossPrice && Number(stopLossPrice) > 0
-                ? Number(stopLossPrice)
-                : undefined;
+        const refPx =
+            orderType === 'market'
+                ? symbol.PRICE && symbol.PRICE > 0
+                    ? symbol.PRICE
+                    : Number(orderPrice)
+                : Number(orderPrice);
+        const DEFAULT_TP_RATIO = 0.02;
+        const DEFAULT_SL_RATIO = 0.01;
+        const defTpSl = (): { tp: number; sl: number } | null => {
+            if (!(refPx > 0) || !Number.isFinite(refPx)) return null;
+            if (longShort === 'long') {
+                return {
+                    tp: refPx * (1 + DEFAULT_TP_RATIO),
+                    sl: refPx * (1 - DEFAULT_SL_RATIO),
+                };
+            }
+            return {
+                tp: refPx * (1 - DEFAULT_TP_RATIO),
+                sl: refPx * (1 + DEFAULT_SL_RATIO),
+            };
+        };
+        const defaults = defTpSl();
+        let tp: number | undefined;
+        let sl: number | undefined;
+        if (tpslEnabled) {
+            const tIn = Number(takeProfitPrice);
+            const sIn = Number(stopLossPrice);
+            tp = tIn > 0 ? tIn : defaults?.tp;
+            sl = sIn > 0 ? sIn : defaults?.sl;
+        } else if (defaults) {
+            tp = defaults.tp;
+            sl = defaults.sl;
+        }
         void placeLiveOrder({
             pair,
             side: longShort === 'long' ? 'buy' : 'sell',
             type: orderType,
             amount: Number(amount),
             leverage: effectiveLeverage,
-            price: orderType !== 'market' ? Number(orderPrice) : undefined,
+            price:
+                orderType === 'market' && refPx > 0
+                    ? refPx
+                    : orderType !== 'market'
+                      ? Number(orderPrice)
+                      : undefined,
             marginType: tradingType,
             takeProfitPrice: tp,
             stopLossPrice: sl,
@@ -359,8 +390,10 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
                 <div className="rounded-2xl border border-green-500/25 bg-green-500/8 p-3 space-y-1">
                     <div className="text-xs font-semibold text-green-300">Lite mode</div>
                     <p className="text-[11px] text-neutral-400 leading-relaxed">
-                        Preset market order, {LITE_LEVERAGE}× isolated margin, USD margin input, and optional +2% take-profit / −1% stop-loss vs. the live price.
-                        Order book updates over WebSocket; TP/SL are monitored on the server about every 10s.
+                        Preset market order at the <span className="text-neutral-300">same price as the chart</span>{' '}
+                        ({LITE_LEVERAGE}× isolated, USD margin). Optional ±2% TP / ±1% SL vs. that price; if you turn them off,
+                        the server still applies the same default bands so positions can auto-close. The order book on the right
+                        re-syncs to your fill price for TP/SL checks (~10s).
                     </p>
                 </div>
             ) : null}

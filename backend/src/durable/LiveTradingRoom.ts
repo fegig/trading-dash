@@ -6,15 +6,19 @@ import { creditUserFiatUsd, spendUserFiatUsd } from '../lib/wallet-ledger'
 
 type BookEntry = { price: number; quantity: number }
 
-function seedBook(): { asks: BookEntry[]; bids: BookEntry[] } {
-  const mid = 43150.75
+function seedBookAround(mid: number): { asks: BookEntry[]; bids: BookEntry[] } {
+  const tick = Math.max(mid * 0.0001, 0.01)
   const asks: BookEntry[] = []
   const bids: BookEntry[] = []
   for (let i = 0; i < 10; i++) {
-    asks.push({ price: mid + (i + 1) * 25, quantity: 0.3 + i * 0.1 })
-    bids.push({ price: mid - (i + 1) * 25, quantity: 0.4 + i * 0.12 })
+    asks.push({ price: mid + (i + 1) * tick, quantity: 0.3 + i * 0.1 })
+    bids.push({ price: mid - (i + 1) * tick, quantity: 0.4 + i * 0.12 })
   }
   return { asks, bids }
+}
+
+function seedBook(): { asks: BookEntry[]; bids: BookEntry[] } {
+  return seedBookAround(43150.75)
 }
 
 export class LiveTradingRoom {
@@ -136,12 +140,22 @@ export class LiveTradingRoom {
 
       const now = Math.floor(Date.now() / 1000)
       const orderId = crypto.randomUUID()
-      const execPrice =
-        body.type === 'market'
-          ? body.side === 'buy'
-            ? this.asks[0]?.price ?? body.price ?? 0
-            : this.bids[0]?.price ?? body.price ?? 0
-          : body.price ?? this.asks[0]?.price ?? 0
+      /** UI sends `price` for market orders (live quote). Prefer it over the synthetic book so entry matches the chart. */
+      const refPrice =
+        body.price != null && Number(body.price) > 0 ? Number(body.price) : 0
+      let execPrice = 0
+      if (body.type === 'market') {
+        if (refPrice > 0) {
+          execPrice = refPrice
+        } else {
+          execPrice =
+            body.side === 'buy'
+              ? this.asks[0]?.price ?? 0
+              : this.bids[0]?.price ?? 0
+        }
+      } else {
+        execPrice = body.price ?? this.asks[0]?.price ?? 0
+      }
 
       const lev = Math.max(1, body.leverage || 1)
       const notionalUsd = body.amount * execPrice
@@ -166,6 +180,12 @@ export class LiveTradingRoom {
         }
 
         try {
+          if (body.type === 'market' && refPrice > 0) {
+            const book = seedBookAround(refPrice)
+            this.asks = book.asks
+            this.bids = book.bids
+          }
+
           await db.insert(schema.liveOrders).values({
             id: orderId,
             userId: body.userId,
@@ -185,10 +205,21 @@ export class LiveTradingRoom {
           const quote = parts[1] || 'USDT'
           const invested = Number(notionalUsd.toFixed(8))
           const marginStr = Number(marginUsd.toFixed(8))
-          const tpPx =
+          const DEFAULT_TP = 0.02
+          const DEFAULT_SL = 0.01
+          let tpPx =
             body.takeProfitPrice != null && body.takeProfitPrice > 0 ? body.takeProfitPrice : 0
-          const slPx =
+          let slPx =
             body.stopLossPrice != null && body.stopLossPrice > 0 ? body.stopLossPrice : 0
+          if (execPrice > 0) {
+            if (body.side === 'buy') {
+              if (!(tpPx > 0)) tpPx = execPrice * (1 + DEFAULT_TP)
+              if (!(slPx > 0)) slPx = execPrice * (1 - DEFAULT_SL)
+            } else {
+              if (!(tpPx > 0)) tpPx = execPrice * (1 - DEFAULT_TP)
+              if (!(slPx > 0)) slPx = execPrice * (1 + DEFAULT_SL)
+            }
+          }
 
           await db.insert(schema.trades).values({
             id: orderId,

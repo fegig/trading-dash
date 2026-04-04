@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { eq, asc, and } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import type { Env } from '../types/env'
 import type { AppVariables } from '../types/env'
 import { requireUser } from '../middleware/session'
@@ -54,20 +54,163 @@ async function ensureVerificationDocumentSlots(db: AppVariables['db'], userId: n
   )
 }
 
+/** Shown on the dashboard — always a full list, derived from account + document rows (no empty roadmap). */
+function buildVerificationSteps(
+  verificationStatus: number,
+  docById: Map<string, 'approved' | 'review' | 'missing'>
+): Array<{
+  id: string
+  title: string
+  body: string
+  status: 'complete' | 'active' | 'upcoming'
+  eta: string
+  action: string
+}> {
+  const st = (id: string) => docById.get(id) ?? 'missing'
+  const uploaded = (id: string) => st(id) !== 'missing'
+  const idApproved = st('doc-passport') === 'approved'
+  const addrApproved = st('doc-address') === 'approved'
+  const bothUploaded = uploaded('doc-passport') && uploaded('doc-address')
+
+  const emailDone = verificationStatus >= 1
+
+  return [
+    {
+      id: 'step-email',
+      title: 'Verify your email',
+      body: emailDone
+        ? 'Your email address is confirmed.'
+        : 'Open the link we sent when you signed up. You must confirm your email before identity verification.',
+      status: emailDone ? 'complete' : 'active',
+      eta: emailDone ? 'Done' : 'Required first',
+      action: emailDone ? '—' : 'Check inbox or resend from Settings',
+    },
+    {
+      id: 'step-identity',
+      title: 'Government-issued ID',
+      body: 'Passport, national ID, or driver licence — photo and details must be readable.',
+      status: !emailDone
+        ? 'upcoming'
+        : idApproved || verificationStatus >= 3
+          ? 'complete'
+          : uploaded('doc-passport')
+            ? 'complete'
+            : 'active',
+      eta:
+        idApproved || verificationStatus >= 3
+          ? 'Approved'
+          : uploaded('doc-passport')
+            ? st('doc-passport') === 'review'
+              ? 'Team reviewing'
+              : 'Received'
+            : 'Not uploaded',
+      action:
+        idApproved || verificationStatus >= 3
+          ? '—'
+          : uploaded('doc-passport')
+            ? 'Replace in Documents panel'
+            : 'Upload in Documents panel →',
+    },
+    {
+      id: 'step-address',
+      title: 'Proof of address',
+      body: 'Utility bill, bank statement, or official letter dated within the last 90 days.',
+      status: !emailDone
+        ? 'upcoming'
+        : addrApproved || verificationStatus >= 3
+          ? 'complete'
+          : uploaded('doc-address')
+            ? 'complete'
+            : 'active',
+      eta:
+        addrApproved || verificationStatus >= 3
+          ? 'Approved'
+          : uploaded('doc-address')
+            ? st('doc-address') === 'review'
+              ? 'Team reviewing'
+              : 'Received'
+            : 'Not uploaded',
+      action:
+        addrApproved || verificationStatus >= 3
+          ? '—'
+          : uploaded('doc-address')
+            ? 'Replace in Documents panel'
+            : 'Upload in Documents panel →',
+    },
+    {
+      id: 'step-review',
+      title: 'We review your submission',
+      body:
+        verificationStatus >= 3
+          ? 'Your profile is verified. Higher limits and full withdrawal options apply per your tier.'
+          : verificationStatus === 2
+            ? 'Our compliance team is reviewing your files. You will be notified when the status changes.'
+            : bothUploaded
+              ? 'Your documents are on file. Review typically starts within one business day after both required files are received.'
+              : 'Upload the two required documents on the right. Optional: source-of-funds if we request it.',
+      status:
+        verificationStatus >= 3
+          ? 'complete'
+          : verificationStatus === 2 || (bothUploaded && verificationStatus === 1)
+            ? 'active'
+            : 'upcoming',
+      eta:
+        verificationStatus >= 3
+          ? 'Verified'
+          : verificationStatus === 2
+            ? 'In progress'
+            : bothUploaded
+              ? 'Queued'
+              : 'Waiting on uploads',
+      action: '—',
+    },
+  ]
+}
+
+const DEFAULT_VERIFICATION_BENEFITS: Array<{
+  id: string
+  title: string
+  body: string
+  icon: string
+}> = [
+  {
+    id: 'benefit-limits',
+    title: 'Higher limits',
+    body: 'Larger daily trading and withdrawal limits once your identity matches our compliance checks.',
+    icon: 'fi fi-rr-chart-histogram',
+  },
+  {
+    id: 'benefit-payouts',
+    title: 'Smoother payouts',
+    body: 'Fewer manual checks on withdrawals when your account is verified.',
+    icon: 'fi fi-rr-bank',
+  },
+  {
+    id: 'benefit-access',
+    title: 'Full product access',
+    body: 'Use funding, live desk, and partner products without verification holds.',
+    icon: 'fi fi-rr-shield-check',
+  },
+]
+
 const verification = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
 verification.get('/overview', requireUser, async (c) => {
+  const userId = c.var.user!.id
+  const vs = c.var.user!.verificationStatus
   const row = await c.var.db
     .select()
     .from(schema.verificationOverviewRows)
-    .where(eq(schema.verificationOverviewRows.userId, c.var.user!.id))
+    .where(eq(schema.verificationOverviewRows.userId, userId))
     .limit(1)
   if (!row[0]) {
+    const tier = vs >= 3 ? 'Verified' : vs === 2 ? 'Under review' : 'Standard'
     return c.json({
-      tier: 'Standard',
-      dailyLimit: '$5,000',
-      payoutSpeed: '1–2 business days',
-      nextReview: 'Not scheduled',
+      tier,
+      dailyLimit: vs >= 3 ? '$50,000+' : vs === 2 ? 'As approved' : '$5,000',
+      payoutSpeed: vs >= 3 ? 'Same day – 1 business day' : '1–2 business days',
+      nextReview:
+        vs >= 3 ? 'No review pending' : vs === 2 ? 'In progress' : 'After documents submitted',
     })
   }
   return c.json({
@@ -79,21 +222,20 @@ verification.get('/overview', requireUser, async (c) => {
 })
 
 verification.get('/steps', requireUser, async (c) => {
-  const rows = await c.var.db
-    .select()
-    .from(schema.verificationSteps)
-    .where(eq(schema.verificationSteps.userId, c.var.user!.id))
-    .orderBy(asc(schema.verificationSteps.sortOrder))
-  return c.json(
-    rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      body: r.body,
-      status: r.status,
-      eta: r.eta,
-      action: r.action,
-    }))
+  const userId = c.var.user!.id
+  const vs = c.var.user!.verificationStatus
+  await ensureVerificationDocumentSlots(c.var.db, userId)
+  const docRows = await c.var.db
+    .select({
+      id: schema.verificationDocuments.id,
+      status: schema.verificationDocuments.status,
+    })
+    .from(schema.verificationDocuments)
+    .where(eq(schema.verificationDocuments.userId, userId))
+  const docById = new Map(
+    docRows.map((d) => [d.id, d.status as 'approved' | 'review' | 'missing'])
   )
+  return c.json(buildVerificationSteps(vs, docById))
 })
 
 verification.get('/documents', requireUser, async (c) => {
@@ -233,19 +375,7 @@ verification.get('/documents/:documentId/download', requireUser, async (c) => {
 })
 
 verification.get('/benefits', requireUser, async (c) => {
-  const rows = await c.var.db
-    .select()
-    .from(schema.verificationBenefits)
-    .where(eq(schema.verificationBenefits.userId, c.var.user!.id))
-    .orderBy(asc(schema.verificationBenefits.sortOrder))
-  return c.json(
-    rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      body: r.body,
-      icon: r.icon,
-    }))
-  )
+  return c.json(DEFAULT_VERIFICATION_BENEFITS)
 })
 
 export { verification as verificationRoutes }

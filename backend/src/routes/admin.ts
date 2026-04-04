@@ -726,9 +726,29 @@ admin.post('/trades/create', requireAdmin, async (c) => {
       ? Number(body.closingPrice)
       : entryPrice * (1 + pnlRatio / Math.max(leverage, 1))
 
-  const [basePart, quotePart] = pair.split('/')
-  const base = basePart?.trim() ?? pair
-  const quote = quotePart?.trim() ?? 'USD'
+  const pairNorm = pair.replace(/\//g, '-').replace(/\s+/g, '').toUpperCase()
+  const [basePart, quotePart] = pairNorm.split('-')
+  const base = basePart?.trim() || pairNorm
+  const quote = quotePart?.trim() || 'USD'
+
+  const directionRaw = String(body.direction ?? 'long').toLowerCase()
+  const direction: 'long' | 'short' = directionRaw === 'short' ? 'short' : 'long'
+  const option: 'buy' | 'sell' = direction === 'long' ? 'buy' : 'sell'
+
+  const DEFAULT_TP = 0.02
+  const DEFAULT_SL = 0.01
+  let slVal =
+    direction === 'long' ? entryPrice * (1 - DEFAULT_SL) : entryPrice * (1 + DEFAULT_SL)
+  let tpVal =
+    direction === 'long' ? entryPrice * (1 + DEFAULT_TP) : entryPrice * (1 - DEFAULT_TP)
+  const tpOverride = Number(body.takeProfitPrice)
+  const slOverride = Number(body.stopLossPrice)
+  if (Number.isFinite(tpOverride) && tpOverride > 0) tpVal = tpOverride
+  if (Number.isFinite(slOverride) && slOverride > 0) slVal = slOverride
+
+  const levN = Math.max(1, leverage)
+  const notionalUsd = amount * levN
+  const baseAmount = entryPrice > 0 ? notionalUsd / entryPrice : 0
 
   const now = Math.floor(Date.now() / 1000)
   const maxPast = now - Math.floor(10 * 365.25 * 86400)
@@ -780,42 +800,67 @@ admin.post('/trades/create', requireAdmin, async (c) => {
     const roiPct = amount > 0 ? (pnl / amount) * 100 : 0
     const fees = amount * 0.001
 
-    await c.var.db.insert(schema.trades).values({
-      id: tradeId,
-      userId: internalId,
-      pair,
-      base,
-      quote,
-      option: 'buy',
-      direction: 'long',
-      entryTime,
-      entryPrice: String(entryPrice),
-      invested: String(amount),
-      currency: 'USD',
-      closingTime,
-      closingPrice: String(closingPrice),
-      status: 'completed',
-      roi: String(roiPct.toFixed(4)),
-      leverage,
-      size: String(amount * leverage),
-      margin: String(amount),
-      marginPercentage: String((1 / leverage) * 100),
-      marginType: 'isolated',
-      pnl: String(pnl),
-      sl: String(entryPrice * 0.95),
-      tp: String(entryPrice * (1 + Math.abs(pnlRatio))),
-      fees: String(fees),
-      liquidationPrice: String(entryPrice * 0.9),
-      marketPrice: String(closingPrice),
-      strategy: assetType,
-      confidence: 85,
-      riskReward: '2:1',
-      note: `Admin-created ${outcome} trade`,
-      setup: `${assetType.charAt(0).toUpperCase() + assetType.slice(1)} ${pair}`,
-      fundedWith: 'fiat',
-      executionVenue: 'admin',
-      tags: [assetType, outcome],
-    })
+    const liqApprox =
+      direction === 'long'
+        ? entryPrice * Math.max(0.05, 1 - 0.95 / levN)
+        : entryPrice * (1 + 0.95 / levN)
+
+    try {
+      await c.var.db.transaction(async (tx) => {
+        await tx.insert(schema.liveOrders).values({
+          id: tradeId,
+          userId: internalId,
+          pair: pairNorm,
+          side: option,
+          orderType: 'market',
+          amount: String(Number(baseAmount.toFixed(8))),
+          leverage,
+          price: String(entryPrice),
+          marginType: 'isolated',
+          status: 'filled',
+          createdAt: entryTime,
+        })
+        await tx.insert(schema.trades).values({
+          id: tradeId,
+          userId: internalId,
+          pair: pairNorm,
+          base,
+          quote,
+          option,
+          direction,
+          entryTime,
+          entryPrice: String(entryPrice),
+          invested: String(amount),
+          currency: 'USD',
+          closingTime,
+          closingPrice: String(closingPrice),
+          status: 'completed',
+          roi: String(roiPct.toFixed(4)),
+          leverage,
+          size: String(amount * leverage),
+          margin: String(amount),
+          marginPercentage: String((1 / leverage) * 100),
+          marginType: 'isolated',
+          pnl: String(pnl),
+          sl: String(slVal),
+          tp: String(tpVal),
+          fees: String(fees),
+          liquidationPrice: String(liqApprox),
+          marketPrice: String(closingPrice),
+          strategy: assetType,
+          confidence: 85,
+          riskReward: '2:1',
+          note: `Admin-created ${outcome} trade (${direction})`,
+          setup: `${assetType.charAt(0).toUpperCase() + assetType.slice(1)} ${pairNorm}`,
+          fundedWith: 'fiat',
+          executionVenue: 'auto',
+          tags: [assetType, outcome, direction],
+        })
+      })
+    } catch {
+      errors.push({ userId: publicId, error: 'Failed to record trade' })
+      continue
+    }
 
     if (pnl > 0) {
       await creditUserFiatUsd(
