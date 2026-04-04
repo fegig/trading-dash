@@ -25,10 +25,10 @@ client.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-export const get = async (
+export const get = async <T = unknown>(
   endpoint: string,
   params?: Record<string, string | number | undefined>
-) => {
+): Promise<T | undefined> => {
   try {
     const response = await client.get(endpoint, { params })
     return response?.data

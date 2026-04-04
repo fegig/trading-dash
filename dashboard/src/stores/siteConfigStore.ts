@@ -29,7 +29,7 @@ export const useSiteConfigStore = create<State>((set) => ({
   hydrate: async () => {
     try {
       const data = await get<SiteConfigSnapshot>(endpoints.public.siteConfig)
-      set({ ...data, loaded: true })
+      set(data ? { ...data, loaded: true } : { loaded: true })
     } catch {
       set({ loaded: true })
     }

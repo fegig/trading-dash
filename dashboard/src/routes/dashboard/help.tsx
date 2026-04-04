@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { get } from '../../util/request'
-import { endpoints } from '../../services/endpoints'
-import { useSiteConfigStore } from '../../stores'
+import { get } from '@/util/request'
+import { endpoints } from '@/services/endpoints'
+import { useSiteConfigStore } from '@/stores'
 
 type FaqRow = { q: string; a: string }
 
@@ -16,13 +16,13 @@ export default function HelpPage() {
     void (async () => {
       try {
         const catRes = await get<{ data: { id: number; name: string }[] }>(endpoints.public.faqCategories)
-        const cats = catRes.data ?? []
+        const cats = catRes?.data ?? []
         const out: FaqRow[] = []
         for (const c of cats.slice(0, 12)) {
           const itemRes = await get<{ data: { question: string; answer: string }[] }>(
             endpoints.public.faqItems(c.id)
           )
-          const rows = itemRes.data ?? []
+          const rows = itemRes?.data ?? []
           for (const r of rows) {
             out.push({ q: r.question, a: r.answer })
             if (out.length >= 16) break
