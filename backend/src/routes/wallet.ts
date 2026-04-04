@@ -227,7 +227,12 @@ wallet.post('/send-request', requireUser, async (c) => {
   }
 
   const sym = asset.coinShort.trim().toUpperCase()
-  const spots = await fetchUsdSpots(c.env, [sym])
+  let spots: Map<string, { usd: number; changePct24h: number }> = new Map()
+  try {
+    spots = await fetchUsdSpots(c.env, [sym])
+  } catch (e) {
+    console.warn('[wallet/send-request] fetchUsdSpots failed, using wallet price fallback', e)
+  }
   const fallback = Number(asset.price)
   const unitUsd =
     spots.get(sym)?.usd ?? (Number.isFinite(fallback) && fallback > 0 ? fallback : 0)
@@ -290,76 +295,86 @@ wallet.post('/send-request', requireUser, async (c) => {
 })
 
 wallet.post('/deposit-intent', requireUser, async (c) => {
-  const parsed = walletDepositIntentBodySchema.safeParse(await c.req.json().catch(() => ({})))
-  if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+  try {
+    const parsed = walletDepositIntentBodySchema.safeParse(await c.req.json().catch(() => ({})))
+    if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
 
-  const userId = c.var.user!.id
-  const { walletId, amount } = parsed.data
-  const asset = await resolveUserCryptoWallet(c.var.db, userId, walletId)
-  if (!asset) return c.json({ error: 'Crypto asset not found' }, 404)
+    const userId = c.var.user!.id
+    const { walletId, amount } = parsed.data
+    const asset = await resolveUserCryptoWallet(c.var.db, userId, walletId)
+    if (!asset) return c.json({ error: 'Crypto asset not found' }, 404)
 
-  const sym = asset.coinShort.trim().toUpperCase()
-  const spots = await fetchUsdSpots(c.env, [sym])
-  const fallback = Number(asset.price)
-  const unitUsd =
-    spots.get(sym)?.usd ?? (Number.isFinite(fallback) && fallback > 0 ? fallback : 0)
-  const eqUsd = amount * unitUsd
+    const sym = asset.coinShort.trim().toUpperCase()
+    let spots: Map<string, { usd: number; changePct24h: number }> = new Map()
+    try {
+      spots = await fetchUsdSpots(c.env, [sym])
+    } catch (e) {
+      console.warn('[wallet/deposit-intent] fetchUsdSpots failed, using wallet price fallback', e)
+    }
+    const fallback = Number(asset.price)
+    const unitUsd =
+      spots.get(sym)?.usd ?? (Number.isFinite(fallback) && fallback > 0 ? fallback : 0)
+    const eqUsd = amount * unitUsd
 
-  const tid = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
-  const expiresAt = now + DEPOSIT_INTENT_TTL_SEC
+    const tid = crypto.randomUUID()
+    const now = Math.floor(Date.now() / 1000)
+    const expiresAt = now + DEPOSIT_INTENT_TTL_SEC
 
-  await c.var.db.insert(schema.walletTransactions).values({
-    id: tid,
-    userId,
-    type: 'deposit',
-    amount: String(amount.toFixed(8)),
-    eqAmount: String(eqUsd.toFixed(8)),
-    status: 'pending',
-    createdAt: now,
-    methodType: 'crypto',
-    methodName: WALLET_METHOD_DEPOSIT_REQUEST,
-    methodSymbol: asset.coinShort,
-    methodIcon: coincapIconUrl(sym),
-    methodIconClass: asset.iconClass ?? undefined,
-    note: null,
-    counterpartyAddress: null,
-    walletAssetId: asset.id,
-    expiresAt,
-  })
-
-  const [u] = await c.var.db
-    .select({ email: schema.users.email, publicId: schema.users.publicId })
-    .from(schema.users)
-    .where(eq(schema.users.id, userId))
-    .limit(1)
-
-  const settings = await getPlatformSettingsRow(c.var.db)
-  const supportTo = settings?.supportEmail?.trim() ?? ''
-  let supportNotified = false
-  let emailWarning: string | undefined
-
-  if (supportTo.length > 0 && u) {
-    const branding = await getTransactionalEmailBranding(c.env, c.var.db)
-    const tpl = supportWalletRequestEmailHtml({
-      kind: 'deposit',
-      userEmail: u.email,
-      userPublicId: u.publicId,
-      assetSymbol: sym,
-      amountNative: amount.toFixed(8).replace(/\.?0+$/, '') || String(amount),
-      eqUsd: eqUsd.toFixed(2),
-      transactionId: tid,
-      depositExpiresAt: expiresAt,
-      ...branding,
+    await c.var.db.insert(schema.walletTransactions).values({
+      id: tid,
+      userId,
+      type: 'deposit',
+      amount: String(amount.toFixed(8)),
+      eqAmount: String(eqUsd.toFixed(8)),
+      status: 'pending',
+      createdAt: now,
+      methodType: 'crypto',
+      methodName: WALLET_METHOD_DEPOSIT_REQUEST,
+      methodSymbol: asset.coinShort,
+      methodIcon: coincapIconUrl(sym),
+      methodIconClass: asset.iconClass ?? undefined,
+      note: null,
+      counterpartyAddress: null,
+      walletAssetId: asset.id,
+      expiresAt,
     })
-    const r = await sendEmail(c.env, supportTo, tpl.subject, tpl.html)
-    supportNotified = r.ok
-    if (!r.ok) emailWarning = r.error
-  } else if (!supportTo) {
-    console.warn('support_email empty; deposit intent email skipped')
-  }
 
-  return c.json({ id: tid, expiresAt, supportNotified, ...(emailWarning ? { emailWarning } : {}) })
+    const [u] = await c.var.db
+      .select({ email: schema.users.email, publicId: schema.users.publicId })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1)
+
+    const settings = await getPlatformSettingsRow(c.var.db)
+    const supportTo = settings?.supportEmail?.trim() ?? ''
+    let supportNotified = false
+    let emailWarning: string | undefined
+
+    if (supportTo.length > 0 && u) {
+      const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+      const tpl = supportWalletRequestEmailHtml({
+        kind: 'deposit',
+        userEmail: u.email,
+        userPublicId: u.publicId,
+        assetSymbol: sym,
+        amountNative: amount.toFixed(8).replace(/\.?0+$/, '') || String(amount),
+        eqUsd: eqUsd.toFixed(2),
+        transactionId: tid,
+        depositExpiresAt: expiresAt,
+        ...branding,
+      })
+      const r = await sendEmail(c.env, supportTo, tpl.subject, tpl.html)
+      supportNotified = r.ok
+      if (!r.ok) emailWarning = r.error
+    } else if (!supportTo) {
+      console.warn('support_email empty; deposit intent email skipped')
+    }
+
+    return c.json({ id: tid, expiresAt, supportNotified, ...(emailWarning ? { emailWarning } : {}) })
+  } catch (err) {
+    console.error('[wallet/deposit-intent]', err)
+    return c.json({ error: 'Could not record deposit request' }, 500)
+  }
 })
 
 wallet.post('/convert', requireUser, async (c) => {

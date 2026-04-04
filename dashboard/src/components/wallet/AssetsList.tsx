@@ -163,10 +163,19 @@ export default function AssetsList({ userCoins, displayCurrency, onWalletRefresh
       {selectedCoin ? (
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="">
           {modalType === 'send' ? (
-            <Send coin={selectedCoin} onSuccess={() => onWalletRefresh?.()} />
+            <Send
+              coin={selectedCoin}
+              displayCurrency={displayCurrency}
+              onSuccess={() => onWalletRefresh?.()}
+            />
           ) : null}
           {modalType === 'receive' ? (
-            <ReceiveFlow key={receiveFlowKey} coin={selectedCoin} onSuccess={() => onWalletRefresh?.()} />
+            <ReceiveFlow
+              key={receiveFlowKey}
+              coin={selectedCoin}
+              displayCurrency={displayCurrency}
+              onSuccess={() => onWalletRefresh?.()}
+            />
           ) : null}
           {modalType === 'swap' ? <Swap coin={selectedCoin} /> : null}
         </Modal>

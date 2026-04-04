@@ -1,21 +1,37 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import AssetAvatar from '../common/AssetAvatar'
 import Receive from './Receive'
-import { UserCoinsProps } from '@/types/wallet'
+import { type UserCoinsProps, type WalletDisplayCurrency } from '@/types/wallet'
 import { formatCurrency, formatNumber } from '@/util/formatCurrency'
 import { postWalletDepositIntent } from '@/services/walletService'
+import {
+  formatUsdAndAccountFiat,
+  parseCryptoAmountFromInput,
+  safeFormatCurrency,
+  usdToAccountFiatAmount,
+} from '@/util/walletDisplay'
 
 type Props = {
   coin: UserCoinsProps
+  displayCurrency: WalletDisplayCurrency
   onSuccess?: () => void
 }
 
-export default function ReceiveFlow({ coin, onSuccess }: Props) {
+export default function ReceiveFlow({ coin, displayCurrency, onSuccess }: Props) {
   const [step, setStep] = useState<'amount' | 'address'>('amount')
   const [amount, setAmount] = useState('')
+  const [amountMode, setAmountMode] = useState<'native' | 'account'>('native')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const unitUsd = Number(coin.price)
+  const accountCode = displayCurrency.code?.trim().toUpperCase() || 'USD'
+
+  const nativeAmount = useMemo(
+    () => parseCryptoAmountFromInput(amount, amountMode, unitUsd, displayCurrency),
+    [amount, amountMode, unitUsd, displayCurrency]
+  )
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -26,8 +42,8 @@ export default function ReceiveFlow({ coin, onSuccess }: Props) {
   }
 
   const handleContinue = async () => {
-    const n = parseFloat(amount)
-    if (!amount || !Number.isFinite(n) || n <= 0) {
+    const n = nativeAmount
+    if (!amount || n == null) {
       setError('Please enter a valid amount')
       return
     }
@@ -56,6 +72,35 @@ export default function ReceiveFlow({ coin, onSuccess }: Props) {
     if (e.key === 'Enter') void handleContinue()
   }
 
+  const equiv =
+    nativeAmount != null && Number.isFinite(unitUsd) && unitUsd > 0 ? (
+      <div className="text-xs text-neutral-400 space-y-0.5">
+        <div>
+          ≈ {formatCurrency(nativeAmount * unitUsd, 'USD')} USD
+          {accountCode !== 'USD' ? (
+            <span className="text-neutral-500">
+              {' '}
+              · {safeFormatCurrency(usdToAccountFiatAmount(nativeAmount * unitUsd, displayCurrency), accountCode)}
+            </span>
+          ) : null}
+        </div>
+        {amountMode === 'account' ? (
+          <div>
+            ≈ {formatNumber(nativeAmount, 8)} {coin.coinShort}
+          </div>
+        ) : accountCode !== 'USD' ? (
+          <div>
+            ≈{' '}
+            {safeFormatCurrency(
+              usdToAccountFiatAmount(nativeAmount * unitUsd, displayCurrency),
+              accountCode
+            )}{' '}
+            {accountCode}
+          </div>
+        ) : null}
+      </div>
+    ) : null
+
   if (step === 'address') {
     return <Receive coin={coin} />
   }
@@ -77,11 +122,41 @@ export default function ReceiveFlow({ coin, onSuccess }: Props) {
       </div>
 
       <p className="text-xs text-neutral-400">
-        Enter how much you plan to deposit. We will notify support and show your deposit address next.
+        Enter how much you plan to deposit. Choose {coin.coinShort} or your account currency; we show USD and the
+        other equivalent.
       </p>
 
+      <div className="flex rounded-lg border border-neutral-700 p-0.5 text-[10px]">
+        <button
+          type="button"
+          onClick={() => {
+            setAmountMode('native')
+            setError(null)
+          }}
+          className={`flex-1 rounded-md py-1.5 font-medium transition-colors ${
+            amountMode === 'native' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          {coin.coinShort}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setAmountMode('account')
+            setError(null)
+          }}
+          className={`flex-1 rounded-md py-1.5 font-medium transition-colors ${
+            amountMode === 'account' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          {accountCode}
+        </button>
+      </div>
+
       <div className="space-y-2.5">
-        <label className="text-[10px] text-neutral-400">Amount</label>
+        <label className="text-[10px] text-neutral-400">
+          Amount {amountMode === 'native' ? `(${coin.coinShort})` : `(${accountCode})`}
+        </label>
         <div className="relative">
           <input
             type="text"
@@ -93,14 +168,10 @@ export default function ReceiveFlow({ coin, onSuccess }: Props) {
             aria-label="Deposit amount"
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-neutral-400">
-            {coin.coinShort}
+            {amountMode === 'native' ? coin.coinShort : accountCode}
           </div>
         </div>
-        {amount ? (
-          <div className="text-xs text-neutral-400">
-            Approx. {formatCurrency(parseFloat(amount) * parseFloat(coin.price), 'USD')}
-          </div>
-        ) : null}
+        {amount ? equiv : null}
       </div>
 
       {error ? (
@@ -131,6 +202,12 @@ export default function ReceiveFlow({ coin, onSuccess }: Props) {
 
       <div className="text-[10px] text-neutral-500 text-center">
         Balance: {formatNumber(coin.userBalance, 4)} {coin.coinShort}
+        {Number.isFinite(unitUsd) && unitUsd > 0 ? (
+          <span className="block mt-0.5">
+            {formatUsdAndAccountFiat(coin.userBalance * unitUsd, displayCurrency).usd} ·{' '}
+            {formatUsdAndAccountFiat(coin.userBalance * unitUsd, displayCurrency).fiat}
+          </span>
+        ) : null}
       </div>
     </div>
   )

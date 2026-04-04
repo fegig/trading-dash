@@ -8,20 +8,49 @@ import type {
 } from '../types/platform'
 import { get, post } from '../util/request'
 import { endpoints } from './endpoints'
+import { asStringArray } from '../util/asStringArray'
+
+function normalizeTradingBot(b: Record<string, unknown>): TradingBotPlan {
+  const row = b as unknown as TradingBotPlan
+  return {
+    ...row,
+    markets: asStringArray(b.markets),
+    guardrails: asStringArray(b.guardrails),
+  }
+}
+
+function normalizeCopyTrader(t: Record<string, unknown>): CopyTraderProfile {
+  const row = t as unknown as CopyTraderProfile
+  return {
+    ...row,
+    focusPairs: asStringArray(t.focusPairs),
+  }
+}
+
+function normalizeInvestmentProduct(p: Record<string, unknown>): InvestmentProduct {
+  const row = p as unknown as InvestmentProduct
+  return {
+    ...row,
+    focus: asStringArray(p.focus),
+  }
+}
 
 export async function getTradingBots(): Promise<TradingBotPlan[]> {
   const data = await get(endpoints.platform.tradingBots)
-  return Array.isArray(data) ? (data as TradingBotPlan[]) : []
+  if (!Array.isArray(data)) return []
+  return (data as Record<string, unknown>[]).map(normalizeTradingBot)
 }
 
 export async function getCopyTraders(): Promise<CopyTraderProfile[]> {
   const data = await get(endpoints.platform.copyTraders)
-  return Array.isArray(data) ? (data as CopyTraderProfile[]) : []
+  if (!Array.isArray(data)) return []
+  return (data as Record<string, unknown>[]).map(normalizeCopyTrader)
 }
 
 export async function getInvestmentProducts(): Promise<InvestmentProduct[]> {
   const data = await get(endpoints.platform.investmentProducts)
-  return Array.isArray(data) ? (data as InvestmentProduct[]) : []
+  if (!Array.isArray(data)) return []
+  return (data as Record<string, unknown>[]).map(normalizeInvestmentProduct)
 }
 
 export async function getCopyAllocations(): Promise<CopyAllocation[]> {
