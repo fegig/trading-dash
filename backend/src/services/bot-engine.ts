@@ -1,13 +1,42 @@
-import { and, eq, gt } from 'drizzle-orm'
+import { and, count, desc, eq, gt, gte } from 'drizzle-orm'
 import type { Env } from '../types/env'
 import { createDbContext, releaseDbContext } from '../db/client'
 import * as schema from '../db/schema'
+import { resolveUsdPerFiatUnit } from '../lib/wallet-ledger'
 
 const CC_DATA = 'https://min-api.cryptocompare.com/data'
 
+function utcDayStartUnix(nowSec: number): number {
+  const d = new Date(nowSec * 1000)
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000)
+}
+
+/** Parses cadence strings like 15m, 1h, 4h, 1d, daily → minimum seconds between runs per subscription. */
+function cadenceToMinIntervalSeconds(cadence: string): number {
+  const c = cadence.trim().toLowerCase()
+  if (c === 'daily') return 86400
+  const m = c.match(/^(\d+)\s*(m|h|d)$/)
+  if (m) {
+    const n = Number(m[1])
+    if (!Number.isFinite(n) || n <= 0) return 3600
+    const u = m[2]
+    if (u === 'm') return n * 60
+    if (u === 'h') return n * 3600
+    if (u === 'd') return n * 86400
+  }
+  return 3600
+}
+
+function numOr(v: unknown, fallback: number): number {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : fallback
+}
+
 /**
- * Hourly cron: for each active bot subscription, evaluate CryptoCompare 24h move vs bot strategy
- * and insert a small completed trade + bump subscription lifetime P&amp;L.
+ * Scheduled cron: for each active bot subscription, optionally create a completed bot trade.
+ * - Respects per-bot max trades per UTC day (counts `bot_trade_runs` for the subscription).
+ * - Respects cadence (min seconds since last run for that subscription).
+ * - Trade notional (`invested`) scales with user fiat balance (USD equivalent), clamped by bot min/max USD.
  */
 export async function runBotCycle(env: Env): Promise<void> {
   const key = env.CRYPTOCOMPARE_API_KEY?.trim()
@@ -17,6 +46,7 @@ export async function runBotCycle(env: Env): Promise<void> {
   try {
     const { db } = ctx
     const now = Math.floor(Date.now() / 1000)
+    const dayStart = utcDayStartUnix(now)
 
     const subs = await db
       .select()
@@ -24,24 +54,48 @@ export async function runBotCycle(env: Env): Promise<void> {
       .where(gt(schema.userBotSubscriptions.expiresAt, now))
 
     for (const sub of subs) {
-      const [recent] = await db
-        .select()
-        .from(schema.botTradeRuns)
-        .where(
-          and(
-            eq(schema.botTradeRuns.subscriptionRowId, sub.id),
-            gt(schema.botTradeRuns.ranAt, now - 3600)
-          )
-        )
-        .limit(1)
-      if (recent) continue
-
       const [bot] = await db
         .select()
         .from(schema.tradingBots)
         .where(eq(schema.tradingBots.id, sub.botId))
         .limit(1)
       if (!bot) continue
+
+      const maxPerDay = numOr(bot.maxTradesPerDay, 4)
+      const minInterval = cadenceToMinIntervalSeconds(bot.cadence ?? '1h')
+
+      const [{ n: runsToday }] = await db
+        .select({ n: count() })
+        .from(schema.botTradeRuns)
+        .where(
+          and(eq(schema.botTradeRuns.subscriptionRowId, sub.id), gte(schema.botTradeRuns.ranAt, dayStart))
+        )
+      if (Number(runsToday) >= maxPerDay) continue
+
+      const [lastRun] = await db
+        .select()
+        .from(schema.botTradeRuns)
+        .where(eq(schema.botTradeRuns.subscriptionRowId, sub.id))
+        .orderBy(desc(schema.botTradeRuns.ranAt))
+        .limit(1)
+      if (lastRun && now - lastRun.ranAt < minInterval) continue
+
+      const fiat = await resolveUsdPerFiatUnit(env, db, sub.userId)
+      if (!fiat) continue
+
+      const balanceUsd = Number(fiat.fiatRow.userBalance) * fiat.usdPerUnit
+      if (!Number.isFinite(balanceUsd) || balanceUsd <= 0) continue
+
+      const pct = numOr(bot.tradeSizePctOfFiatBalance, 0.05)
+      const minU = numOr(bot.minTradeSizeUsd, 10)
+      const maxU = numOr(bot.maxTradeSizeUsd, 500)
+
+      let investedUsd = balanceUsd * pct
+      investedUsd = Math.min(investedUsd, maxU)
+      if (investedUsd < minU) continue
+
+      investedUsd = Number(investedUsd.toFixed(2))
+      if (investedUsd < minU) continue
 
       const markets = Array.isArray(bot.markets) ? (bot.markets as string[]) : []
       const rawSym = markets[0] ?? 'BTC'
@@ -71,8 +125,8 @@ export async function runBotCycle(env: Env): Promise<void> {
       const price = raw.PRICE
       const tradeId = crypto.randomUUID()
       const pair = `${base}-${quote}`
-      const invested = 100
-      const roiVal = Number((Math.abs(chg) * 0.15).toFixed(4))
+      const moveFrac = Math.min(Math.abs(chg) / 100, 0.25)
+      const roiVal = Number((investedUsd * moveFrac * 0.12).toFixed(4))
       const closePx = price * (1 + (side === 'buy' ? 0.0005 : -0.0005))
 
       await db.insert(schema.trades).values({
@@ -85,15 +139,15 @@ export async function runBotCycle(env: Env): Promise<void> {
         direction: side === 'buy' ? 'long' : 'short',
         entryTime: now,
         entryPrice: String(price),
-        invested: String(invested),
+        invested: String(investedUsd),
         currency: 'USD',
         closingTime: now,
         closingPrice: String(closePx),
         status: 'completed',
         roi: String(roiVal),
         leverage: 1,
-        size: String(invested),
-        margin: String(invested),
+        size: String(investedUsd),
+        margin: String(investedUsd),
         marginPercentage: '100',
         marginType: 'cross',
         pnl: String(roiVal),
@@ -125,7 +179,17 @@ export async function runBotCycle(env: Env): Promise<void> {
         subscriptionRowId: sub.id,
         ranAt: now,
         tradesCreated: 1,
-        detailJson: JSON.stringify({ base, quote, side, price, strategy: bot.strategy }),
+        detailJson: JSON.stringify({
+          base,
+          quote,
+          side,
+          price,
+          strategy: bot.strategy,
+          investedUsd,
+          balanceUsdApprox: Number(balanceUsd.toFixed(2)),
+          runsToday: Number(runsToday) + 1,
+          maxPerDay,
+        }),
       })
     }
   } finally {

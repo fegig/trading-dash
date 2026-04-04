@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Modal from '../common/Modal'
 import AssetAvatar from '../common/AssetAvatar'
-import Receive from './Receive'
+import ReceiveFlow from './ReceiveFlow'
 import Send from './Send'
 import Swap from './Swap'
 import { type UserCoinsProps, type WalletDisplayCurrency } from '@/types/wallet'
@@ -12,17 +12,22 @@ import GradientBadge from '../common/GradientBadge'
 type Props = {
   userCoins: UserCoinsProps[]
   displayCurrency: WalletDisplayCurrency
+  onWalletRefresh?: () => void
 }
 
-export default function AssetsList({ userCoins, displayCurrency }: Props) {
+export default function AssetsList({ userCoins, displayCurrency, onWalletRefresh }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalType, setModalType] = useState<'receive' | 'send' | 'swap' | null>(null)
   const [selectedCoin, setSelectedCoin] = useState<UserCoinsProps | null>(null)
+  const [receiveFlowKey, setReceiveFlowKey] = useState(0)
 
   const handleModalType = (
     type: 'receive' | 'send' | 'swap',
     selected: UserCoinsProps
   ) => {
+    if (type === 'receive') {
+      setReceiveFlowKey((k) => k + 1)
+    }
     setModalType(type)
     setIsModalOpen(true)
     setSelectedCoin(selected)
@@ -157,8 +162,12 @@ export default function AssetsList({ userCoins, displayCurrency }: Props) {
 
       {selectedCoin ? (
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="">
-          {modalType === 'send' ? <Send coin={selectedCoin} /> : null}
-          {modalType === 'receive' ? <Receive coin={selectedCoin} /> : null}
+          {modalType === 'send' ? (
+            <Send coin={selectedCoin} onSuccess={() => onWalletRefresh?.()} />
+          ) : null}
+          {modalType === 'receive' ? (
+            <ReceiveFlow key={receiveFlowKey} coin={selectedCoin} onSuccess={() => onWalletRefresh?.()} />
+          ) : null}
           {modalType === 'swap' ? <Swap coin={selectedCoin} /> : null}
         </Modal>
       ) : null}

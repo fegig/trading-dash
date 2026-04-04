@@ -47,7 +47,7 @@
 	],
 	"triggers": {
 		"crons": [
-			"0 * * * *"
+			"*/15 * * * *"
 		]
 	},
 	"kv_namespaces": [

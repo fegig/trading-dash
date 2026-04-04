@@ -7,6 +7,7 @@ import {
   deleteAdminBot,
   type AdminBot,
 } from '../../services/adminService'
+import { asStringArray } from '../../util/asStringArray'
 
 const emptyBot = (): Omit<AdminBot, 'id'> => ({
   name: '',
@@ -37,9 +38,11 @@ function BotForm({
   const [form, setForm] = useState<Omit<AdminBot, 'id'>>({
     ...emptyBot(),
     ...initial,
+    markets: asStringArray(initial.markets),
+    guardrails: asStringArray(initial.guardrails),
   })
-  const [marketsStr, setMarketsStr] = useState((initial.markets ?? []).join(', '))
-  const [guardrailsStr, setGuardrailsStr] = useState((initial.guardrails ?? []).join('\n'))
+  const [marketsStr, setMarketsStr] = useState(asStringArray(initial.markets).join(', '))
+  const [guardrailsStr, setGuardrailsStr] = useState(asStringArray(initial.guardrails).join('\n'))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

@@ -33,6 +33,7 @@ import AdminCatalogFiatPage from './routes/admin/AdminCatalogFiatPage'
 import AdminSettingsPage from './routes/admin/AdminSettingsPage'
 import AdminVerificationPage from './routes/admin/AdminVerificationPage'
 import AdminFaqPage from './routes/admin/AdminFaqPage'
+import AdminWalletPendingPage from './routes/admin/AdminWalletPendingPage'
 import AllTradesPage from './routes/dashboard/trades'
 import Wallets from './routes/dashboard/Wallets'
 import DashboardPage from './routes/dashboard/dashboard'
@@ -95,6 +96,7 @@ function App() {
             <Route path="bots" element={<AdminBotsPage />} />
             <Route path="copy-traders" element={<AdminCopyTradersPage />} />
             <Route path="investments" element={<AdminInvestmentsPage />} />
+            <Route path="wallet/pending" element={<AdminWalletPendingPage />} />
             <Route path="catalog/coins" element={<AdminCatalogCoinsPage />} />
             <Route path="catalog/fiat" element={<AdminCatalogFiatPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />

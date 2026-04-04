@@ -177,8 +177,17 @@ export const walletTransactions = mysqlTable(
     methodIcon: varchar('method_icon', { length: 512 }),
     methodIconClass: varchar('method_icon_class', { length: 64 }),
     note: text('note'),
+    expiresAt: bigint('expires_at', { mode: 'number' }),
+    counterpartyAddress: varchar('counterparty_address', { length: 512 }),
+    walletAssetId: int('wallet_asset_id').references(() => walletAssets.id, {
+      onDelete: 'set null',
+    }),
   },
-  (t) => [index('wt_user_idx').on(t.userId)]
+  (t) => [
+    index('wt_user_idx').on(t.userId),
+    index('wt_wallet_asset_idx').on(t.walletAssetId),
+    index('wt_expires_idx').on(t.expiresAt),
+  ]
 )
 
 export const trades = mysqlTable(
@@ -373,6 +382,17 @@ export const tradingBots = mysqlTable('trading_bots', {
   cadence: varchar('cadence', { length: 64 }).notNull(),
   guardrails: json('guardrails').$type<string[]>().notNull(),
   subscriptionDays: int('subscription_days').default(30),
+  /** Cap bot-automated trades per subscriber per UTC calendar day (cron enforces). */
+  maxTradesPerDay: int('max_trades_per_day').notNull().default(4),
+  /** Fraction of user fiat wallet (USD-equivalent) used as notional per trade, before min/max USD clamps. */
+  tradeSizePctOfFiatBalance: decimal('trade_size_pct_of_fiat_balance', {
+    precision: 10,
+    scale: 6,
+  })
+    .notNull()
+    .default('0.05'),
+  minTradeSizeUsd: decimal('min_trade_size_usd', { precision: 12, scale: 2 }).notNull().default('10.00'),
+  maxTradeSizeUsd: decimal('max_trade_size_usd', { precision: 12, scale: 2 }).notNull().default('500.00'),
 })
 
 export const copyTraders = mysqlTable('copy_traders', {

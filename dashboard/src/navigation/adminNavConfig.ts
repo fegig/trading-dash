@@ -37,6 +37,7 @@ export const adminNavGroups: AdminNavGroup[] = [
     title: 'Finance',
     items: [
       { label: 'Investments', path: '/admin/investments', iconClass: 'fi-rr-chart-pie' },
+      { label: 'Wallet pending', path: '/admin/wallet/pending', iconClass: 'fi-rr-time-past' },
     ],
   },
   {

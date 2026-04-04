@@ -15,6 +15,12 @@ export type TradingBotPlan = {
   cadence: string
   guardrails: string[]
   subscriptionDays?: number
+  /** Cron: max automated trades per UTC day per subscriber. */
+  maxTradesPerDay?: number
+  /** Fraction of fiat balance (USD equivalent) used as trade notional. */
+  tradeSizePctOfFiatBalance?: number
+  minTradeSizeUsd?: number
+  maxTradeSizeUsd?: number
 }
 
 export type BotSubscription = {

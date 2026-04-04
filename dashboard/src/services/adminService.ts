@@ -609,21 +609,18 @@ export async function rejectVerificationDocument(publicId: string, documentId: s
   }
 }
 
-export async function downloadVerificationDocument(publicId: string, documentId: string): Promise<void> {
+/** Load verification file bytes for inline preview (same route as legacy download). */
+export async function fetchVerificationDocumentBlob(
+  publicId: string,
+  documentId: string
+): Promise<{ blob: Blob }> {
   const res = await authClient.get(endpoints.admin.verificationDownload(publicId, documentId), {
     responseType: 'blob',
   })
-  const blob = res.data as Blob
-  const cd = res.headers['content-disposition'] as string | undefined
-  let filename = 'document'
-  const m = cd?.match(/filename="?([^";]+)"?/i)
-  if (m?.[1]) filename = m[1]
-  const href = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = href
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(href)
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error('Failed to load document')
+  }
+  return { blob: res.data as Blob }
 }
 
 // ─── FAQ admin ───────────────────────────────────────────────────────────────
@@ -708,4 +705,38 @@ export async function updateAdminFaqItem(
 
 export async function deleteAdminFaqItem(id: number): Promise<void> {
   await remove(endpoints.admin.faqAdminItem(id))
+}
+
+// ─── Wallet pending (send / receive requests) ───────────────────────────────
+
+export type AdminPendingWalletRow = {
+  id: string
+  userPublicId: string
+  userEmail: string
+  type: 'withdrawal' | 'deposit'
+  amount: number
+  eqAmount: number
+  status: string
+  createdAt: number
+  methodSymbol: string
+  methodName: string
+  counterpartyAddress: string | null
+  expiresAt: number | null
+  walletAssetId: number | null
+}
+
+export async function getAdminWalletPending(): Promise<AdminPendingWalletRow[]> {
+  const data = await get(endpoints.admin.walletPending)
+  const rows = (data as { data?: AdminPendingWalletRow[] })?.data
+  return Array.isArray(rows) ? rows : []
+}
+
+export async function confirmAdminWalletPending(id: string): Promise<{ ok: boolean; emailSent?: boolean }> {
+  const res = await post(endpoints.admin.walletPendingConfirm(id), {} as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Confirm failed'
+    throw new Error(msg)
+  }
+  const d = res.data as { ok?: boolean; emailSent?: boolean }
+  return { ok: d.ok !== false, emailSent: d.emailSent }
 }

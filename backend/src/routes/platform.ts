@@ -131,6 +131,10 @@ platform.get('/trading-bots', async (c) => {
       cadence: b.cadence,
       guardrails: b.guardrails,
       subscriptionDays: b.subscriptionDays ?? 30,
+      maxTradesPerDay: b.maxTradesPerDay ?? 4,
+      tradeSizePctOfFiatBalance: Number(b.tradeSizePctOfFiatBalance ?? 0.05),
+      minTradeSizeUsd: Number(b.minTradeSizeUsd ?? 10),
+      maxTradeSizeUsd: Number(b.maxTradeSizeUsd ?? 500),
     }))
   )
 })

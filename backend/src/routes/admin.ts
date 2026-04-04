@@ -17,6 +17,7 @@ import { registerAdminCatalogRoutes } from './admin-catalog'
 import { registerAdminSettingsRoutes } from './admin-settings'
 import { registerAdminFaqRoutes } from './admin-faq'
 import { registerAdminVerificationQueueRoutes } from './admin-verification-queue'
+import { registerAdminWalletPendingRoutes } from './admin-wallet-pending'
 
 const admin = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
@@ -24,6 +25,7 @@ registerAdminCatalogRoutes(admin)
 registerAdminSettingsRoutes(admin)
 registerAdminFaqRoutes(admin)
 registerAdminVerificationQueueRoutes(admin)
+registerAdminWalletPendingRoutes(admin)
 
 async function sendWalletAdjustNotifyEmail(
   env: Env,
@@ -896,6 +898,10 @@ admin.post('/bots', requireAdmin, async (c) => {
     cadence: String(body.cadence ?? 'daily'),
     guardrails: Array.isArray(body.guardrails) ? (body.guardrails as string[]) : [],
     subscriptionDays: Number(body.subscriptionDays ?? 30),
+    maxTradesPerDay: Number(body.maxTradesPerDay ?? 4),
+    tradeSizePctOfFiatBalance: String(Number(body.tradeSizePctOfFiatBalance ?? 0.05).toFixed(6)),
+    minTradeSizeUsd: String(Number(body.minTradeSizeUsd ?? 10).toFixed(2)),
+    maxTradeSizeUsd: String(Number(body.maxTradeSizeUsd ?? 500).toFixed(2)),
   })
 
   return c.json({ ok: true, id })
@@ -918,6 +924,16 @@ admin.patch('/bots/:id', requireAdmin, async (c) => {
   if (typeof body.cadence === 'string') upd.cadence = body.cadence
   if (Array.isArray(body.guardrails)) upd.guardrails = body.guardrails
   if (body.subscriptionDays !== undefined) upd.subscriptionDays = Number(body.subscriptionDays)
+  if (body.maxTradesPerDay !== undefined) upd.maxTradesPerDay = Number(body.maxTradesPerDay)
+  if (body.tradeSizePctOfFiatBalance !== undefined) {
+    upd.tradeSizePctOfFiatBalance = String(Number(body.tradeSizePctOfFiatBalance).toFixed(6))
+  }
+  if (body.minTradeSizeUsd !== undefined) {
+    upd.minTradeSizeUsd = String(Number(body.minTradeSizeUsd).toFixed(2))
+  }
+  if (body.maxTradeSizeUsd !== undefined) {
+    upd.maxTradeSizeUsd = String(Number(body.maxTradeSizeUsd).toFixed(2))
+  }
 
   if (Object.keys(upd).length === 0) return c.json({ error: 'Nothing to update' }, 400)
   await c.var.db.update(schema.tradingBots).set(upd).where(eq(schema.tradingBots.id, id))

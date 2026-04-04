@@ -23,6 +23,17 @@ export const walletConvertBodySchema = z.object({
   fromAmount: z.number().positive(),
 })
 
+export const walletSendRequestBodySchema = z.object({
+  walletId: z.string().min(1),
+  amount: z.number().positive(),
+  destinationAddress: z.string().min(10).max(512),
+})
+
+export const walletDepositIntentBodySchema = z.object({
+  walletId: z.string().min(1),
+  amount: z.number().positive(),
+})
+
 export const currencyIdBodySchema = z.object({
   currencyId: z.union([z.string(), z.number()]),
 })

@@ -209,6 +209,95 @@ export function adminWalletAdjustmentEmailHtml(
   }
 }
 
+/** Internal support inbox — new send/receive request. */
+export function supportWalletRequestEmailHtml(
+  params: {
+    kind: 'withdrawal' | 'deposit'
+    userEmail: string
+    userPublicId: string
+    assetSymbol: string
+    amountNative: string
+    eqUsd: string
+    transactionId: string
+    destinationAddress?: string
+    depositExpiresAt?: number
+  } & EmailBranding
+): { subject: string; html: string } {
+  const {
+    kind,
+    userEmail,
+    userPublicId,
+    assetSymbol,
+    amountNative,
+    eqUsd,
+    transactionId,
+    destinationAddress,
+    depositExpiresAt,
+    ...branding
+  } = params
+  const app = branding.appName ?? 'Trading Dash'
+  const label = kind === 'withdrawal' ? 'Withdrawal (send)' : 'Deposit (receive)'
+  const destBlock =
+    kind === 'withdrawal' && destinationAddress
+      ? `<li><strong>Destination:</strong> <span style="word-break:break-all">${escapeHtml(destinationAddress)}</span></li>`
+      : ''
+  const expBlock =
+    kind === 'deposit' && depositExpiresAt != null
+      ? `<li><strong>Intent expires (UTC):</strong> ${escapeHtml(new Date(depositExpiresAt * 1000).toISOString())}</li>`
+      : ''
+  const inner = `<h1 style="margin:0 0 12px;font-size:20px;font-weight:600;color:#111827">${escapeHtml(label)}</h1>
+      <p style="margin:0 0 16px;color:#4b5563">A user submitted a wallet request. Review it in the admin pending queue.</p>
+      <ul style="margin:0 0 16px;padding-left:20px;color:#4b5563;line-height:1.65">
+        <li><strong>Transaction ID:</strong> ${escapeHtml(transactionId)}</li>
+        <li><strong>User email:</strong> ${escapeHtml(userEmail)}</li>
+        <li><strong>User ID:</strong> ${escapeHtml(userPublicId)}</li>
+        <li><strong>Asset:</strong> ${escapeHtml(assetSymbol)}</li>
+        <li><strong>Amount:</strong> ${escapeHtml(amountNative)} ${escapeHtml(assetSymbol)} (≈ $${escapeHtml(eqUsd)} USD)</li>
+        ${destBlock}
+        ${expBlock}
+      </ul>
+      <p style="margin:0;font-size:14px;color:#6b7280">This message was sent by ${escapeHtml(app)}.</p>`
+  const footerBrand: EmailBranding = { ...branding, appName: branding.appName ?? app }
+  return {
+    subject: `${app} — ${label}: ${escapeHtml(assetSymbol)} ${escapeHtml(amountNative)}`,
+    html: wrapTransactionalEmail(inner, footerBrand),
+  }
+}
+
+/** User-facing confirmation after admin approves a pending send or receive. */
+export function walletRequestConfirmedEmailHtml(
+  params: {
+    kind: 'withdrawal' | 'deposit'
+    userFirstName?: string
+    assetSymbol: string
+    amountNative: string
+    eqUsd: string
+    balanceAfter: string
+    dashboardUrl: string
+  } & EmailBranding
+): { subject: string; html: string } {
+  const { userFirstName, kind, assetSymbol, amountNative, eqUsd, balanceAfter, dashboardUrl, ...branding } =
+    params
+  const app = branding.appName ?? 'Trading Dash'
+  const name = userFirstName?.trim() ? ` ${escapeHtml(userFirstName.trim())}` : ''
+  const action = kind === 'withdrawal' ? 'Withdrawal completed' : 'Deposit confirmed'
+  const walletUrl = `${dashboardUrl.replace(/\/$/, '')}/dashboard/wallet`
+  const inner = `<h1 style="margin:0 0 12px;font-size:20px;font-weight:600;color:#111827">${escapeHtml(action)}${name}</h1>
+      <p style="margin:0 0 16px;color:#4b5563">Your ${kind === 'withdrawal' ? 'send' : 'receive'} request has been processed.</p>
+      <ul style="margin:0 0 16px;padding-left:20px;color:#4b5563;line-height:1.65">
+        <li><strong>Asset:</strong> ${escapeHtml(assetSymbol)}</li>
+        <li><strong>Amount:</strong> ${escapeHtml(amountNative)} ${escapeHtml(assetSymbol)} (≈ $${escapeHtml(eqUsd)} USD)</li>
+        <li><strong>Balance after:</strong> ${escapeHtml(balanceAfter)} ${escapeHtml(assetSymbol)}</li>
+      </ul>
+      <p style="margin:0 0 16px"><a href="${escapeAttr(walletUrl)}" style="display:inline-block;padding:12px 22px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600">Open wallet</a></p>
+      <p style="margin:0;font-size:14px;color:#6b7280">If you did not request this, contact support immediately.</p>`
+  const footerBrand: EmailBranding = { ...branding, appName: branding.appName ?? app }
+  return {
+    subject: `${app} — ${action} (${escapeHtml(assetSymbol)})`,
+    html: wrapTransactionalEmail(inner, footerBrand),
+  }
+}
+
 export function loginNotificationEmailHtml(
   params: { device: string; time: string } & EmailBranding
 ): { subject: string; html: string } {

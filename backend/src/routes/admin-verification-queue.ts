@@ -1,5 +1,5 @@
 import type { Hono } from 'hono'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import type { Env } from '../types/env'
 import type { AppVariables } from '../types/env'
 import { requireAdmin } from '../middleware/admin'
@@ -27,7 +27,12 @@ export function registerAdminVerificationQueueRoutes(
       })
       .from(schema.verificationDocuments)
       .innerJoin(schema.users, eq(schema.verificationDocuments.userId, schema.users.id))
-      .where(eq(schema.verificationDocuments.status, 'review'))
+      .where(
+        and(
+          inArray(schema.verificationDocuments.status, ['review', 'approved']),
+          isNotNull(schema.verificationDocuments.r2Key)
+        )
+      )
 
     type Doc = {
       id: string

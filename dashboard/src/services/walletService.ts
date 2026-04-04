@@ -1,6 +1,7 @@
 import type { TransactionHistoryProps, UserCoinsProps, WalletAssetsApiResponse } from '../types/wallet'
 import { get, post } from '../util/request'
 import { endpoints } from './endpoints'
+import type { AxiosResponse } from 'axios'
 
 const DEFAULT_DISPLAY: WalletAssetsApiResponse['displayCurrency'] = {
   code: 'USD',
@@ -86,4 +87,77 @@ export async function postWalletConvert(
     }
   }
   return { ok: false, message: d.error ?? 'Conversion failed' }
+}
+
+export async function postWalletSendRequest(
+  walletId: string,
+  amount: number,
+  destinationAddress: string
+): Promise<
+  | {
+      ok: true
+      id: string
+      supportNotified: boolean
+      emailWarning?: string
+    }
+  | { ok: false; message: string }
+> {
+  const res = (await post(endpoints.wallet.sendRequest, {
+    walletId,
+    amount,
+    destinationAddress,
+  })) as AxiosResponse | undefined
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Send request failed'
+    return { ok: false, message: msg }
+  }
+  const d = res.data as {
+    id?: string
+    supportNotified?: boolean
+    emailWarning?: string
+  }
+  if (!d.id) return { ok: false, message: 'Invalid response' }
+  return {
+    ok: true,
+    id: d.id,
+    supportNotified: Boolean(d.supportNotified),
+    ...(d.emailWarning ? { emailWarning: d.emailWarning } : {}),
+  }
+}
+
+export async function postWalletDepositIntent(
+  walletId: string,
+  amount: number
+): Promise<
+  | {
+      ok: true
+      id: string
+      expiresAt: number
+      supportNotified: boolean
+      emailWarning?: string
+    }
+  | { ok: false; message: string }
+> {
+  const res = (await post(endpoints.wallet.depositIntent, {
+    walletId,
+    amount,
+  })) as AxiosResponse | undefined
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Deposit request failed'
+    return { ok: false, message: msg }
+  }
+  const d = res.data as {
+    id?: string
+    expiresAt?: number
+    supportNotified?: boolean
+    emailWarning?: string
+  }
+  if (d.id == null || d.expiresAt == null) return { ok: false, message: 'Invalid response' }
+  return {
+    ok: true,
+    id: d.id,
+    expiresAt: d.expiresAt,
+    supportNotified: Boolean(d.supportNotified),
+    ...(d.emailWarning ? { emailWarning: d.emailWarning } : {}),
+  }
 }

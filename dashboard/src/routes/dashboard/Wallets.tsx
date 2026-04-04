@@ -133,7 +133,11 @@ export default function Wallets() {
 
             <div ref={scrollContainerRef} className="overflow-x-auto scrollbar-none">
               <div className="flex gap-4 min-w-max">
-                <AssetsList userCoins={assets} displayCurrency={displayCurrency} />
+                <AssetsList
+                  userCoins={assets}
+                  displayCurrency={displayCurrency}
+                  onWalletRefresh={() => void loadWallet(true)}
+                />
               </div>
             </div>
           </section>

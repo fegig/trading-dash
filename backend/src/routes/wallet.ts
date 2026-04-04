@@ -1,6 +1,10 @@
 import { Hono } from 'hono'
-import { eq, desc } from 'drizzle-orm'
-import { walletConvertBodySchema } from '@trading-dash/shared'
+import { and, eq, desc } from 'drizzle-orm'
+import {
+  walletConvertBodySchema,
+  walletSendRequestBodySchema,
+  walletDepositIntentBodySchema,
+} from '@trading-dash/shared'
 import type { Env } from '../types/env'
 import type { AppVariables } from '../types/env'
 import { requireUser } from '../middleware/session'
@@ -8,7 +12,28 @@ import { catalogDepositAddress } from '../lib/catalog-deposit-address'
 import { coincapIconUrl } from '../lib/coincap'
 import { fetchUsdSpots } from '../lib/cc-prices'
 import { executeWalletConvert } from '../lib/wallet-ledger'
+import { getPlatformSettingsRow } from '../lib/platform-settings'
+import { sendEmail } from '../email/resend-client'
+import { supportWalletRequestEmailHtml } from '../email/templates'
+import { getTransactionalEmailBranding } from '../lib/email-branding'
+import {
+  WALLET_METHOD_WITHDRAWAL_REQUEST,
+  WALLET_METHOD_DEPOSIT_REQUEST,
+  DEPOSIT_INTENT_TTL_SEC,
+} from '../lib/wallet-request-constants'
 import * as schema from '../db/schema'
+
+type Db = AppVariables['db']
+
+async function resolveUserCryptoWallet(db: Db, userId: number, walletId: string) {
+  const [row] = await db
+    .select()
+    .from(schema.walletAssets)
+    .where(and(eq(schema.walletAssets.userId, userId), eq(schema.walletAssets.walletId, walletId)))
+    .limit(1)
+  if (!row || row.assetType !== 'crypto') return null
+  return row
+}
 
 const wallet = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
@@ -154,8 +179,160 @@ wallet.get('/transactions', requireUser, async (c) => {
       iconClass: t.methodIconClass ?? undefined,
     },
     note: t.note ?? undefined,
+    counterpartyAddress: t.counterpartyAddress?.trim() || undefined,
+    expiresAt: t.expiresAt ?? undefined,
   }))
   return c.json(data)
+})
+
+wallet.post('/send-request', requireUser, async (c) => {
+  const parsed = walletSendRequestBodySchema.safeParse(await c.req.json().catch(() => ({})))
+  if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+
+  const userId = c.var.user!.id
+  const { walletId, amount, destinationAddress } = parsed.data
+  const asset = await resolveUserCryptoWallet(c.var.db, userId, walletId)
+  if (!asset) return c.json({ error: 'Crypto asset not found' }, 404)
+
+  const bal = Number(asset.userBalance)
+  if (!Number.isFinite(bal) || bal + 1e-12 < amount) {
+    return c.json({ error: 'Insufficient balance' }, 400)
+  }
+
+  const sym = asset.coinShort.trim().toUpperCase()
+  const spots = await fetchUsdSpots(c.env, [sym])
+  const fallback = Number(asset.price)
+  const unitUsd =
+    spots.get(sym)?.usd ?? (Number.isFinite(fallback) && fallback > 0 ? fallback : 0)
+  const eqUsd = amount * unitUsd
+
+  const tid = crypto.randomUUID()
+  const now = Math.floor(Date.now() / 1000)
+
+  await c.var.db.insert(schema.walletTransactions).values({
+    id: tid,
+    userId,
+    type: 'withdrawal',
+    amount: String(amount.toFixed(8)),
+    eqAmount: String(eqUsd.toFixed(8)),
+    status: 'pending',
+    createdAt: now,
+    methodType: 'crypto',
+    methodName: WALLET_METHOD_WITHDRAWAL_REQUEST,
+    methodSymbol: asset.coinShort,
+    methodIcon: coincapIconUrl(sym),
+    methodIconClass: asset.iconClass ?? undefined,
+    note: null,
+    counterpartyAddress: destinationAddress.trim(),
+    walletAssetId: asset.id,
+    expiresAt: null,
+  })
+
+  const [u] = await c.var.db
+    .select({ email: schema.users.email, publicId: schema.users.publicId })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1)
+
+  const settings = await getPlatformSettingsRow(c.var.db)
+  const supportTo = settings?.supportEmail?.trim() ?? ''
+  let supportNotified = false
+  let emailWarning: string | undefined
+
+  if (supportTo.length > 0 && u) {
+    const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+    const tpl = supportWalletRequestEmailHtml({
+      kind: 'withdrawal',
+      userEmail: u.email,
+      userPublicId: u.publicId,
+      assetSymbol: sym,
+      amountNative: amount.toFixed(8).replace(/\.?0+$/, '') || String(amount),
+      eqUsd: eqUsd.toFixed(2),
+      transactionId: tid,
+      destinationAddress: destinationAddress.trim(),
+      ...branding,
+    })
+    const r = await sendEmail(c.env, supportTo, tpl.subject, tpl.html)
+    supportNotified = r.ok
+    if (!r.ok) emailWarning = r.error
+  } else if (!supportTo) {
+    console.warn('support_email empty; withdrawal request email skipped')
+  }
+
+  return c.json({ id: tid, supportNotified, ...(emailWarning ? { emailWarning } : {}) })
+})
+
+wallet.post('/deposit-intent', requireUser, async (c) => {
+  const parsed = walletDepositIntentBodySchema.safeParse(await c.req.json().catch(() => ({})))
+  if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+
+  const userId = c.var.user!.id
+  const { walletId, amount } = parsed.data
+  const asset = await resolveUserCryptoWallet(c.var.db, userId, walletId)
+  if (!asset) return c.json({ error: 'Crypto asset not found' }, 404)
+
+  const sym = asset.coinShort.trim().toUpperCase()
+  const spots = await fetchUsdSpots(c.env, [sym])
+  const fallback = Number(asset.price)
+  const unitUsd =
+    spots.get(sym)?.usd ?? (Number.isFinite(fallback) && fallback > 0 ? fallback : 0)
+  const eqUsd = amount * unitUsd
+
+  const tid = crypto.randomUUID()
+  const now = Math.floor(Date.now() / 1000)
+  const expiresAt = now + DEPOSIT_INTENT_TTL_SEC
+
+  await c.var.db.insert(schema.walletTransactions).values({
+    id: tid,
+    userId,
+    type: 'deposit',
+    amount: String(amount.toFixed(8)),
+    eqAmount: String(eqUsd.toFixed(8)),
+    status: 'pending',
+    createdAt: now,
+    methodType: 'crypto',
+    methodName: WALLET_METHOD_DEPOSIT_REQUEST,
+    methodSymbol: asset.coinShort,
+    methodIcon: coincapIconUrl(sym),
+    methodIconClass: asset.iconClass ?? undefined,
+    note: null,
+    counterpartyAddress: null,
+    walletAssetId: asset.id,
+    expiresAt,
+  })
+
+  const [u] = await c.var.db
+    .select({ email: schema.users.email, publicId: schema.users.publicId })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1)
+
+  const settings = await getPlatformSettingsRow(c.var.db)
+  const supportTo = settings?.supportEmail?.trim() ?? ''
+  let supportNotified = false
+  let emailWarning: string | undefined
+
+  if (supportTo.length > 0 && u) {
+    const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+    const tpl = supportWalletRequestEmailHtml({
+      kind: 'deposit',
+      userEmail: u.email,
+      userPublicId: u.publicId,
+      assetSymbol: sym,
+      amountNative: amount.toFixed(8).replace(/\.?0+$/, '') || String(amount),
+      eqUsd: eqUsd.toFixed(2),
+      transactionId: tid,
+      depositExpiresAt: expiresAt,
+      ...branding,
+    })
+    const r = await sendEmail(c.env, supportTo, tpl.subject, tpl.html)
+    supportNotified = r.ok
+    if (!r.ok) emailWarning = r.error
+  } else if (!supportTo) {
+    console.warn('support_email empty; deposit intent email skipped')
+  }
+
+  return c.json({ id: tid, expiresAt, supportNotified, ...(emailWarning ? { emailWarning } : {}) })
 })
 
 wallet.post('/convert', requireUser, async (c) => {

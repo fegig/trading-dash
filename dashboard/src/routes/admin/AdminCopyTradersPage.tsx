@@ -7,6 +7,7 @@ import {
   deleteAdminCopyTrader,
   type AdminCopyTrader,
 } from '../../services/adminService'
+import { asStringArray } from '../../util/asStringArray'
 
 const empty = (): Omit<AdminCopyTrader, 'id'> => ({
   name: '',
@@ -34,8 +35,12 @@ function TraderForm({
   onCancel: () => void
   saving: boolean
 }) {
-  const [form, setForm] = useState<Omit<AdminCopyTrader, 'id'>>({ ...empty(), ...initial })
-  const [pairsStr, setPairsStr] = useState((initial.focusPairs ?? []).join(', '))
+  const [form, setForm] = useState<Omit<AdminCopyTrader, 'id'>>({
+    ...empty(),
+    ...initial,
+    focusPairs: asStringArray(initial.focusPairs),
+  })
+  const [pairsStr, setPairsStr] = useState(asStringArray(initial.focusPairs).join(', '))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,9 +1,17 @@
 import { useState } from 'react'
+import { toast } from 'react-toastify'
 import AssetAvatar from '../common/AssetAvatar'
 import { UserCoinsProps } from '@/types/wallet'
 import { formatCurrency, formatNumber } from '@/util/formatCurrency'
+import { postWalletSendRequest } from '@/services/walletService'
 
-export default function Send({ coin }: { coin: UserCoinsProps }) {
+export default function Send({
+  coin,
+  onSuccess,
+}: {
+  coin: UserCoinsProps
+  onSuccess?: () => void
+}) {
   const [amount, setAmount] = useState<string>('')
   const [address, setAddress] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
@@ -26,7 +34,7 @@ export default function Send({ coin }: { coin: UserCoinsProps }) {
     setAmount(coin.userBalance.toString())
   }
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       setError('Please enter a valid amount')
       return
@@ -43,10 +51,23 @@ export default function Send({ coin }: { coin: UserCoinsProps }) {
     }
 
     setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
-      alert(`Successfully sent ${amount} ${coin.coinShort} to ${address}`)
-    }, 1500)
+    const res = await postWalletSendRequest(coin.walletId, parseFloat(amount), address.trim())
+    setIsLoading(false)
+
+    if (!res.ok) {
+      setError(res.message)
+      toast.error(res.message)
+      return
+    }
+
+    if (res.emailWarning) {
+      toast.warning(`Request submitted. Email notice: ${res.emailWarning}`)
+    } else {
+      toast.success(`Withdrawal request submitted for ${amount} ${coin.coinShort}.`)
+    }
+    onSuccess?.()
+    setAmount('')
+    setAddress('')
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

@@ -7,6 +7,7 @@ import {
   deleteAdminInvestment,
   type AdminInvestmentProduct,
 } from '../../services/adminService'
+import { asStringArray } from '../../util/asStringArray'
 
 const empty = (): Omit<AdminInvestmentProduct, 'id'> => ({
   name: '',
@@ -37,8 +38,12 @@ function InvestmentForm({
   onCancel: () => void
   saving: boolean
 }) {
-  const [form, setForm] = useState<Omit<AdminInvestmentProduct, 'id'>>({ ...empty(), ...initial })
-  const [focusStr, setFocusStr] = useState((initial.focus ?? []).join(', '))
+  const [form, setForm] = useState<Omit<AdminInvestmentProduct, 'id'>>({
+    ...empty(),
+    ...initial,
+    focus: asStringArray(initial.focus),
+  })
+  const [focusStr, setFocusStr] = useState(asStringArray(initial.focus).join(', '))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

@@ -65,6 +65,10 @@ export type TransactionHistoryProps = {
   createdAt: number
   method: TransactionMethod
   note?: string
+  /** Pending withdrawal destination when present. */
+  counterpartyAddress?: string
+  /** Pending deposit intent expiry (unix seconds). */
+  expiresAt?: number
 }
 
 export type WalletConversionQuote = {

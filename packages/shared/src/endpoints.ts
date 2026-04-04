@@ -43,6 +43,8 @@ export const endpoints = {
     assets: '/wallet/assets',
     transactions: '/wallet/transactions',
     convert: '/wallet/convert',
+    sendRequest: '/wallet/send-request',
+    depositIntent: '/wallet/deposit-intent',
   },
   public: {
     siteConfig: '/public/site-config',
@@ -95,6 +97,9 @@ export const endpoints = {
       `/admin/catalog/coins/${encodeURIComponent(id)}/remove`,
     catalogFiat: '/admin/catalog/fiat',
     catalogFiatRow: (id: number) => `/admin/catalog/fiat/${id}`,
+    walletPending: '/admin/wallet/pending',
+    walletPendingConfirm: (id: string) =>
+      `/admin/wallet/pending/${encodeURIComponent(id)}/confirm`,
   },
   platform: {
     tradingBots: '/platform/trading-bots',

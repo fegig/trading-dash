@@ -10,9 +10,6 @@ export default function AuthHeader() {
       <nav className="mx-auto flex max-w-304 items-center justify-between gap-4 px-4 py-4 md:px-6">
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-green-500/10 text-green-300 ring-1 ring-green-500/20">
-              <i className="fi fi-rr-chart-candlestick text-lg" />
-            </span>
             <div>
               <div className="flex items-center gap-2 text-lg font-semibold tracking-tight text-neutral-50">
                 {siteLogoUrl ? (
