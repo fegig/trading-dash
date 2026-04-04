@@ -1,10 +1,13 @@
 import { Link } from 'react-router'
 import { paths } from '@/navigation/paths'
+import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
 
 export default function LandingFooter() {
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
   return (
     <footer className="relative mt-auto border-t border-neutral-800/80 bg-neutral-950/80 backdrop-blur-xl">
-      <div className="mx-auto max-w-[78rem] px-4 py-12 md:px-6">
+      <div className="mx-auto max-w-312 px-4 py-12 md:px-6">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))]">
           <div className="max-w-md">
             <div className="flex items-center gap-3">
@@ -12,7 +15,7 @@ export default function LandingFooter() {
                 <i className="fi fi-rr-chart-candlestick text-lg" />
               </span>
               <div>
-                <div className="text-lg font-semibold tracking-tight text-neutral-50">BlockTrade</div>
+                <div className="text-lg font-semibold tracking-tight text-neutral-50">{displayName}</div>
                 <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                   Capital Operations
                 </div>
@@ -70,7 +73,7 @@ export default function LandingFooter() {
             <ul className="mt-4 space-y-3 text-sm text-neutral-500">
               <li>
                 <Link to="/about" className="transition hover:text-green-300">
-                  About BlockTrade
+                  About {displayName}
                 </Link>
               </li>
               <li>
@@ -99,7 +102,9 @@ export default function LandingFooter() {
 
         <div className="mt-10 border-t border-neutral-800/80 pt-6 text-xs text-neutral-600">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <p>(c) {new Date().getFullYear()} BlockTrade. All rights reserved.</p>
+            <p>
+              (c) {new Date().getFullYear()} {displayName}. All rights reserved.
+            </p>
             <p>Capital access, execution visibility, and disciplined product controls in one workspace.</p>
           </div>
         </div>

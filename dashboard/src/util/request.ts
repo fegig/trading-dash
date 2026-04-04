@@ -99,3 +99,15 @@ export const patch = async (
 export const remove = (endpoint: string) => {
   return client.delete(endpoint)
 }
+
+/** Multipart upload — axios sets `Content-Type` boundary automatically. */
+export const postForm = async (endpoint: string, formData: FormData) => {
+  try {
+    return await client.post(endpoint, formData)
+  } catch (error: unknown) {
+    if (error instanceof AxiosError) {
+      console.error('Error posting form:', error.response?.data)
+      return error.response
+    }
+  }
+}

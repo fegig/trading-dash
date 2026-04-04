@@ -1,5 +1,16 @@
 import { Outlet } from 'react-router'
 import AuthHeader from './auth.header'
+import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
+
+function AuthFooterNote() {
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
+  return (
+    <>
+      (c) {new Date().getFullYear()} {displayName}. Secure access does not eliminate market risk.
+    </>
+  )
+}
 
 export default function AuthLayout() {
   return (
@@ -20,7 +31,7 @@ export default function AuthLayout() {
         </div>
       </main>
       <div className="relative px-4 pb-8 text-center text-xs text-neutral-600 md:px-6">
-        (c) {new Date().getFullYear()} BlockTrade. Secure access does not eliminate market risk.
+        <AuthFooterNote />
       </div>
     </div>
   )

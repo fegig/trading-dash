@@ -1,7 +1,8 @@
 import { useEffect, type ReactNode } from 'react'
 import * as authService from '../services/authService'
-import { useAuthStore } from '../stores'
+import { useAuthStore, useSiteConfigStore } from '../stores'
 import type { ApiUser } from '../stores'
+import { SiteMetaSync } from './SiteMetaSync'
 
 /** Prefer non-empty fields already in the client snapshot so `/me` never wipes onboarding data on a race. */
 function mergeProfileFromMe(prev: ApiUser | null, u: Record<string, unknown>): ApiUser {
@@ -31,6 +32,7 @@ function mergeProfileFromMe(prev: ApiUser | null, u: Record<string, unknown>): A
 export function AuthBootstrap({ children }: { children: ReactNode }) {
   useEffect(() => {
     useAuthStore.getState().hydrate()
+    void useSiteConfigStore.getState().hydrate()
     void (async () => {
       if (!localStorage.getItem('token')) return
       try {
@@ -44,5 +46,10 @@ export function AuthBootstrap({ children }: { children: ReactNode }) {
       }
     })()
   }, [])
-  return children
+  return (
+    <>
+      <SiteMetaSync />
+      {children}
+    </>
+  )
 }

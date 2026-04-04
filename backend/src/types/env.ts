@@ -6,6 +6,8 @@ import type { SessionUser } from '../services/user-context'
 export type Env = {
   HYPERDRIVE: Hyperdrive
   VERIFICATION_UPLOADS: R2Bucket
+  /** Site logos and marketing assets (public GET via Worker). */
+  SITE_ASSETS: R2Bucket
   RATE_LIMIT?: KVNamespace
   /** Optional KV for CryptoCompare response caching (create via `wrangler kv namespace create`) */
   CRYPTO_CACHE?: KVNamespace
@@ -20,6 +22,10 @@ export type Env = {
   RESEND_FROM: string
   /** Public dashboard URL for email links */
   FRONTEND_URL?: string
+  /** Optional absolute URL to logo image for transactional emails */
+  EMAIL_LOGO_URL?: string
+  /** Public base URL of this API Worker — used for email `<img>` and site-config absolute URLs (e.g. https://api.example.com) */
+  BRANDING_PUBLIC_URL?: string
 }
 
 export type AppVariables = {

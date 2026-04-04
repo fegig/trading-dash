@@ -31,7 +31,7 @@ export default function GlobalNoticesBanner() {
       {notices.map((n) => (
         <div
           key={n.id}
-          className="rounded-xl border border-amber-500/25 bg-gradient-to-r from-amber-500/10 to-neutral-900/40 px-4 py-3 text-sm"
+          className="rounded-xl border border-amber-500/25 bg-linear-to-r from-amber-500/10 to-neutral-900/40 px-4 py-3 text-sm"
         >
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="min-w-0">

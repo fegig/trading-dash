@@ -2,7 +2,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import * as authService from '@/services/authService'
-import { useAuthStore, useCurrencyStore, type ApiUser } from '@/stores'
+import { useAuthStore, useCurrencyStore, useSiteConfigStore, SITE_NAME_FALLBACK, type ApiUser } from '@/stores'
 import {
   persistPendingOtp,
   sendLoginOtpChallenge,
@@ -25,6 +25,8 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const hydrate = useAuthStore((state) => state.hydrate)
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -194,7 +196,7 @@ export default function LoginPage() {
   return (
     <AuthPanel
       eyebrow="Secure sign-in"
-      title="Access your BlockTrade workspace"
+      title={`Access your ${displayName} workspace`}
       subtitle="Sign in with your email and password to open trading, wallet funding, managed products, and account controls."
       contextRail={contextRail}
       footer={footer}

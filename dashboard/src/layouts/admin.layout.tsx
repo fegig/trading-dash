@@ -1,6 +1,6 @@
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useState } from 'react'
-import { useAuthStore } from '../stores'
+import { useAuthStore, useSiteConfigStore, SITE_NAME_FALLBACK } from '../stores'
 import { adminNavGroups } from '../navigation/adminNavConfig'
 
 function AdminSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -106,6 +106,9 @@ function AdminLayout() {
   const hydrated = useAuthStore((s) => s.hydrated)
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const user = useAuthStore((s) => s.user)
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const siteLogoUrl = useSiteConfigStore((s) => s.siteLogoUrl)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
   const [navOpen, setNavOpen] = useState(false)
 
   if (!hydrated) {
@@ -139,8 +142,15 @@ function AdminLayout() {
               <i className="fi fi-rr-menu-burger text-lg" />
             </button>
             <div className="flex items-center gap-2">
+              {siteLogoUrl ? (
+                <img
+                  src={siteLogoUrl}
+                  alt=""
+                  className="h-8 w-auto max-w-[140px] object-contain"
+                />
+              ) : null}
               <span className="text-xl md:text-2xl font-bold text-amber-400 shrink-0 tracking-tight">
-                BlockTrade
+                {displayName}
               </span>
               <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase tracking-wider">
                 Admin
@@ -163,7 +173,7 @@ function AdminLayout() {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto scrollBar px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 pb-16 sm:pb-12 lg:pl-[15.5rem] xl:pl-[18rem]">
+        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto scrollBar px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 pb-16 sm:pb-12 lg:pl-66 xl:pl-72">
           <Outlet />
         </main>
       </div>

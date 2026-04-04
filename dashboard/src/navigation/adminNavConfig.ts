@@ -15,12 +15,14 @@ export const adminNavGroups: AdminNavGroup[] = [
     title: 'Overview',
     items: [
       { label: 'Dashboard', path: '/admin', iconClass: 'fi-rr-apps', end: true },
+      { label: 'Settings', path: '/admin/settings', iconClass: 'fi-rr-settings' },
     ],
   },
   {
     title: 'Users',
     items: [
       { label: 'All Users', path: '/admin/users', iconClass: 'fi-rr-users' },
+      { label: 'Verification queue', path: '/admin/verification', iconClass: 'fi-rr-id-badge' },
     ],
   },
   {
@@ -43,5 +45,9 @@ export const adminNavGroups: AdminNavGroup[] = [
       { label: 'Coins', path: '/admin/catalog/coins', iconClass: 'fi-rr-coins' },
       { label: 'Fiat currencies', path: '/admin/catalog/fiat', iconClass: 'fi-rr-bank' },
     ],
+  },
+  {
+    title: 'Content',
+    items: [{ label: 'FAQ', path: '/admin/faq', iconClass: 'fi-rr-interrogation' }],
   },
 ]

@@ -15,6 +15,7 @@ import { verificationRoutes } from './routes/verification-routes'
 import { liveRoutes } from './routes/live'
 import { cryptoRoutes } from './routes/crypto'
 import { setupRoutes } from './routes/setup' // TODO: remove after creating admin
+import { publicRoutes } from './routes/public-routes'
 
 export function createApp() {
   const app = new Hono<{ Bindings: Env; Variables: AppVariables }>()
@@ -34,6 +35,7 @@ export function createApp() {
 
   app.get('/health', (c) => c.json({ ok: true }))
 
+  app.route('/public', publicRoutes)
   app.route('/user', userRoutes)
   app.route('/auth', authRoutes)
   app.route('/wallet', walletRoutes)

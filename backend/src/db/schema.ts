@@ -11,6 +11,7 @@ import {
   decimal,
   index,
   primaryKey,
+  foreignKey,
 } from 'drizzle-orm/mysql-core'
 import { relations } from 'drizzle-orm'
 
@@ -104,13 +105,21 @@ export const globalNotices = mysqlTable(
 export const userNoticeDismissals = mysqlTable(
   'user_notice_dismissals',
   {
-    userId: int('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+    userId: int('user_id').notNull(),
     noticeId: varchar('notice_id', { length: 36 }).notNull(),
     dismissedAt: bigint('dismissed_at', { mode: 'number' }).notNull(),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.noticeId] })]
+  (t) => [
+    primaryKey({
+      name: 'user_notice_dismissals_user_id_notice_id',
+      columns: [t.userId, t.noticeId],
+    }),
+    foreignKey({
+      name: 'user_notice_dismissals_user_fk',
+      columns: [t.userId],
+      foreignColumns: [users.id],
+    }).onDelete('cascade'),
+  ]
 )
 
 export const walletAssets = mysqlTable(
@@ -440,7 +449,10 @@ export const userFollowingTraders = mysqlTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     traderId: varchar('trader_id', { length: 64 }).notNull(),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.traderId] }), index('uft_user_idx').on(t.userId)]
+  (t) => [
+    primaryKey({ name: 'user_following_traders_user_id_trader_id_pk', columns: [t.userId, t.traderId] }),
+    index('uft_user_idx').on(t.userId),
+  ]
 )
 
 export const userInvestmentPositions = mysqlTable(
@@ -506,6 +518,20 @@ export const liveOrders = mysqlTable(
   },
   (t) => [index('lo_user_idx').on(t.userId), index('lo_pair_idx').on(t.pair)]
 )
+
+/** Singleton row `id = 1` — site branding and support contacts. */
+export const platformSettings = mysqlTable('platform_settings', {
+  id: int('id').primaryKey(),
+  siteName: varchar('site_name', { length: 128 }).notNull().default(''),
+  supportEmail: varchar('support_email', { length: 255 }).notNull().default(''),
+  supportPhone: varchar('support_phone', { length: 64 }).notNull().default(''),
+  siteLogoR2Key: varchar('site_logo_r2_key', { length: 512 }),
+  emailLogoR2Key: varchar('email_logo_r2_key', { length: 512 }),
+  ogTitle: varchar('og_title', { length: 255 }).notNull().default(''),
+  ogDescription: varchar('og_description', { length: 512 }).notNull().default(''),
+  faviconR2Key: varchar('favicon_r2_key', { length: 512 }),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+})
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),

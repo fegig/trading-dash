@@ -15,6 +15,11 @@
 			"binding": "VERIFICATION_UPLOADS",
 			"bucket_name": "trading-dash-verification",
 			"preview_bucket_name": "trading-dash-verification-preview"
+		},
+		{
+			"binding": "SITE_ASSETS",
+			"bucket_name": "trading-dash-site-assets",
+			"preview_bucket_name": "trading-dash-site-assets-preview"
 		}
 	],
 	"hyperdrive": [

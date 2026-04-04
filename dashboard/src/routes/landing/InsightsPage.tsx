@@ -3,6 +3,7 @@ import { paths } from '@/navigation/paths'
 import { get } from '@/util/request'
 import { endpoints } from '@/services/endpoints'
 import { useAuthStore } from '@/stores/authStore'
+import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
 import {
   MarketingButtonLink,
   MarketingEyebrow,
@@ -86,6 +87,12 @@ export default function InsightsPage() {
   const [list, setList] = useState<NewsRow[]>(FALLBACK)
   const [loading, setLoading] = useState(true)
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
+  const sourceLabel = (s?: string) => {
+    if (s == null || s === '') return 'Market source'
+    return s.replace(/^BlockTrade\b/, displayName)
+  }
 
   useEffect(() => {
     void (async () => {
@@ -208,7 +215,7 @@ export default function InsightsPage() {
             />
             <div className="p-6 md:p-7">
               <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
-                <span>{featured.source ?? 'Market source'}</span>
+                <span>{sourceLabel(featured.source)}</span>
                 <span className="h-1 w-1 rounded-full bg-neutral-700" />
                 <span>{formatPublished(featured.published_on)}</span>
               </div>
@@ -239,7 +246,7 @@ export default function InsightsPage() {
                 <img src={item.imageurl} alt={item.title} className="h-36 w-full object-cover" />
                 <div className="p-5">
                   <div className="text-xs text-neutral-500">
-                    {item.source ?? 'Market source'} - {formatPublished(item.published_on)}
+                    {sourceLabel(item.source)} - {formatPublished(item.published_on)}
                   </div>
                   <h3 className="mt-3 text-lg font-semibold text-neutral-100">{item.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-neutral-500">{item.body}</p>
@@ -261,7 +268,7 @@ export default function InsightsPage() {
           {feed.map((item) => (
             <MarketingSurface key={item.id} className="h-full p-5">
               <div className="text-xs text-neutral-500">
-                {item.source ?? 'Market source'} - {formatPublished(item.published_on)}
+                {sourceLabel(item.source)} - {formatPublished(item.published_on)}
               </div>
               <h3 className="mt-3 text-lg font-semibold text-neutral-100">{item.title}</h3>
               <p className="mt-3 text-sm leading-6 text-neutral-500">{item.body}</p>

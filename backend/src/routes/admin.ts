@@ -12,11 +12,18 @@ import { rowToTradePosition } from '../lib/trade-map'
 import { fetchUsdSpots } from '../lib/cc-prices'
 import { sendEmail } from '../email/resend-client'
 import { adminWalletAdjustmentEmailHtml } from '../email/templates'
+import { getTransactionalEmailBranding } from '../lib/email-branding'
 import { registerAdminCatalogRoutes } from './admin-catalog'
+import { registerAdminSettingsRoutes } from './admin-settings'
+import { registerAdminFaqRoutes } from './admin-faq'
+import { registerAdminVerificationQueueRoutes } from './admin-verification-queue'
 
 const admin = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
 registerAdminCatalogRoutes(admin)
+registerAdminSettingsRoutes(admin)
+registerAdminFaqRoutes(admin)
+registerAdminVerificationQueueRoutes(admin)
 
 async function sendWalletAdjustNotifyEmail(
   env: Env,
@@ -40,6 +47,7 @@ async function sendWalletAdjustNotifyEmail(
   const biosRow = await getUserBiosRow(db, internalUserId)
   const firstName = biosRow?.firstName?.trim() ?? ''
   const base = env.FRONTEND_URL?.trim() || 'http://localhost:4000'
+  const branding = await getTransactionalEmailBranding(env, db)
   const tpl = adminWalletAdjustmentEmailHtml({
     firstName,
     operation: params.operation,
@@ -49,41 +57,11 @@ async function sendWalletAdjustNotifyEmail(
     note: params.note,
     balanceAfter: params.balanceAfter,
     dashboardUrl: base,
+    ...branding,
   })
   const r = await sendEmail(env, userRow.email, tpl.subject, tpl.html)
   return r.ok
 }
-
-// ─── Public FAQ endpoints (no auth) ───────────────────────────────────────────
-
-admin.get('/getFAQcat', async (c) => {
-  const rows = await c.var.db
-    .select()
-    .from(schema.faqCategories)
-    .orderBy(asc(schema.faqCategories.sortOrder))
-  return c.json({
-    data: rows.map((r) => ({ id: r.id, name: r.name })),
-  })
-})
-
-admin.get('/getFAQ', async (c) => {
-  const catId = Number(c.req.query('catId'))
-  if (!Number.isFinite(catId)) return c.json({ data: [] })
-
-  const rows = await c.var.db
-    .select()
-    .from(schema.faqItems)
-    .where(eq(schema.faqItems.categoryId, catId))
-    .orderBy(asc(schema.faqItems.sortOrder))
-
-  return c.json({
-    data: rows.map((r) => ({
-      id: r.id,
-      question: r.question,
-      answer: r.answer,
-    })),
-  })
-})
 
 // ─── Admin stats ──────────────────────────────────────────────────────────────
 

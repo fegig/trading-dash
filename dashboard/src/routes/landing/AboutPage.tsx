@@ -1,5 +1,6 @@
 import { paths } from '@/navigation/paths'
 import { useAuthStore } from '@/stores/authStore'
+import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
 import {
   MarketingBulletList,
   MarketingButtonLink,
@@ -52,6 +53,8 @@ const buildFlow = [
 
 export default function AboutPage() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
   const primaryCta = isLoggedIn ? paths.dashboard : '/register'
   const secondaryCta = isLoggedIn ? paths.dashboardLiveTrading : '/login'
 
@@ -59,12 +62,12 @@ export default function AboutPage() {
     <div className="space-y-14 md:space-y-18">
       <section className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_28rem] xl:items-center">
         <div className="max-w-3xl">
-          <MarketingEyebrow>About BlockTrade</MarketingEyebrow>
+          <MarketingEyebrow>About {displayName}</MarketingEyebrow>
           <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-neutral-50 md:text-6xl">
             We are building a calmer, more disciplined way to operate digital capital.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-400 md:text-lg">
-            BlockTrade is designed around the idea that users should understand funding,
+            {displayName} is designed around the idea that users should understand funding,
             execution, verification, and managed-product access from the first screen. The
             interface should feel like a real operating surface, not a marketing layer that hides
             the important details.

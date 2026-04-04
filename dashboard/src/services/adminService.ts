@@ -1,6 +1,7 @@
 import { AxiosError, type AxiosResponse } from 'axios'
-import { get, post, patch, remove } from '../util/request'
+import { get, post, patch, postForm, remove } from '../util/request'
 import { endpoints } from './endpoints'
+import { authClient } from './authClient'
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
@@ -495,4 +496,216 @@ export async function deleteAdminCatalogFiat(id: number): Promise<void> {
     }
     throw e instanceof Error ? e : new Error('Failed to delete fiat currency')
   }
+}
+
+// ─── Settings & branding ───────────────────────────────────────────────────
+
+export type AdminSettingsResponse = {
+  siteName: string
+  supportEmail: string
+  supportPhone: string
+  ogTitle: string
+  ogDescription: string
+  hasSiteLogo: boolean
+  hasEmailLogo: boolean
+  hasFavicon: boolean
+  settingsUpdatedAt: number
+}
+
+export async function getAdminSettings(): Promise<AdminSettingsResponse> {
+  const data = await get(endpoints.admin.settings)
+  return data as AdminSettingsResponse
+}
+
+export async function patchAdminSettings(
+  payload: Partial<
+    Pick<AdminSettingsResponse, 'siteName' | 'supportEmail' | 'supportPhone' | 'ogTitle' | 'ogDescription'>
+  >
+): Promise<AdminSettingsResponse> {
+  const res = await patch(endpoints.admin.settings, payload as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to save settings'
+    throw new Error(msg)
+  }
+  return res.data as AdminSettingsResponse
+}
+
+export async function patchAdminPassword(payload: {
+  currentPassword: string
+  newPassword: string
+}): Promise<void> {
+  const res = await patch(endpoints.admin.adminPassword, payload as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to change password'
+    throw new Error(msg)
+  }
+}
+
+export async function uploadAdminSiteLogo(file: File): Promise<void> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await postForm(endpoints.admin.settingsSiteLogo, fd)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Upload failed'
+    throw new Error(msg)
+  }
+}
+
+export async function uploadAdminEmailLogo(file: File): Promise<void> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await postForm(endpoints.admin.settingsEmailLogo, fd)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Upload failed'
+    throw new Error(msg)
+  }
+}
+
+export async function uploadAdminFavicon(file: File): Promise<void> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await postForm(endpoints.admin.settingsFavicon, fd)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Upload failed'
+    throw new Error(msg)
+  }
+}
+
+// ─── Verification queue ─────────────────────────────────────────────────────
+
+export type VerificationQueueRow = {
+  publicId: string
+  email: string
+  documents: {
+    id: string
+    title: string
+    subtitle: string
+    status: string
+    updatedAt: number
+    originalFilename: string | null
+    mimeType: string | null
+    fileSize: number | null
+  }[]
+}
+
+export async function getVerificationQueue(): Promise<VerificationQueueRow[]> {
+  const data = await get(endpoints.admin.verificationQueue)
+  return (data as { data: VerificationQueueRow[] }).data
+}
+
+export async function approveVerificationDocument(publicId: string, documentId: string): Promise<void> {
+  const res = await post(endpoints.admin.verificationApprove(publicId, documentId), {} as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Approve failed'
+    throw new Error(msg)
+  }
+}
+
+export async function rejectVerificationDocument(publicId: string, documentId: string): Promise<void> {
+  const res = await post(endpoints.admin.verificationReject(publicId, documentId), {} as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Reject failed'
+    throw new Error(msg)
+  }
+}
+
+export async function downloadVerificationDocument(publicId: string, documentId: string): Promise<void> {
+  const res = await authClient.get(endpoints.admin.verificationDownload(publicId, documentId), {
+    responseType: 'blob',
+  })
+  const blob = res.data as Blob
+  const cd = res.headers['content-disposition'] as string | undefined
+  let filename = 'document'
+  const m = cd?.match(/filename="?([^";]+)"?/i)
+  if (m?.[1]) filename = m[1]
+  const href = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = href
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(href)
+}
+
+// ─── FAQ admin ───────────────────────────────────────────────────────────────
+
+export type AdminFaqCategoryRow = {
+  id: number
+  name: string
+  sortOrder: number
+}
+
+export type AdminFaqItemRow = {
+  id: number
+  categoryId: number
+  question: string
+  answer: string
+  sortOrder: number
+}
+
+export async function getAdminFaqCategories(): Promise<AdminFaqCategoryRow[]> {
+  const data = await get(endpoints.admin.faqAdminCategories)
+  return (data as { data: AdminFaqCategoryRow[] }).data
+}
+
+export async function createAdminFaqCategory(payload: {
+  name: string
+  sortOrder?: number
+}): Promise<AdminFaqCategoryRow> {
+  const res = await post(endpoints.admin.faqAdminCategories, payload as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to create category'
+    throw new Error(msg)
+  }
+  return (res.data as { data: AdminFaqCategoryRow }).data
+}
+
+export async function updateAdminFaqCategory(
+  id: number,
+  payload: Partial<{ name: string; sortOrder: number }>
+): Promise<AdminFaqCategoryRow> {
+  const res = await patch(endpoints.admin.faqAdminCategory(id), payload as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to update category'
+    throw new Error(msg)
+  }
+  return (res.data as { data: AdminFaqCategoryRow }).data
+}
+
+export async function deleteAdminFaqCategory(id: number): Promise<void> {
+  await remove(endpoints.admin.faqAdminCategory(id))
+}
+
+export async function getAdminFaqItems(categoryId: number): Promise<AdminFaqItemRow[]> {
+  const data = await get(endpoints.admin.faqAdminItemsList(categoryId))
+  return (data as { data: AdminFaqItemRow[] }).data
+}
+
+export async function createAdminFaqItem(payload: {
+  categoryId: number
+  question: string
+  answer: string
+  sortOrder?: number
+}): Promise<AdminFaqItemRow> {
+  const res = await post(endpoints.admin.faqAdminItems, payload as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to create item'
+    throw new Error(msg)
+  }
+  return (res.data as { data: AdminFaqItemRow }).data
+}
+
+export async function updateAdminFaqItem(
+  id: number,
+  payload: Partial<{ question: string; answer: string; sortOrder: number; categoryId: number }>
+): Promise<AdminFaqItemRow> {
+  const res = await patch(endpoints.admin.faqAdminItem(id), payload as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string })?.error ?? 'Failed to update item'
+    throw new Error(msg)
+  }
+  return (res.data as { data: AdminFaqItemRow }).data
+}
+
+export async function deleteAdminFaqItem(id: number): Promise<void> {
+  await remove(endpoints.admin.faqAdminItem(id))
 }

@@ -30,6 +30,9 @@ import AdminCopyTradersPage from './routes/admin/AdminCopyTradersPage'
 import AdminInvestmentsPage from './routes/admin/AdminInvestmentsPage'
 import AdminCatalogCoinsPage from './routes/admin/AdminCatalogCoinsPage'
 import AdminCatalogFiatPage from './routes/admin/AdminCatalogFiatPage'
+import AdminSettingsPage from './routes/admin/AdminSettingsPage'
+import AdminVerificationPage from './routes/admin/AdminVerificationPage'
+import AdminFaqPage from './routes/admin/AdminFaqPage'
 import AllTradesPage from './routes/dashboard/trades'
 import Wallets from './routes/dashboard/Wallets'
 import DashboardPage from './routes/dashboard/dashboard'
@@ -94,6 +97,9 @@ function App() {
             <Route path="investments" element={<AdminInvestmentsPage />} />
             <Route path="catalog/coins" element={<AdminCatalogCoinsPage />} />
             <Route path="catalog/fiat" element={<AdminCatalogFiatPage />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
+            <Route path="verification" element={<AdminVerificationPage />} />
+            <Route path="faq" element={<AdminFaqPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

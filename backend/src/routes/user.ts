@@ -17,6 +17,7 @@ import { requireUser } from '../middleware/session'
 import { assertUserScope, trustedApiKey } from '../lib/api-auth'
 import { sendEmail } from '../email/resend-client'
 import { onboardingWelcomeEmailHtml } from '../email/templates'
+import { getTransactionalEmailBranding } from '../lib/email-branding'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { randomSessionId } from '../lib/otp'
 import * as schema from '../db/schema'
@@ -489,7 +490,8 @@ user.post('/welcomeOnboarding', requireUser, async (c) => {
   )
   const dashboardUrl = `${base}/dashboard`
   const firstName = biosRow?.firstName?.trim() ? biosRow.firstName : undefined
-  const tpl = onboardingWelcomeEmailHtml({ dashboardUrl, firstName })
+  const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+  const tpl = onboardingWelcomeEmailHtml({ dashboardUrl, firstName, ...branding })
   const r = await sendEmail(c.env, row.email, tpl.subject, tpl.html)
   if (!r.ok) return c.json({ error: r.error }, 502)
 

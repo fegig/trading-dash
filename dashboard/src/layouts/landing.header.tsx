@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
+import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
 import { paths } from '@/navigation/paths'
 
 const navItems = [
@@ -19,6 +20,9 @@ export default function LandingHeader() {
   const [open, setOpen] = useState(false)
   const hydrate = useAuthStore((state) => state.hydrate)
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const siteLogoUrl = useSiteConfigStore((s) => s.siteLogoUrl)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
 
   useEffect(() => {
     hydrate()
@@ -32,7 +36,12 @@ export default function LandingHeader() {
             <i className="fi fi-rr-chart-candlestick text-lg" />
           </span>
           <span>
-            <span className="block text-lg font-semibold tracking-tight text-neutral-50">BlockTrade</span>
+            <span className="flex items-center gap-2">
+              {siteLogoUrl ? (
+                <img src={siteLogoUrl} alt="" className="h-8 w-auto max-w-[120px] object-contain" />
+              ) : null}
+              <span className="block text-lg font-semibold tracking-tight text-neutral-50">{displayName}</span>
+            </span>
             <span className="block text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               Capital Operations
             </span>

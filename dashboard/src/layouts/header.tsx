@@ -1,9 +1,13 @@
 import { Link } from "react-router"
 import { useState } from "react"
+import { useSiteConfigStore, SITE_NAME_FALLBACK } from "../stores"
 import { MobileNavDrawer } from "./MobileNavDrawer"
 
 function Header() {
   const [navOpen, setNavOpen] = useState(false)
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const siteLogoUrl = useSiteConfigStore((s) => s.siteLogoUrl)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center border-b border-neutral-800 bg-neutral-950/95 backdrop-blur-md px-4 md:px-6">
@@ -21,9 +25,12 @@ function Header() {
 
           <Link
             to="/dashboard"
-            className="text-xl md:text-2xl font-bold text-green-400 shrink-0 tracking-tight hover:text-green-300 transition-colors"
+            className="flex items-center gap-2 text-xl md:text-2xl font-bold text-green-400 shrink-0 tracking-tight hover:text-green-300 transition-colors"
           >
-            BlockTrade
+            {siteLogoUrl ? (
+              <img src={siteLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
+            ) : null}
+            <span>{displayName}</span>
           </Link>
         </div>
 

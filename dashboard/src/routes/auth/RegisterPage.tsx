@@ -4,6 +4,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import * as authService from '@/services/authService'
 import { getRandomString } from '@/util/random'
+import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
 import {
   AuthAlert,
   AuthContextBlock,
@@ -19,6 +20,8 @@ export default function RegisterPage() {
   const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
   const ref = params.get('ref')
   const navigate = useNavigate()
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -111,7 +114,7 @@ export default function RegisterPage() {
   return (
     <AuthPanel
       eyebrow="Create your account"
-      title="Open a BlockTrade workspace"
+      title={`Open a ${displayName} workspace`}
       subtitle="Set your access credentials first, then continue into verification and profile setup."
       contextRail={contextRail}
       footer={footer}

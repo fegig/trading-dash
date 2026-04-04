@@ -44,9 +44,33 @@ export const endpoints = {
     transactions: '/wallet/transactions',
     convert: '/wallet/convert',
   },
+  public: {
+    siteConfig: '/public/site-config',
+    faqCategories: '/public/faq/categories',
+    faqItems: (catId: number) => `/public/faq/items?catId=${catId}`,
+  },
   admin: {
+    /** @deprecated Prefer `public.faqCategories` */
     faqCategories: '/admin/getFAQcat',
+    /** @deprecated Prefer `public.faqItems` */
     faqByCategory: (catId: number) => `/admin/getFAQ?catId=${catId}`,
+    settings: '/admin/settings',
+    settingsSiteLogo: '/admin/settings/branding/site-logo',
+    settingsEmailLogo: '/admin/settings/branding/email-logo',
+    settingsFavicon: '/admin/settings/branding/favicon',
+    adminPassword: '/admin/me/password',
+    verificationQueue: '/admin/verification/queue',
+    verificationDownload: (publicId: string, documentId: string) =>
+      `/admin/verification/users/${encodeURIComponent(publicId)}/documents/${encodeURIComponent(documentId)}/download`,
+    verificationApprove: (publicId: string, documentId: string) =>
+      `/admin/verification/users/${encodeURIComponent(publicId)}/documents/${encodeURIComponent(documentId)}/approve`,
+    verificationReject: (publicId: string, documentId: string) =>
+      `/admin/verification/users/${encodeURIComponent(publicId)}/documents/${encodeURIComponent(documentId)}/reject`,
+    faqAdminCategories: '/admin/faq/categories',
+    faqAdminCategory: (id: number) => `/admin/faq/categories/${id}`,
+    faqAdminItemsList: (categoryId: number) => `/admin/faq/items?categoryId=${categoryId}`,
+    faqAdminItems: '/admin/faq/items',
+    faqAdminItem: (id: number) => `/admin/faq/items/${id}`,
     stats: '/admin/stats',
     users: '/admin/users',
     usersFiatUsdBalances: '/admin/users/fiat-usd-balances',

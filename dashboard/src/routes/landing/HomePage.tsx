@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
 import { paths } from '@/navigation/paths'
 import { LandingPairStrip } from '@/components/landing/LandingPairStrip'
 import {
@@ -70,6 +71,8 @@ const trustPillars = [
 
 export default function HomePage() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+  const siteName = useSiteConfigStore((s) => s.siteName)
+  const displayName = siteName?.trim() || SITE_NAME_FALLBACK
   const primaryCta = isLoggedIn ? paths.dashboard : '/register'
   const secondaryCta = isLoggedIn ? paths.dashboardLiveTrading : '/login'
 
@@ -81,7 +84,7 @@ export default function HomePage() {
             Trade, fund, and manage capital from one disciplined workspace.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-400 md:text-lg">
-            BlockTrade brings live execution, fiat funding, copy allocations, automation, investment
+            {displayName} brings live execution, fiat funding, copy allocations, automation, investment
             products, and verification controls into a single operating layer built for serious users.
           </p>
 

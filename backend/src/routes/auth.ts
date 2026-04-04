@@ -29,6 +29,7 @@ import {
   passwordResetEmailHtml,
   loginNotificationEmailHtml,
 } from '../email/templates'
+import { getTransactionalEmailBranding } from '../lib/email-branding'
 import { rateLimitMiddleware } from '../middleware/rate-limit'
 
 const auth = new Hono<{ Bindings: Env; Variables: AppVariables }>()
@@ -98,7 +99,8 @@ auth.post('/register', async (c) => {
   })
   const base = (c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000'
   const verifyUrl = emailConfirmationUrl(base, u.email, vToken, String(publicId))
-  const tpl = verificationEmailHtml({ verifyUrl })
+  const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+  const tpl = verificationEmailHtml({ verifyUrl, ...branding })
   const mail = await sendEmail(c.env, u.email, tpl.subject, tpl.html)
   if (!mail.ok) return c.json({ error: mail.error }, 502)
 
@@ -132,7 +134,8 @@ auth.post('/sendOTP', async (c) => {
     expiresAt: expires,
   })
 
-  const tpl = otpEmailHtml({ code })
+  const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+  const tpl = otpEmailHtml({ code, ...branding })
   const r = await sendEmail(c.env, u.email, tpl.subject, tpl.html)
   if (!r.ok) return c.json({ error: r.error }, 502)
 
@@ -208,7 +211,8 @@ auth.post('/passwordReset', async (c) => {
   const base = (c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000'
   // SPA routes live outside `/auth/*` so Vite dev proxy does not send browser navigations to the API.
   const resetUrl = `${base}/forgot?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(u.publicId)}`
-  const tpl = passwordResetEmailHtml({ resetUrl })
+  const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+  const tpl = passwordResetEmailHtml({ resetUrl, ...branding })
   await sendEmail(c.env, email, tpl.subject, tpl.html)
 
   return c.json({ ok: true })
@@ -415,7 +419,8 @@ auth.post('/sendVerificationEmail', async (c) => {
 
   const base = (c.env as Env & { FRONTEND_URL?: string }).FRONTEND_URL ?? 'http://localhost:4000'
   const verifyUrl = emailConfirmationUrl(base, mailTo, vToken, String(userId))
-  const tpl = verificationEmailHtml({ userName, verifyUrl })
+  const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+  const tpl = verificationEmailHtml({ userName, verifyUrl, ...branding })
   const r = await sendEmail(c.env, mailTo, tpl.subject, tpl.html)
   if (!r.ok) return c.json({ error: r.error }, 502)
   return c.json({ ok: true })
@@ -424,7 +429,8 @@ auth.post('/sendVerificationEmail', async (c) => {
 auth.post('/sendLoginOtpEmail', async (c) => {
   const parsed = sendLoginOtpEmailBodySchema.safeParse(await c.req.json().catch(() => ({})))
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
-  const tpl = otpEmailHtml({ code: parsed.data.otpCode })
+  const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+  const tpl = otpEmailHtml({ code: parsed.data.otpCode, ...branding })
   const r = await sendEmail(c.env, parsed.data.mailTo, tpl.subject, tpl.html)
   if (!r.ok) return c.json({ error: r.error }, 502)
   return c.json({ ok: true })
@@ -434,7 +440,8 @@ auth.post('/loginNotification', async (c) => {
   const parsed = loginNotificationBodySchema.safeParse(await c.req.json().catch(() => ({})))
   if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
   const { userMail, device, time } = parsed.data
-  const tpl = loginNotificationEmailHtml({ device, time })
+  const branding = await getTransactionalEmailBranding(c.env, c.var.db)
+  const tpl = loginNotificationEmailHtml({ device, time, ...branding })
   await sendEmail(c.env, userMail, tpl.subject, tpl.html)
   return c.json({ ok: true })
 })
