@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, Link } from 'react-router'
 import { toast } from 'react-toastify'
 import {
@@ -6,7 +6,7 @@ import {
   patchAdminUserBios,
   patchAdminUserVerification,
   patchAdminUserRole,
-  fundUserFiat,
+  adjustUserWalletLedger,
   fundUserAsset,
   type AdminUserDetail,
   type AdminUserAsset,
@@ -14,6 +14,54 @@ import {
 import { fetchUsdSpotMap } from '../../util/cryptoUsdPrices'
 
 type Tab = 'profile' | 'wallet' | 'trades' | 'bots' | 'copy' | 'investments'
+
+const NOTE_TEMPLATE_OPTIONS: { id: string; label: string; text: string }[] = [
+  {
+    id: 'deposit_normal',
+    label: 'Normal asset deposit',
+    text: 'Deposit to your wallet — funds have been credited. You can review this transaction in your wallet history.',
+  },
+  {
+    id: 'withdraw_normal',
+    label: 'Normal asset withdrawal',
+    text: 'Withdrawal from your wallet — funds have been debited. You can review this transaction in your wallet history.',
+  },
+  {
+    id: 'adjustment',
+    label: 'Standard adjustment',
+    text: 'Account adjustment applied by our team. If you have questions, please contact support.',
+  },
+  {
+    id: 'bonus',
+    label: 'Bonus / promotion',
+    text: 'Promotional credit has been added to your wallet. Thank you for trading with us.',
+  },
+  {
+    id: 'correction',
+    label: 'Correction',
+    text: 'Correction for a prior transaction or processing issue. Details are available in your transaction history.',
+  },
+  {
+    id: 'withdrawal',
+    label: 'Administrative debit',
+    text: 'A debit was applied to your wallet by an administrator. See your transaction history for the full record.',
+  },
+]
+
+const DEFAULT_NOTE_TEMPLATE_ID = 'adjustment'
+
+function unitUsdForAsset(asset: AdminUserAsset, spotUsd: Map<string, number>): number {
+  const sym = asset.coinShort.trim().toUpperCase()
+  const spot = spotUsd.get(sym)
+  if (spot && spot > 0) return spot
+  const p = Number(asset.price)
+  if (Number.isFinite(p) && p > 0) return p
+  return sym === 'USD' ? 1 : 0
+}
+
+function nativePrecision(assetType: 'fiat' | 'crypto'): number {
+  return assetType === 'fiat' ? 2 : 8
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -126,52 +174,188 @@ function ProfileTab({ detail, userId, onSaved }: { detail: AdminUserDetail; user
   )
 }
 
-function FundFiatModal({
+function WalletAdjustModal({
   userId,
+  assets,
+  presetAssetId,
+  spotUsd,
+  userEmail,
   onClose,
   onDone,
 }: {
   userId: string
+  assets: AdminUserAsset[]
+  presetAssetId: number | null
+  spotUsd: Map<string, number>
+  userEmail: string
   onClose: () => void
   onDone: () => void
 }) {
-  const [amount, setAmount] = useState('')
+  const [assetId, setAssetId] = useState<number>(() => assets[0]?.id ?? 0)
   const [operation, setOperation] = useState<'credit' | 'debit'>('credit')
-  const [note, setNote] = useState('')
+  const [amountNative, setAmountNative] = useState('')
+  const [amountUsd, setAmountUsd] = useState('')
+  const [note, setNote] = useState(
+    () => NOTE_TEMPLATE_OPTIONS.find((o) => o.id === DEFAULT_NOTE_TEMPLATE_ID)?.text ?? ''
+  )
+  const [templateId, setTemplateId] = useState<string>(DEFAULT_NOTE_TEMPLATE_ID)
+  const [notifyUser, setNotifyUser] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (assets.length === 0) return
+    if (presetAssetId != null && assets.some((a) => a.id === presetAssetId)) {
+      setAssetId(presetAssetId)
+      return
+    }
+    setAssetId(assets[0].id)
+  }, [presetAssetId, assets])
+
+  useEffect(() => {
+    setAmountNative('')
+    setAmountUsd('')
+  }, [assetId])
+
+  const selected = assets.find((a) => a.id === assetId)
+  const bal = selected ? Number(selected.userBalance) : 0
+  const uUsd = selected ? unitUsdForAsset(selected, spotUsd) : 0
+  const prec = selected ? nativePrecision(selected.assetType) : 8
+
+  const onNativeAmountChange = (raw: string) => {
+    setAmountNative(raw)
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n <= 0 || uUsd <= 0) {
+      setAmountUsd('')
+      return
+    }
+    setAmountUsd(String(Number((n * uUsd).toFixed(2))))
+  }
+
+  const onUsdAmountChange = (raw: string) => {
+    setAmountUsd(raw)
+    const usd = Number(raw)
+    if (!Number.isFinite(usd) || usd <= 0 || uUsd <= 0) {
+      setAmountNative('')
+      return
+    }
+    const native = usd / uUsd
+    setAmountNative(String(Number(native.toFixed(prec))))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const amt = Number(amount)
-    if (!amt || amt <= 0) return toast.error('Enter a valid amount')
+    if (!selected) return toast.error('Select a wallet asset')
+    const amt = Number(amountNative)
+    if (!Number.isFinite(amt) || amt <= 0) return toast.error('Enter a valid amount in asset or USD')
+    const trimmedNote = note.trim() || 'Admin adjustment'
     setLoading(true)
     try {
-      await fundUserFiat(userId, { amountUsd: amt, operation, note })
-      toast.success(`Fiat ${operation === 'credit' ? 'credited' : 'debited'} successfully`)
+      const res = await adjustUserWalletLedger(userId, {
+        assetId: selected.id,
+        operation,
+        amount: amt,
+        note: trimmedNote,
+        notifyUser,
+      })
+      toast.success(
+        `${selected.coinShort} ${operation === 'credit' ? 'credited' : 'debited'} — transaction recorded in history`
+      )
+      if (notifyUser && !res.emailSent) {
+        toast.warning('Notification email may not have been sent (check Resend / FRONTEND_URL).')
+      }
       onDone()
       onClose()
-    } catch {
-      toast.error('Failed to update balance')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update wallet')
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl bg-neutral-900 border border-neutral-700 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-white">Fund Fiat Account</h3>
-          <button onClick={onClose} className="text-neutral-400 hover:text-white">
-            <i className="fi fi-rr-cross text-sm" />
+  if (assets.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="w-full max-w-md rounded-2xl bg-neutral-900 border border-neutral-700 p-6 text-center space-y-4">
+          <p className="text-neutral-300 text-sm">No wallet assets for this user.</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-neutral-800 text-white text-sm border border-neutral-700"
+          >
+            Close
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
+      <div className="w-full max-w-md max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto scrollBar rounded-t-2xl sm:rounded-2xl bg-neutral-900 border border-neutral-700 border-b-0 sm:border-b">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-white">Fund / deduct (ledger)</h3>
+              <p className="text-xs text-neutral-500 mt-1">
+                Logged-in user: <span className="text-neutral-400">{userEmail}</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 shrink-0"
+            >
+              <i className="fi fi-rr-cross text-sm" />
+            </button>
+          </div>
+
+          <div className="rounded-lg border border-amber-500/25 bg-amber-500/8 px-3 py-2.5 text-xs text-amber-200/95 leading-relaxed">
+            <i className="fi fi-rr-info mr-1" />
+            This action creates a <strong>completed wallet transaction</strong> with your note. It will appear in the
+            user&apos;s transaction history (unlike &quot;Edit&quot;, which only sets balance with a generic ledger
+            line).
+          </div>
+
+          <div>
+            <label className="block text-xs text-neutral-400 mb-1">Wallet asset</label>
+            <select
+              value={assetId}
+              onChange={(e) => setAssetId(Number(e.target.value))}
+              className="w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50"
+            >
+              {assets.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.coinName} ({a.coinShort}) — {a.assetType}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selected && (
+            <div className="rounded-lg border border-neutral-800 bg-neutral-800/40 px-3 py-2 text-xs space-y-1">
+              <div className="flex justify-between gap-2">
+                <span className="text-neutral-500">Current balance</span>
+                <span className="text-white font-medium">
+                  {bal.toLocaleString(undefined, {
+                    maximumFractionDigits: selected.assetType === 'fiat' ? 2 : 8,
+                  })}{' '}
+                  {selected.coinShort}
+                </span>
+              </div>
+              {uUsd > 0 && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-neutral-500">≈ USD (spot)</span>
+                  <span className="text-amber-400/90">≈ ${(bal * uUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setOperation('credit')}
-              className={`py-2 rounded-lg text-sm font-medium border transition-colors ${
+              className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                 operation === 'credit'
                   ? 'bg-green-500/15 text-green-400 border-green-500/30'
                   : 'bg-neutral-800 text-neutral-400 border-neutral-700'
@@ -182,7 +366,7 @@ function FundFiatModal({
             <button
               type="button"
               onClick={() => setOperation('debit')}
-              className={`py-2 rounded-lg text-sm font-medium border transition-colors ${
+              className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                 operation === 'debit'
                   ? 'bg-red-500/15 text-red-400 border-red-500/30'
                   : 'bg-neutral-800 text-neutral-400 border-neutral-700'
@@ -191,30 +375,96 @@ function FundFiatModal({
               Debit
             </button>
           </div>
-          <div>
-            <label className="block text-xs text-neutral-400 mb-1">Amount (USD)</label>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50"
-              required
-            />
+
+          <div className="space-y-2">
+            <p className="text-xs text-neutral-500">
+              Enter the movement in <strong className="text-neutral-300">{selected?.coinShort ?? 'asset'}</strong> or in{' '}
+              <strong className="text-neutral-300">USD</strong>; values stay in sync using the spot shown above.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-neutral-400 mb-1">
+                  Amount ({selected?.coinShort ?? '—'})
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step={selected?.assetType === 'fiat' ? '0.01' : 'any'}
+                  value={amountNative}
+                  onChange={(e) => onNativeAmountChange(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-400 mb-1">Amount (USD)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amountUsd}
+                  onChange={(e) => onUsdAmountChange(e.target.value)}
+                  placeholder={uUsd > 0 ? '0.00' : '—'}
+                  disabled={uUsd <= 0}
+                  className="w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+            {uUsd <= 0 && (
+              <p className="text-[11px] text-amber-400/90">
+                No USD price for this symbol — enter the amount only in {selected?.coinShort}.
+              </p>
+            )}
           </div>
+
           <div>
-            <label className="block text-xs text-neutral-400 mb-1">Note (optional)</label>
-            <input
-              type="text"
+            <label className="block text-xs text-neutral-400 mb-1">Note template</label>
+            <select
+              value={templateId}
+              onChange={(e) => {
+                const id = e.target.value
+                setTemplateId(id)
+                const opt = NOTE_TEMPLATE_OPTIONS.find((o) => o.id === id)
+                if (opt) setNote(opt.text)
+              }}
+              className="w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50"
+            >
+              <option value="">— Custom only (below) —</option>
+              {NOTE_TEMPLATE_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-neutral-400 mb-1">Note (stored on transaction &amp; email)</label>
+            <textarea
               value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Admin adjustment"
-              className="w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50"
+              onChange={(e) => {
+                setNote(e.target.value)
+                setTemplateId('')
+              }}
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm text-white focus:outline-none focus:border-amber-500/50 resize-none"
+              placeholder="Visible to the user in history and in the email if enabled."
             />
           </div>
-          <div className="flex gap-3 pt-1">
+
+          <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-neutral-800 bg-neutral-800/30 px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={notifyUser}
+              onChange={(e) => setNotifyUser(e.target.checked)}
+              className="mt-0.5 rounded border-neutral-600"
+            />
+            <span className="text-sm text-neutral-300 leading-snug">
+              Email the user at <span className="text-white">{userEmail}</span> about this change.
+            </span>
+          </label>
+
+          <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">
             <button
               type="button"
               onClick={onClose}
@@ -224,10 +474,10 @@ function FundFiatModal({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !selected}
               className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Processing…' : 'Confirm'}
+              {loading ? 'Processing…' : 'Confirm & record'}
             </button>
           </div>
         </form>
@@ -291,7 +541,8 @@ function EditAssetModal({
               required
             />
             <p className="text-xs text-neutral-500 mt-1">
-              Current: {Number(asset.userBalance).toFixed(6)} {asset.coinShort}
+              Current: {Number(asset.userBalance).toFixed(6)} {asset.coinShort}. For a proper history line with your
+              note, use <strong className="text-neutral-400">Fund / deduct</strong> instead.
             </p>
           </div>
           <div className="flex gap-3">
@@ -325,30 +576,29 @@ function WalletTab({
   userId: string
   onRefresh: () => void
 }) {
-  const [fundModal, setFundModal] = useState(false)
+  const [ledgerModal, setLedgerModal] = useState<{ presetAssetId: number | null } | null>(null)
   const [editAsset, setEditAsset] = useState<AdminUserAsset | null>(null)
   const [spotUsd, setSpotUsd] = useState<Map<string, number>>(() => new Map())
 
   const fiatAssets = detail.assets.filter((a) => a.assetType === 'fiat')
   const cryptoAssets = detail.assets.filter((a) => a.assetType === 'crypto')
 
-  const cryptoSymbolsKey = useMemo(() => {
-    return detail.assets
-      .filter((a) => a.assetType === 'crypto')
-      .map((a) => a.coinShort.trim().toUpperCase())
-      .filter(Boolean)
+  const allSymbolsKey = useMemo(() => {
+    return [...new Set(detail.assets.map((a) => a.coinShort.trim().toUpperCase()).filter(Boolean))]
       .sort()
       .join(',')
   }, [detail.assets])
 
   useEffect(() => {
-    if (!cryptoSymbolsKey) {
-      setSpotUsd(new Map())
-      return
+    let cancelled = false
+    const syms = allSymbolsKey ? allSymbolsKey.split(',').filter(Boolean) : []
+    fetchUsdSpotMap(syms).then((map) => {
+      if (!cancelled) setSpotUsd(map)
+    })
+    return () => {
+      cancelled = true
     }
-    const syms = cryptoSymbolsKey.split(',').filter(Boolean)
-    fetchUsdSpotMap(syms).then(setSpotUsd)
-  }, [cryptoSymbolsKey])
+  }, [allSymbolsKey])
 
   return (
     <div className="space-y-5">
@@ -357,11 +607,17 @@ function WalletTab({
         <h3 className="text-sm font-semibold text-neutral-300">Fiat Balance</h3>
         <button
           type="button"
-          onClick={() => setFundModal(true)}
+          onClick={() => {
+            if (detail.assets.length === 0) {
+              toast.error('No wallet assets')
+              return
+            }
+            setLedgerModal({ presetAssetId: null })
+          }}
           className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/25 hover:bg-amber-500/25 transition-colors w-full sm:w-auto"
         >
           <i className="fi fi-rr-dollar" />
-          Fund / Deduct
+          Fund / deduct (ledger)
         </button>
       </div>
 
@@ -383,10 +639,17 @@ function WalletTab({
                   <p className="text-xs text-neutral-500">{a.coinShort}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
                 <span className="text-sm text-white font-medium">
                   {Number(a.userBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setLedgerModal({ presetAssetId: a.id })}
+                  className="px-2 py-1 rounded text-xs bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border border-amber-500/25 transition-colors"
+                >
+                  Fund / deduct
+                </button>
                 <button
                   type="button"
                   onClick={() => setEditAsset(a)}
@@ -433,7 +696,7 @@ function WalletTab({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 shrink-0">
                   <div className="text-right sm:text-right">
                     <p className="text-sm text-neutral-200">
                       {bal.toFixed(6)} {a.coinShort}
@@ -444,13 +707,22 @@ function WalletTab({
                       </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditAsset(a)}
-                    className="px-2 py-1 rounded text-xs bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700 transition-colors"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setLedgerModal({ presetAssetId: a.id })}
+                      className="px-2 py-1 rounded text-xs bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border border-amber-500/25 transition-colors"
+                    >
+                      Fund / deduct
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditAsset(a)}
+                      className="px-2 py-1 rounded text-xs bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700 transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
                 </div>
               </div>
             )
@@ -458,8 +730,16 @@ function WalletTab({
         )}
       </div>
 
-      {fundModal && (
-        <FundFiatModal userId={userId} onClose={() => setFundModal(false)} onDone={onRefresh} />
+      {ledgerModal && (
+        <WalletAdjustModal
+          userId={userId}
+          assets={detail.assets}
+          presetAssetId={ledgerModal.presetAssetId}
+          spotUsd={spotUsd}
+          userEmail={detail.user.email}
+          onClose={() => setLedgerModal(null)}
+          onDone={onRefresh}
+        />
       )}
       {editAsset && (
         <EditAssetModal
@@ -627,16 +907,43 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('profile')
 
-  const load = () => {
+  const reload = useCallback(() => {
     if (!id) return
     setLoading(true)
     getAdminUserDetail(id)
-      .then(setDetail)
-      .catch(() => toast.error('Failed to load user'))
-      .finally(() => setLoading(false))
-  }
+      .then((data) => {
+        setDetail(data)
+        setLoading(false)
+      })
+      .catch(() => {
+        toast.error('Failed to load user')
+        setLoading(false)
+      })
+  }, [id])
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setLoading(true)
+      setDetail(null)
+    })
+    getAdminUserDetail(id)
+      .then((data) => {
+        if (cancelled) return
+        setDetail(data)
+        setLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        toast.error('Failed to load user')
+        setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id])
 
   if (loading || !detail) {
     return (
@@ -707,10 +1014,10 @@ export default function AdminUserDetailPage() {
       {/* Tab Content */}
       <div>
         {tab === 'profile' && (
-          <ProfileTab detail={detail} userId={id!} onSaved={load} />
+          <ProfileTab detail={detail} userId={id!} onSaved={reload} />
         )}
         {tab === 'wallet' && (
-          <WalletTab detail={detail} userId={id!} onRefresh={load} />
+          <WalletTab detail={detail} userId={id!} onRefresh={reload} />
         )}
         {tab === 'trades' && <TradesTab detail={detail} />}
         {tab === 'bots' && <BotsTab detail={detail} />}

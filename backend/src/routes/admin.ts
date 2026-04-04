@@ -10,8 +10,46 @@ import { mergeUserBiosFields, getUserBiosRow, biosSnapshotForApi } from '../lib/
 import { apiUserRow, fiatMetaForUser } from '../lib/api-user-response'
 import { rowToTradePosition } from '../lib/trade-map'
 import { fetchUsdSpots } from '../lib/cc-prices'
+import { sendEmail } from '../email/resend-client'
+import { adminWalletAdjustmentEmailHtml } from '../email/templates'
 
 const admin = new Hono<{ Bindings: Env; Variables: AppVariables }>()
+
+async function sendWalletAdjustNotifyEmail(
+  env: Env,
+  db: AppVariables['db'],
+  internalUserId: number,
+  params: {
+    operation: 'credit' | 'debit'
+    amountNative: string
+    assetSymbol: string
+    eqUsd: string
+    note: string
+    balanceAfter: string
+  }
+): Promise<boolean> {
+  const [userRow] = await db
+    .select({ email: schema.users.email })
+    .from(schema.users)
+    .where(eq(schema.users.id, internalUserId))
+    .limit(1)
+  if (!userRow?.email) return false
+  const biosRow = await getUserBiosRow(db, internalUserId)
+  const firstName = biosRow?.firstName?.trim() ?? ''
+  const base = env.FRONTEND_URL?.trim() || 'http://localhost:4000'
+  const tpl = adminWalletAdjustmentEmailHtml({
+    firstName,
+    operation: params.operation,
+    amountNative: params.amountNative,
+    assetSymbol: params.assetSymbol,
+    eqUsd: params.eqUsd,
+    note: params.note,
+    balanceAfter: params.balanceAfter,
+    dashboardUrl: base,
+  })
+  const r = await sendEmail(env, userRow.email, tpl.subject, tpl.html)
+  return r.ok
+}
 
 // ─── Public FAQ endpoints (no auth) ───────────────────────────────────────────
 
@@ -456,6 +494,106 @@ admin.post('/users/:id/fund-asset', requireAdmin, async (c) => {
   })
 
   return c.json({ ok: true })
+})
+
+/**
+ * POST /admin/users/:id/wallet-adjust
+ * Credit or debit a specific wallet asset by amount in native units; writes wallet_transactions + optional user email.
+ */
+admin.post('/users/:id/wallet-adjust', requireAdmin, async (c) => {
+  const publicId = c.req.param('id')
+  const internalId = await getInternalUserIdByPublicId(c.var.db, publicId)
+  if (internalId == null) return c.json({ error: 'Not found' }, 404)
+
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+  const assetId = Number(body.assetId)
+  const operation = String(body.operation ?? '')
+  const amountRaw = Number(body.amount)
+  const note =
+    typeof body.note === 'string' && body.note.trim() ? body.note.trim() : 'Admin adjustment'
+  const notifyUser = Boolean(body.notifyUser)
+
+  if (!Number.isFinite(assetId) || assetId <= 0) {
+    return c.json({ error: 'assetId required' }, 400)
+  }
+  if (!['credit', 'debit'].includes(operation)) {
+    return c.json({ error: 'operation must be credit or debit' }, 400)
+  }
+  if (!Number.isFinite(amountRaw) || amountRaw <= 0) {
+    return c.json({ error: 'amount must be a positive number' }, 400)
+  }
+
+  const [asset] = await c.var.db
+    .select()
+    .from(schema.walletAssets)
+    .where(eq(schema.walletAssets.id, assetId))
+    .limit(1)
+
+  if (!asset || asset.userId !== internalId) {
+    return c.json({ error: 'Asset not found for this user' }, 404)
+  }
+
+  const prec = asset.assetType === 'fiat' ? 2 : 8
+  const amt = Number(amountRaw.toFixed(prec))
+  if (!Number.isFinite(amt) || amt <= 0) {
+    return c.json({ error: 'Invalid amount after rounding' }, 400)
+  }
+
+  const prev = Number(asset.userBalance)
+  const delta = operation === 'credit' ? amt : -amt
+  const next = prev + delta
+  if (next < -1e-12) {
+    return c.json({ error: 'Insufficient balance for this debit' }, 400)
+  }
+
+  const sym = (asset.coinShort && asset.coinShort.trim()) ? asset.coinShort.trim().toUpperCase() : 'USD'
+  const spots = await fetchUsdSpots(c.env, [sym])
+  let unitUsd = spots.get(sym)?.usd ?? 0
+  if (!(unitUsd > 0)) {
+    const fallback = Number(asset.price)
+    unitUsd = Number.isFinite(fallback) && fallback > 0 ? fallback : sym === 'USD' ? 1 : 0
+  }
+  const eqUsd = Math.abs(amt * unitUsd)
+
+  const nextStr = next.toFixed(8)
+  await c.var.db
+    .update(schema.walletAssets)
+    .set({ userBalance: nextStr })
+    .where(eq(schema.walletAssets.id, assetId))
+
+  const tid = crypto.randomUUID()
+  const now = Math.floor(Date.now() / 1000)
+  await c.var.db.insert(schema.walletTransactions).values({
+    id: tid,
+    userId: internalId,
+    type: delta >= 0 ? 'deposit' : 'withdrawal',
+    amount: String(Math.abs(amt).toFixed(8)),
+    eqAmount: String(eqUsd.toFixed(8)),
+    status: 'completed',
+    createdAt: now,
+    methodType: asset.assetType === 'fiat' ? 'fiat' : 'crypto',
+    methodName: operation === 'credit' ? 'Admin funding' : 'Admin deduction',
+    methodSymbol: asset.coinShort,
+    methodIcon: asset.iconUrl ?? undefined,
+    methodIconClass: asset.iconClass ?? undefined,
+    note,
+  })
+
+  let emailSent = false
+  if (notifyUser) {
+    emailSent = await sendWalletAdjustNotifyEmail(c.env, c.var.db, internalId, {
+      operation: operation as 'credit' | 'debit',
+      amountNative: amt.toFixed(prec).replace(/\.?0+$/, '') || String(amt),
+      assetSymbol: sym,
+      eqUsd: eqUsd.toFixed(2),
+      note,
+      balanceAfter: Number(nextStr).toLocaleString('en-US', {
+        maximumFractionDigits: prec,
+      }),
+    })
+  }
+
+  return c.json({ ok: true, emailSent })
 })
 
 // ─── Manual Trade Creation ────────────────────────────────────────────────────

@@ -164,6 +164,28 @@ export async function fundUserFiat(
   await post(endpoints.admin.userFundFiat(id), payload)
 }
 
+export type WalletLedgerAdjustPayload = {
+  assetId: number
+  operation: 'credit' | 'debit'
+  amount: number
+  note: string
+  notifyUser?: boolean
+}
+
+export async function adjustUserWalletLedger(
+  id: string,
+  payload: WalletLedgerAdjustPayload
+): Promise<{ ok: boolean; emailSent?: boolean }> {
+  const res = await post(endpoints.admin.userWalletAdjust(id), {
+    ...payload,
+  } as unknown as Record<string, unknown>)
+  if (!res || res.status < 200 || res.status >= 300) {
+    const msg = (res?.data as { error?: string } | undefined)?.error ?? 'Request failed'
+    throw new Error(msg)
+  }
+  return res.data as { ok: boolean; emailSent?: boolean }
+}
+
 export async function fundUserAsset(
   id: string,
   payload: { assetId: number; newBalance: number }

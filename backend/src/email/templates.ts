@@ -61,6 +61,38 @@ export function onboardingWelcomeEmailHtml(params: {
   }
 }
 
+export function adminWalletAdjustmentEmailHtml(params: {
+  firstName?: string
+  operation: 'credit' | 'debit'
+  amountNative: string
+  assetSymbol: string
+  eqUsd: string
+  note: string
+  balanceAfter: string
+  dashboardUrl: string
+  appName?: string
+}): { subject: string; html: string } {
+  const app = params.appName ?? 'BlockTrade'
+  const name = params.firstName?.trim() ? ` ${escapeHtml(params.firstName.trim())}` : ''
+  const verb = params.operation === 'credit' ? 'credited to' : 'debited from'
+  const subjectOp = params.operation === 'credit' ? 'Wallet credit' : 'Wallet debit'
+  const walletUrl = `${params.dashboardUrl.replace(/\/$/, '')}/dashboard`
+  return {
+    subject: `${app} — ${subjectOp} (${escapeHtml(params.assetSymbol)})`,
+    html: `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h1 style="font-size:20px">Wallet update${name}</h1>
+      <p>An administrator ${verb} your <strong>${escapeHtml(params.assetSymbol)}</strong> wallet.</p>
+      <ul style="color:#444;line-height:1.6">
+        <li><strong>Amount:</strong> ${escapeHtml(params.amountNative)} ${escapeHtml(params.assetSymbol)} (≈ $${escapeHtml(params.eqUsd)} USD)</li>
+        <li><strong>New balance:</strong> ${escapeHtml(params.balanceAfter)} ${escapeHtml(params.assetSymbol)}</li>
+      </ul>
+      <p style="margin-top:16px;padding:12px;background:#f4f4f5;border-radius:8px;font-size:14px;color:#333"><strong>Note:</strong><br/>${escapeHtml(params.note)}</p>
+      <p style="margin-top:20px"><a href="${escapeAttr(walletUrl)}" style="display:inline-block;padding:12px 20px;background:#d97706;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">View dashboard</a></p>
+      <p style="color:#666;font-size:14px">This change appears in your transaction history. If you did not expect this email, contact support.</p>
+    </body></html>`,
+  }
+}
+
 export function loginNotificationEmailHtml(params: {
   device: string
   time: string
