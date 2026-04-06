@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'react-toastify'
 import { useShallow } from 'zustand/react/shallow'
 import GradientBadge from '@/components/common/GradientBadge'
+import Modal from '@/components/common/Modal'
 import PageHero from '@/components/common/PageHero'
 import { keywordTone } from '@/components/common/gradientBadgeTones'
 import { usePlatformStore, useWalletStore } from '@/stores'
@@ -46,6 +47,8 @@ export default function TradingBotPage() {
       displayCurrency: state.displayCurrency,
     }))
   )
+
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
 
   useEffect(() => {
     void Promise.all([loadCatalog(), loadWallet()])
@@ -200,8 +203,7 @@ export default function TradingBotPage() {
         </section>
       ) : null}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
-        <div className="space-y-4">
+      <div className="space-y-4">
           {bots.map((bot) => {
             const isActive = isBotActive(bot.id)
             const blockedByOther =
@@ -210,7 +212,10 @@ export default function TradingBotPage() {
               <button
                 key={bot.id}
                 type="button"
-                onClick={() => selectBot(bot.id)}
+                onClick={() => {
+                  selectBot(bot.id)
+                  setDetailModalOpen(true)
+                }}
                 className={`w-full text-left gradient-background rounded-2xl border p-5 transition-all ${
                   selectedBot?.id === bot.id
                     ? 'border-green-500/30'
@@ -253,112 +258,111 @@ export default function TradingBotPage() {
               </button>
             )
           })}
-        </div>
+      </div>
 
-        <div>
-        <aside className="sticky  gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 h-fit">
-          {selectedBot ? (
-            <>
-              <div>
-                <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Selected Plan</div>
-                <h2 className="text-2xl font-semibold text-neutral-100 mt-2">{selectedBot.name}</h2>
-                <p className="text-sm text-neutral-400 mt-3">{selectedBot.description}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <GradientBadge tone={keywordTone(selectedBot.strategy)} size="xs">
-                    {selectedBot.strategy}
-                  </GradientBadge>
-                  <GradientBadge tone="green" size="xs">
-                    {selectedBot.monthlyTarget} target
-                  </GradientBadge>
-                </div>
+      <Modal
+        isOpen={detailModalOpen && !!selectedBot}
+        onClose={() => setDetailModalOpen(false)}
+        title={selectedBot?.name ?? 'Plan details'}
+        className="!max-w-2xl w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
+      >
+        {selectedBot ? (
+          <div className="space-y-5">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Selected Plan</div>
+              <p className="text-sm text-neutral-400 mt-2">{selectedBot.description}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <GradientBadge tone={keywordTone(selectedBot.strategy)} size="xs">
+                  {selectedBot.strategy}
+                </GradientBadge>
+                <GradientBadge tone="green" size="xs">
+                  {selectedBot.monthlyTarget} target
+                </GradientBadge>
               </div>
+            </div>
 
-              {subscriptionForSelected ? (
-                <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Subscription</div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-neutral-500">Profit to date</span>
-                    <span className="font-semibold text-green-300">
-                      +{formatCurrency(subscriptionForSelected.lifetimePnlUsd, 'USD')}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-neutral-500">{selectedSubActive ? 'Expires' : 'Ended'}</span>
-                    <span className="text-neutral-200">{formatSubDate(subscriptionForSelected.expiresAt)}</span>
-                  </div>
-                  <GradientBadge tone={selectedSubActive ? 'sky' : 'neutral'} size="xs">
-                    {selectedSubActive ? 'Active subscription' : 'Expired — renew to continue'}
+            {subscriptionForSelected ? (
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Subscription</div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-500">Profit to date</span>
+                  <span className="font-semibold text-green-300">
+                    +{formatCurrency(subscriptionForSelected.lifetimePnlUsd, 'USD')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-500">{selectedSubActive ? 'Expires' : 'Ended'}</span>
+                  <span className="text-neutral-200">{formatSubDate(subscriptionForSelected.expiresAt)}</span>
+                </div>
+                <GradientBadge tone={selectedSubActive ? 'sky' : 'neutral'} size="xs">
+                  {selectedSubActive ? 'Active subscription' : 'Expired — renew to continue'}
+                </GradientBadge>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-3">
+              <MetricCard label="Markets" value={selectedBot.markets.join(', ')} />
+              <MetricCard label="Cadence" value={selectedBot.cadence} />
+              <MetricCard
+                label="Price"
+                value={`${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).usd} · ${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).fiat}`}
+              />
+              <MetricCard
+                label="Status"
+                value={
+                  selectedSubActive
+                    ? 'Subscribed'
+                    : subscriptionForSelected
+                      ? 'Subscription ended'
+                      : 'Ready to deploy'
+                }
+                accent={selectedSubActive ? 'text-sky-300' : 'text-green-300'}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Risk Guardrails</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedBot.guardrails.map((guardrail) => (
+                  <GradientBadge key={guardrail} tone={keywordTone(guardrail)} size="xs">
+                    {guardrail}
                   </GradientBadge>
-                </div>
-              ) : null}
-
-              <div className="grid grid-cols-2 gap-3">
-                <MetricCard label="Markets" value={selectedBot.markets.join(', ')} />
-                <MetricCard label="Cadence" value={selectedBot.cadence} />
-                <MetricCard
-                  label="Price"
-                  value={`${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).usd} · ${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).fiat}`}
-                />
-                <MetricCard
-                  label="Status"
-                  value={
-                    selectedSubActive
-                      ? 'Subscribed'
-                      : subscriptionForSelected
-                        ? 'Subscription ended'
-                        : 'Ready to deploy'
-                  }
-                  accent={selectedSubActive ? 'text-sky-300' : 'text-green-300'}
-                />
+                ))}
               </div>
+            </div>
 
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Risk Guardrails</div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedBot.guardrails.map((guardrail) => (
-                    <GradientBadge key={guardrail} tone={keywordTone(guardrail)} size="xs">
-                      {guardrail}
-                    </GradientBadge>
-                  ))}
-                </div>
-              </div>
+            <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
+              <div className="text-sm font-semibold text-green-300">Funding Source</div>
+              <p className="text-xs text-green-100/80 mt-2">
+                Bot activations debit from the fiat wallet and remain tracked in the platform store for downstream state and permissions.
+              </p>
+            </div>
 
-              <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
-                <div className="text-sm font-semibold text-green-300">Funding Source</div>
-                <p className="text-xs text-green-100/80 mt-2">
-                  Bot activations debit from the fiat wallet and remain tracked in the platform store for downstream state and permissions.
+            {anyOtherActive ? (
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
+                <div className="text-xs font-semibold text-amber-300">One bot at a time</div>
+                <p className="text-xs text-amber-100/70 mt-1">
+                  {bots.find((b) => b.id === anyActiveSubscription?.botId)?.name ?? 'Another bot'} is currently
+                  running. It must expire or be cancelled before activating a new plan.
                 </p>
               </div>
+            ) : null}
 
-              {anyOtherActive ? (
-                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
-                  <div className="text-xs font-semibold text-amber-300">One bot at a time</div>
-                  <p className="text-xs text-amber-100/70 mt-1">
-                    {bots.find((b) => b.id === anyActiveSubscription?.botId)?.name ?? 'Another bot'} is
-                    currently running. It must expire or be cancelled before activating a new plan.
-                  </p>
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={handlePurchase}
-                disabled={selectedSubActive || !!anyOtherActive}
-                className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {selectedSubActive
-                  ? `${selectedBot.name} subscription active`
-                  : anyOtherActive
-                    ? 'Another bot is already running'
-                    : `Purchase for ${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).usd} (${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).fiat})`}
-              </button>
-            </>
-          ) : (
-            <div className="text-sm text-neutral-500">Select a bot package to inspect its controls.</div>
-          )}
-        </aside>
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={handlePurchase}
+              disabled={selectedSubActive || !!anyOtherActive}
+              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {selectedSubActive
+                ? `${selectedBot.name} subscription active`
+                : anyOtherActive
+                  ? 'Another bot is already running'
+                  : `Purchase for ${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).usd} (${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).fiat})`}
+            </button>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   )
 }

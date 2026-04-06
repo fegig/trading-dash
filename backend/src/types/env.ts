@@ -20,12 +20,17 @@ export type Env = {
   SESSION_COOKIE_NAME: string
   CORS_ORIGIN: string
   RESEND_FROM: string
-  /** Public dashboard URL for email links */
+  /** Public dashboard URL for email links and footer “visit site” */
   FRONTEND_URL?: string
-  /** Optional absolute URL to logo image for transactional emails */
+  /** Optional absolute URL to logo image for transactional emails (overrides DB logo when set) */
   EMAIL_LOGO_URL?: string
-  /** Public base URL of this API Worker — used for email `<img>` and site-config absolute URLs (e.g. https://api.example.com) */
+  /**
+   * Public HTTPS origin of **this API Worker** (e.g. https://api.example.com).
+   * Required for email `<img src=".../public/branding/email-logo">` to work — do not use the SPA host.
+   */
   BRANDING_PUBLIC_URL?: string
+  /** Alias for BRANDING_PUBLIC_URL (email / crawler asset URLs). */
+  API_PUBLIC_URL?: string
 }
 
 export type AppVariables = {

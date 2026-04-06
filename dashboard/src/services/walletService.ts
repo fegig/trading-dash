@@ -3,6 +3,15 @@ import { get, post } from '../util/request'
 import { endpoints } from './endpoints'
 import type { AxiosResponse } from 'axios'
 
+function walletMutationErrorMessage(res: AxiosResponse | undefined, fallback: string): string {
+  const data = res?.data as { error?: string; code?: string } | undefined
+  const msg = (data?.error && String(data.error).trim()) || fallback
+  if (data?.code === 'SCHEMA_MIGRATION_REQUIRED') {
+    return `${msg} Run migration 0012_wallet_transactions_pending_meta on the database.`
+  }
+  return msg
+}
+
 const DEFAULT_DISPLAY: WalletAssetsApiResponse['displayCurrency'] = {
   code: 'USD',
   name: 'US Dollar',
@@ -108,8 +117,7 @@ export async function postWalletSendRequest(
     destinationAddress,
   })) as AxiosResponse | undefined
   if (!res || res.status < 200 || res.status >= 300) {
-    const msg = (res?.data as { error?: string })?.error ?? 'Send request failed'
-    return { ok: false, message: msg }
+    return { ok: false, message: walletMutationErrorMessage(res, 'Send request failed') }
   }
   const d = res.data as {
     id?: string
@@ -143,8 +151,7 @@ export async function postWalletDepositIntent(
     amount,
   })) as AxiosResponse | undefined
   if (!res || res.status < 200 || res.status >= 300) {
-    const msg = (res?.data as { error?: string })?.error ?? 'Deposit request failed'
-    return { ok: false, message: msg }
+    return { ok: false, message: walletMutationErrorMessage(res, 'Deposit request failed') }
   }
   const d = res.data as {
     id?: string

@@ -378,7 +378,7 @@ export default function DashboardPage() {
 
             <div className="mt-5 flex flex-wrap gap-3">
               <Link
-                to="/live-trading"
+                to="/dashboard/live-trading"
                 className="rounded-full bg-green-500/15 px-4 py-2 text-sm text-green-300 transition-colors hover:bg-green-500/25"
               >
                 Open trading desk
@@ -437,7 +437,7 @@ export default function DashboardPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Markets</h2>
-          <Link to="/live-trading" className="text-xs text-green-400 hover:text-green-300">
+          <Link to="/dashboard/live-trading" className="text-xs text-green-400 hover:text-green-300">
             Open market desk
           </Link>
         </div>

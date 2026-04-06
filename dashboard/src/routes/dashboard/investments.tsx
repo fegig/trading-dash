@@ -7,6 +7,7 @@ import {
   keywordTone,
   riskTone,
 } from '@/components/common/gradientBadgeTones'
+import Modal from '@/components/common/Modal'
 import PageHero from '@/components/common/PageHero'
 import { usePlatformStore, useWalletStore } from '@/stores'
 import type { InvestmentCategory } from '@/types/platform'
@@ -64,6 +65,7 @@ export default function InvestmentsPage() {
 
   const [selectedCategory, setSelectedCategory] = useState<'All' | InvestmentCategory>('All')
   const [amount, setAmount] = useState('')
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [renderTimestamp] = useState(() => Math.floor(Date.now() / 1000))
 
   useEffect(() => {
@@ -249,8 +251,7 @@ export default function InvestmentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_26rem] gap-6">
-        <div className="space-y-4">
+      <div className="space-y-4">
           {visibleInvestments.map((investment) => {
             const activePosition = investmentPositions.find(
               (position) => position.productId === investment.id
@@ -263,6 +264,7 @@ export default function InvestmentsPage() {
                 onClick={() => {
                   selectInvestment(investment.id)
                   setAmount(String(investment.minAmount))
+                  setDetailModalOpen(true)
                 }}
                 className={`w-full text-left gradient-background rounded-2xl border p-5 transition-all ${
                   selectedInvestment?.id === investment.id
@@ -312,128 +314,119 @@ export default function InvestmentsPage() {
             )
           })}
 
-          {visibleInvestments.length === 0 ? (
-            <div className="gradient-background rounded-2xl border border-neutral-800/80 p-8 text-center text-neutral-500">
-              <i className="fi fi-rr-search-alt text-3xl mb-3 opacity-60" />
-              <p className="text-sm">No mandates match the selected category.</p>
-            </div>
-          ) : null}
-        </div>
-
-        <div>
-        <aside className="sticky  gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 h-fit">
-          {selectedInvestment ? (
-            <>
-              <div>
-                <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">
-                  Selected Mandate
-                </div>
-                <h2 className="mt-2 text-2xl font-semibold text-neutral-100">
-                  {selectedInvestment.name}
-                </h2>
-                <p className="mt-3 text-sm text-neutral-400">{selectedInvestment.description}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <GradientBadge tone={investmentCategoryTone(selectedInvestment.category)} size="xs">
-                    {selectedInvestment.category}
-                  </GradientBadge>
-                  <GradientBadge tone={keywordTone(selectedInvestment.vehicle)} size="xs">
-                    {selectedInvestment.vehicle}
-                  </GradientBadge>
-                  <GradientBadge tone={riskTone(selectedInvestment.risk)} size="xs">
-                    {selectedInvestment.risk} risk
-                  </GradientBadge>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <MetricPanel label="Liquidity" value={selectedInvestment.liquidity} />
-                <MetricPanel label="Funded" value={`${selectedInvestment.fundedPct}%`} />
-                <MetricPanel label="Distribution" value={selectedInvestment.distribution} />
-                <MetricPanel label="Term" value={formatTerm(selectedInvestment.termDays)} />
-              </div>
-
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Suitable For</div>
-                <p className="mt-2 text-sm text-neutral-300">{selectedInvestment.suitableFor}</p>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
-                  Exposure Focus
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedInvestment.focus.map((focus) => (
-                    <GradientBadge key={focus} tone={keywordTone(focus)} size="xs">
-                      {focus}
-                    </GradientBadge>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
-                  Subscription Size
-                </div>
-                <input
-                  type="text"
-                  value={amount || String(selectedInvestment.minAmount)}
-                  onChange={(event) => {
-                    const value = event.target.value
-                    if (/^\d*\.?\d*$/.test(value)) setAmount(value)
-                  }}
-                  className="w-full rounded-xl border border-neutral-800 bg-neutral-900/80 px-4 py-3 text-sm text-neutral-100 outline-none focus:border-green-500/30"
-                />
-                <div className="flex items-center justify-between text-xs text-neutral-500">
-                  <span>Minimum ticket</span>
-                  <span>
-                    {formatUsdAndAccountFiat(selectedInvestment.minAmount, displayCurrency).usd} (
-                    {formatUsdAndAccountFiat(selectedInvestment.minAmount, displayCurrency).fiat})
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-neutral-500">
-                  <span>Your current position</span>
-                  <span>
-                    {currentPosition
-                      ? `${formatCurrency(currentPosition.amount, 'USD')} (${formatUsdAndAccountFiat(currentPosition.amount, displayCurrency).fiat})`
-                      : 'No allocation'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-neutral-500">
-                  <span>Funding source</span>
-                  <span>
-                    {fiatAsset
-                      ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(fiatAsset.userBalance * displayCurrency.usdPerUnit, 'USD')})`
-                      : 'Unavailable'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
-                <div className="text-sm font-semibold text-green-300">Funding Path</div>
-                <p className="mt-2 text-xs text-green-100/80">
-                  Subscriptions debit from the fiat wallet first, then settle into managed positions held in the platform store.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleInvest}
-                className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
-              >
-                Subscribe{' '}
-                {formatUsdAndAccountFiat(
-                  Number(amount || selectedInvestment.minAmount),
-                  displayCurrency
-                ).usd}{' '}
-                ({formatUsdAndAccountFiat(Number(amount || selectedInvestment.minAmount), displayCurrency).fiat})
-              </button>
-            </>
-          ) : (
-            <div className="text-sm text-neutral-500">Select an investment mandate to view its details.</div>
-          )}
-        </aside>
-        </div>
+        {visibleInvestments.length === 0 ? (
+          <div className="gradient-background rounded-2xl border border-neutral-800/80 p-8 text-center text-neutral-500">
+            <i className="fi fi-rr-search-alt text-3xl mb-3 opacity-60" />
+            <p className="text-sm">No mandates match the selected category.</p>
+          </div>
+        ) : null}
       </div>
+
+      <Modal
+        isOpen={detailModalOpen && !!selectedInvestment}
+        onClose={() => setDetailModalOpen(false)}
+        title={selectedInvestment?.name ?? 'Mandate'}
+        className="!max-w-2xl w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
+      >
+        {selectedInvestment ? (
+          <div className="space-y-5">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Selected Mandate</div>
+              <p className="text-sm text-neutral-400 mt-2">{selectedInvestment.description}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <GradientBadge tone={investmentCategoryTone(selectedInvestment.category)} size="xs">
+                  {selectedInvestment.category}
+                </GradientBadge>
+                <GradientBadge tone={keywordTone(selectedInvestment.vehicle)} size="xs">
+                  {selectedInvestment.vehicle}
+                </GradientBadge>
+                <GradientBadge tone={riskTone(selectedInvestment.risk)} size="xs">
+                  {selectedInvestment.risk} risk
+                </GradientBadge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <MetricPanel label="Liquidity" value={selectedInvestment.liquidity} />
+              <MetricPanel label="Funded" value={`${selectedInvestment.fundedPct}%`} />
+              <MetricPanel label="Distribution" value={selectedInvestment.distribution} />
+              <MetricPanel label="Term" value={formatTerm(selectedInvestment.termDays)} />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Suitable For</div>
+              <p className="mt-2 text-sm text-neutral-300">{selectedInvestment.suitableFor}</p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Exposure Focus</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedInvestment.focus.map((focus) => (
+                  <GradientBadge key={focus} tone={keywordTone(focus)} size="xs">
+                    {focus}
+                  </GradientBadge>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Subscription Size</div>
+              <input
+                type="text"
+                value={amount || String(selectedInvestment.minAmount)}
+                onChange={(event) => {
+                  const value = event.target.value
+                  if (/^\d*\.?\d*$/.test(value)) setAmount(value)
+                }}
+                className="w-full rounded-xl border border-neutral-800 bg-neutral-900/80 px-4 py-3 text-sm text-neutral-100 outline-none focus:border-green-500/30"
+              />
+              <div className="flex items-center justify-between text-xs text-neutral-500">
+                <span>Minimum ticket</span>
+                <span>
+                  {formatUsdAndAccountFiat(selectedInvestment.minAmount, displayCurrency).usd} (
+                  {formatUsdAndAccountFiat(selectedInvestment.minAmount, displayCurrency).fiat})
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-neutral-500">
+                <span>Your current position</span>
+                <span>
+                  {currentPosition
+                    ? `${formatCurrency(currentPosition.amount, 'USD')} (${formatUsdAndAccountFiat(currentPosition.amount, displayCurrency).fiat})`
+                    : 'No allocation'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-neutral-500">
+                <span>Funding source</span>
+                <span>
+                  {fiatAsset
+                    ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(fiatAsset.userBalance * displayCurrency.usdPerUnit, 'USD')})`
+                    : 'Unavailable'}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
+              <div className="text-sm font-semibold text-green-300">Funding Path</div>
+              <p className="mt-2 text-xs text-green-100/80">
+                Subscriptions debit from the fiat wallet first, then settle into managed positions held in the platform store.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleInvest}
+              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
+            >
+              Subscribe{' '}
+              {formatUsdAndAccountFiat(
+                Number(amount || selectedInvestment.minAmount),
+                displayCurrency
+              ).usd}{' '}
+              ({formatUsdAndAccountFiat(Number(amount || selectedInvestment.minAmount), displayCurrency).fiat})
+            </button>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   )
 }

@@ -377,7 +377,7 @@ export default function AdminSettingsPage() {
           />
           <AssetCard
             label="Email logo"
-            description="Transactional HTML emails."
+            description="Transactional emails load this from your API (set BRANDING_PUBLIC_URL / API_PUBLIC_URL on the Worker), not the SPA host."
             previewSrc={emailPreview}
             hasAsset={hasEmailLogo}
             uploading={uploading === 'email'}

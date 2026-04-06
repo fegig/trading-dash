@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { toast } from 'react-toastify'
 import { useShallow } from 'zustand/react/shallow'
 import GradientBadge from '@/components/common/GradientBadge'
+import Modal from '@/components/common/Modal'
 import PageHero from '@/components/common/PageHero'
 import { capacityTone, keywordTone } from '@/components/common/gradientBadgeTones'
 import { usePlatformStore, useWalletStore } from '@/stores'
@@ -58,6 +59,7 @@ export default function CopyTradingPage() {
   )
 
   const [allocation, setAllocation] = useState('')
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
   const nowSec = Math.floor(new Date().getTime() / 1000)
 
   useEffect(() => {
@@ -98,6 +100,7 @@ export default function CopyTradingPage() {
   const pickTrader = (trader: CopyTraderProfile) => {
     selectTrader(trader.id)
     setAllocation(String(trader.minAllocation))
+    setDetailModalOpen(true)
   }
 
   const traderRows = copyTraders.map((trader) => {
@@ -153,8 +156,7 @@ export default function CopyTradingPage() {
         }
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem] gap-6">
-        <div className="space-y-4">
+      <div className="space-y-4">
           <div className="xl:hidden space-y-4">
             {traderRows.map(({ trader, following, alloc, traderAllocation, subLive }) => (
               <button
@@ -286,120 +288,119 @@ export default function CopyTradingPage() {
               </tbody>
             </table>
           </div>
-        </div>
-
-        <div>
-        <aside className="sticky  gradient-background rounded-2xl border border-neutral-800/80 p-5 space-y-5 h-fit">
-          {selectedTrader ? (
-            <>
-              <div>
-                <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Lead Trader</div>
-                <h2 className="text-2xl font-semibold text-neutral-100 mt-2">{selectedTrader.name}</h2>
-                <p className="text-sm text-neutral-400 mt-3">{selectedTrader.bio}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <GradientBadge tone={capacityTone(selectedTrader.capacity)} size="xs">
-                    {selectedTrader.capacity}
-                  </GradientBadge>
-                  <GradientBadge tone="green" size="xs">
-                    {selectedTrader.monthlyReturn} monthly
-                  </GradientBadge>
-                </div>
-              </div>
-
-              {selectedAlloc ? (
-                <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Copy subscription</div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-neutral-500">P&amp;L to date</span>
-                    <span className="font-semibold text-green-300">
-                      +{formatCurrency(selectedAlloc.lifetimePnlUsd, 'USD')}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-neutral-500">{subActive ? 'Renews / ends' : 'Ended'}</span>
-                    <span className="text-neutral-200">{formatSubDate(selectedAlloc.expiresAt)}</span>
-                  </div>
-                  <GradientBadge tone={subActive ? 'sky' : 'neutral'} size="xs">
-                    {subActive ? 'Subscription active' : 'Subscription ended'}
-                  </GradientBadge>
-                </div>
-              ) : null}
-
-              <div className="grid grid-cols-2 gap-3">
-                <MetricCard label="Win Rate" value={`${selectedTrader.winRate}%`} />
-                <MetricCard label="Followers" value={String(selectedTrader.followers)} />
-                <MetricCard label="Fee" value={`${selectedTrader.feePct}%`} />
-                <MetricCard
-                  label="Your Allocation"
-                  value={currentAllocation ? formatCurrency(currentAllocation, 'USD') : 'Not funded'}
-                  accent={currentAllocation ? 'text-sky-300' : undefined}
-                />
-              </div>
-
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Focus Pairs</div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedTrader.focusPairs.map((pair) => (
-                    <GradientBadge key={pair} tone={keywordTone(pair)} size="xs">
-                      {pair}
-                    </GradientBadge>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Allocation</div>
-                <input
-                  type="text"
-                  value={allocation || String(selectedTrader.minAllocation)}
-                  onChange={(event) => {
-                    const value = event.target.value
-                    if (/^\d*\.?\d*$/.test(value)) setAllocation(value)
-                  }}
-                  className="w-full rounded-xl border border-neutral-800 bg-neutral-900/80 px-4 py-3 text-sm text-neutral-100 outline-none focus:border-green-500/30"
-                />
-                <div className="flex items-center justify-between text-xs text-neutral-500">
-                  <span>Minimum allocation</span>
-                  <span>
-                    {formatUsdAndAccountFiat(selectedTrader.minAllocation, displayCurrency).usd} (
-                    {formatUsdAndAccountFiat(selectedTrader.minAllocation, displayCurrency).fiat})
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-neutral-500">
-                  <span>Performance fee</span>
-                  <span>{selectedTrader.feePct}%</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-neutral-500">
-                  <span>Cash funding available</span>
-                  <span>
-                    {fiatAsset
-                      ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(fiatAsset.userBalance * displayCurrency.usdPerUnit, 'USD')})`
-                      : 'Unavailable'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
-                <div className="text-sm font-semibold text-green-300">Funding Flow</div>
-                <p className="text-xs text-green-100/80 mt-2">
-                  Each new allocation draws from the fiat wallet first, then updates your tracked exposure inside the platform store.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAllocate}
-                className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
-              >
-                Allocate from cash wallet
-              </button>
-            </>
-          ) : (
-            <div className="text-sm text-neutral-500">Select a lead trader to review allocation details.</div>
-          )}
-        </aside>
-        </div>
       </div>
+
+      <Modal
+        isOpen={detailModalOpen && !!selectedTrader}
+        onClose={() => setDetailModalOpen(false)}
+        title={selectedTrader?.name ?? 'Lead trader'}
+        className="!max-w-2xl w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
+      >
+        {selectedTrader ? (
+          <div className="space-y-5">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-neutral-500">Lead Trader</div>
+              <p className="text-sm text-neutral-400 mt-2">{selectedTrader.bio}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <GradientBadge tone={capacityTone(selectedTrader.capacity)} size="xs">
+                  {selectedTrader.capacity}
+                </GradientBadge>
+                <GradientBadge tone="green" size="xs">
+                  {selectedTrader.monthlyReturn} monthly
+                </GradientBadge>
+              </div>
+            </div>
+
+            {selectedAlloc ? (
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Copy subscription</div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-500">P&amp;L to date</span>
+                  <span className="font-semibold text-green-300">
+                    +{formatCurrency(selectedAlloc.lifetimePnlUsd, 'USD')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-500">{subActive ? 'Renews / ends' : 'Ended'}</span>
+                  <span className="text-neutral-200">{formatSubDate(selectedAlloc.expiresAt)}</span>
+                </div>
+                <GradientBadge tone={subActive ? 'sky' : 'neutral'} size="xs">
+                  {subActive ? 'Subscription active' : 'Subscription ended'}
+                </GradientBadge>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-3">
+              <MetricCard label="Win Rate" value={`${selectedTrader.winRate}%`} />
+              <MetricCard label="Followers" value={String(selectedTrader.followers)} />
+              <MetricCard label="Fee" value={`${selectedTrader.feePct}%`} />
+              <MetricCard
+                label="Your Allocation"
+                value={currentAllocation ? formatCurrency(currentAllocation, 'USD') : 'Not funded'}
+                accent={currentAllocation ? 'text-sky-300' : undefined}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Focus Pairs</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedTrader.focusPairs.map((pair) => (
+                  <GradientBadge key={pair} tone={keywordTone(pair)} size="xs">
+                    {pair}
+                  </GradientBadge>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">Allocation</div>
+              <input
+                type="text"
+                value={allocation || String(selectedTrader.minAllocation)}
+                onChange={(event) => {
+                  const value = event.target.value
+                  if (/^\d*\.?\d*$/.test(value)) setAllocation(value)
+                }}
+                className="w-full rounded-xl border border-neutral-800 bg-neutral-900/80 px-4 py-3 text-sm text-neutral-100 outline-none focus:border-green-500/30"
+              />
+              <div className="flex items-center justify-between text-xs text-neutral-500">
+                <span>Minimum allocation</span>
+                <span>
+                  {formatUsdAndAccountFiat(selectedTrader.minAllocation, displayCurrency).usd} (
+                  {formatUsdAndAccountFiat(selectedTrader.minAllocation, displayCurrency).fiat})
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-neutral-500">
+                <span>Performance fee</span>
+                <span>{selectedTrader.feePct}%</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-neutral-500">
+                <span>Cash funding available</span>
+                <span>
+                  {fiatAsset
+                    ? `${safeFormatCurrency(fiatAsset.userBalance, displayCurrency.code)} (~${formatCurrency(fiatAsset.userBalance * displayCurrency.usdPerUnit, 'USD')})`
+                    : 'Unavailable'}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
+              <div className="text-sm font-semibold text-green-300">Funding Flow</div>
+              <p className="text-xs text-green-100/80 mt-2">
+                Each new allocation draws from the fiat wallet first, then updates your tracked exposure inside the platform store.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAllocate}
+              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
+            >
+              Allocate from cash wallet
+            </button>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   )
 }

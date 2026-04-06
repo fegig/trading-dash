@@ -22,6 +22,10 @@ import {
   DEPOSIT_INTENT_TTL_SEC,
 } from '../lib/wallet-request-constants'
 import { walletTransactionsBaseColumns } from '../lib/wallet-transactions-columns'
+import {
+  isMissingWalletTxExtendedColumnsError,
+  WALLET_TX_MIGRATION_HINT,
+} from '../lib/wallet-tx-migration-error'
 import * as schema from '../db/schema'
 
 type Db = AppVariables['db']
@@ -241,24 +245,32 @@ wallet.post('/send-request', requireUser, async (c) => {
   const tid = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
 
-  await c.var.db.insert(schema.walletTransactions).values({
-    id: tid,
-    userId,
-    type: 'withdrawal',
-    amount: String(amount.toFixed(8)),
-    eqAmount: String(eqUsd.toFixed(8)),
-    status: 'pending',
-    createdAt: now,
-    methodType: 'crypto',
-    methodName: WALLET_METHOD_WITHDRAWAL_REQUEST,
-    methodSymbol: asset.coinShort,
-    methodIcon: coincapIconUrl(sym),
-    methodIconClass: asset.iconClass ?? undefined,
-    note: null,
-    counterpartyAddress: destinationAddress.trim(),
-    walletAssetId: asset.id,
-    expiresAt: null,
-  })
+  try {
+    await c.var.db.insert(schema.walletTransactions).values({
+      id: tid,
+      userId,
+      type: 'withdrawal',
+      amount: String(amount.toFixed(8)),
+      eqAmount: String(eqUsd.toFixed(8)),
+      status: 'pending',
+      createdAt: now,
+      methodType: 'crypto',
+      methodName: WALLET_METHOD_WITHDRAWAL_REQUEST,
+      methodSymbol: asset.coinShort,
+      methodIcon: coincapIconUrl(sym),
+      methodIconClass: asset.iconClass ?? undefined,
+      note: null,
+      counterpartyAddress: destinationAddress.trim(),
+      walletAssetId: asset.id,
+      expiresAt: null,
+    })
+  } catch (err) {
+    console.error('[wallet/send-request] insert', err)
+    if (isMissingWalletTxExtendedColumnsError(err)) {
+      return c.json({ error: WALLET_TX_MIGRATION_HINT, code: 'SCHEMA_MIGRATION_REQUIRED' }, 503)
+    }
+    return c.json({ error: 'Could not record send request' }, 500)
+  }
 
   const [u] = await c.var.db
     .select({ email: schema.users.email, publicId: schema.users.publicId })
@@ -320,24 +332,32 @@ wallet.post('/deposit-intent', requireUser, async (c) => {
     const now = Math.floor(Date.now() / 1000)
     const expiresAt = now + DEPOSIT_INTENT_TTL_SEC
 
-    await c.var.db.insert(schema.walletTransactions).values({
-      id: tid,
-      userId,
-      type: 'deposit',
-      amount: String(amount.toFixed(8)),
-      eqAmount: String(eqUsd.toFixed(8)),
-      status: 'pending',
-      createdAt: now,
-      methodType: 'crypto',
-      methodName: WALLET_METHOD_DEPOSIT_REQUEST,
-      methodSymbol: asset.coinShort,
-      methodIcon: coincapIconUrl(sym),
-      methodIconClass: asset.iconClass ?? undefined,
-      note: null,
-      counterpartyAddress: null,
-      walletAssetId: asset.id,
-      expiresAt,
-    })
+    try {
+      await c.var.db.insert(schema.walletTransactions).values({
+        id: tid,
+        userId,
+        type: 'deposit',
+        amount: String(amount.toFixed(8)),
+        eqAmount: String(eqUsd.toFixed(8)),
+        status: 'pending',
+        createdAt: now,
+        methodType: 'crypto',
+        methodName: WALLET_METHOD_DEPOSIT_REQUEST,
+        methodSymbol: asset.coinShort,
+        methodIcon: coincapIconUrl(sym),
+        methodIconClass: asset.iconClass ?? undefined,
+        note: null,
+        counterpartyAddress: null,
+        walletAssetId: asset.id,
+        expiresAt,
+      })
+    } catch (insertErr) {
+      console.error('[wallet/deposit-intent] insert', insertErr)
+      if (isMissingWalletTxExtendedColumnsError(insertErr)) {
+        return c.json({ error: WALLET_TX_MIGRATION_HINT, code: 'SCHEMA_MIGRATION_REQUIRED' }, 503)
+      }
+      return c.json({ error: 'Could not record deposit request' }, 500)
+    }
 
     const [u] = await c.var.db
       .select({ email: schema.users.email, publicId: schema.users.publicId })
@@ -373,6 +393,9 @@ wallet.post('/deposit-intent', requireUser, async (c) => {
     return c.json({ id: tid, expiresAt, supportNotified, ...(emailWarning ? { emailWarning } : {}) })
   } catch (err) {
     console.error('[wallet/deposit-intent]', err)
+    if (isMissingWalletTxExtendedColumnsError(err)) {
+      return c.json({ error: WALLET_TX_MIGRATION_HINT, code: 'SCHEMA_MIGRATION_REQUIRED' }, 503)
+    }
     return c.json({ error: 'Could not record deposit request' }, 500)
   }
 })
