@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { useState } from 'react'
+import axios from 'axios'
 import * as authService from '@/services/authService'
 import {
   AuthAlert,
@@ -15,13 +16,23 @@ export default function ForgotPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setBusy(true)
+    setError(null)
     authService
       .requestPasswordReset(email)
       .then(() => setSent(true))
+      .catch((err: unknown) => {
+        if (axios.isAxiosError(err) && err.response?.data) {
+          const data = err.response.data as { error?: string; message?: string }
+          setError(data.error ?? data.message ?? 'Could not send a reset link. Please try again.')
+        } else {
+          setError('Could not send a reset link. Please try again.')
+        }
+      })
       .finally(() => setBusy(false))
   }
 
@@ -81,6 +92,7 @@ export default function ForgotPage() {
         </div>
       ) : (
         <form onSubmit={onSubmit} className="space-y-5">
+          {error ? <AuthAlert tone="danger">{error}</AuthAlert> : null}
           <div>
             <AuthFieldLabel htmlFor="forgot-email">Email</AuthFieldLabel>
             <input

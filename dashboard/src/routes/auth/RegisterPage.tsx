@@ -55,10 +55,11 @@ export default function RegisterPage() {
       })
       .catch((err: unknown) => {
         if (axios.isAxiosError(err) && err.response?.data) {
-          const data = err.response.data
+          const data = err.response.data as { error?: string; message?: string } | unknown[]
           if (Array.isArray(data)) setError(data.join(' '))
-          else if (typeof data === 'object' && data && 'message' in data) {
-            setError(String((data as { message: string }).message))
+          else if (typeof data === 'object' && data) {
+            const d = data as { error?: string; message?: string }
+            setError(d.error ?? d.message ?? 'Registration could not be completed.')
           } else {
             setError('Registration could not be completed.')
           }

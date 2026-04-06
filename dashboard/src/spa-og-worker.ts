@@ -49,18 +49,27 @@ function bustAssetUrl(url: string, v: number | undefined): string {
   return `${url}${url.includes('?') ? '&' : '?'}v=${n}`
 }
 
-async function fetchSiteConfig(env: SpaOgWorkerEnv): Promise<SiteConfigJson | null> {
+type FetchResult =
+  | { cfg: SiteConfigJson; error: null; url: string }
+  | { cfg: null; error: string; url: string }
+
+async function fetchSiteConfig(env: SpaOgWorkerEnv): Promise<FetchResult> {
   const override = env.SITE_CONFIG_URL?.trim()
-  const url =
-    override && override.length > 0
-      ? override
-      : `${trimSlash(env.VITE_API_URL)}/public/site-config`
+  const apiBase = env.VITE_API_URL?.trim()
+  if (!override && !apiBase) {
+    return { cfg: null, error: 'VITE_API_URL and SITE_CONFIG_URL are both unset', url: '' }
+  }
+  const url = override && override.length > 0 ? override : `${trimSlash(apiBase)}/public/site-config`
   try {
     const res = await fetch(url, { headers: { Accept: 'application/json' } })
-    if (!res.ok) return null
-    return (await res.json()) as SiteConfigJson
-  } catch {
-    return null
+    if (!res.ok) {
+      return { cfg: null, error: `HTTP ${res.status} from ${url}`, url }
+    }
+    const json = (await res.json()) as SiteConfigJson
+    return { cfg: json, error: null, url }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { cfg: null, error: `fetch error: ${msg}`, url }
   }
 }
 
@@ -119,13 +128,18 @@ export default {
       return env.ASSETS.fetch(request)
     }
 
-    const cfgPromise = fetchSiteConfig(env)
-    const cfg = await cfgPromise
-    const html = buildOgHtml(url.toString(), cfg)
+    const result = await fetchSiteConfig(env)
+    const html = buildOgHtml(url.toString(), result.cfg)
     const headers = new Headers({
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=120, s-maxage=300',
+      'Cache-Control': result.cfg ? 'public, max-age=120, s-maxage=300' : 'no-store',
     })
+
+    const isDebug = url.searchParams.get('__og') === '1'
+    if (isDebug) {
+      headers.set('X-OG-Config-URL', result.url)
+      headers.set('X-OG-Config-Status', result.error ?? 'ok')
+    }
 
     if (request.method === 'HEAD') {
       return new Response(null, { headers })

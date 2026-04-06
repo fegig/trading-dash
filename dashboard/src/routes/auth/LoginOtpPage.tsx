@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router'
 import { useCallback, useEffect, useState } from 'react'
+import axios from 'axios'
 import * as authService from '@/services/authService'
 import {
   clearPendingOtp,
@@ -52,8 +53,13 @@ export default function LoginOtpPage() {
       persistPendingOtp(next)
       setPayload(next)
       setInfo('We sent a new code to your email.')
-    } catch {
-      setError('Could not resend the code. Try again shortly.')
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const data = err.response.data as { error?: string; message?: string }
+        setError(data.error ?? data.message ?? 'Could not resend the code. Try again shortly.')
+      } else {
+        setError('Could not resend the code. Try again shortly.')
+      }
     } finally {
       setResendBusy(false)
     }
@@ -82,8 +88,13 @@ export default function LoginOtpPage() {
         to: payload.redirectTo,
         welcomeToast: payload.welcomeToast === true,
       })
-    } catch {
-      setError('That code is invalid or expired. Request a new one below.')
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const data = err.response.data as { error?: string; message?: string }
+        setError(data.error ?? data.message ?? 'That code is invalid or expired. Request a new one below.')
+      } else {
+        setError('That code is invalid or expired. Request a new one below.')
+      }
     } finally {
       setBusy(false)
     }

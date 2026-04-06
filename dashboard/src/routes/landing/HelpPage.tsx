@@ -12,6 +12,7 @@ import {
   MarketingStatCard,
   MarketingSurface,
 } from '@/components/landing/MarketingSurface'
+import { useSiteConfigStore } from '@/stores/siteConfigStore'
 
 function getCategoryMeta(name: string) {
   const lower = name.toLowerCase()
@@ -47,7 +48,7 @@ export default function HelpPage() {
   const [categories, setCategories] = useState<FaqCategory[]>(FALLBACK_FAQ_CATEGORIES)
   const [searchText, setSearchText] = useState('')
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
-
+  const siteName = useSiteConfigStore((s) => s.siteName)
   useEffect(() => {
     helpContentService
       .fetchFaqCategories<{ data?: FaqCategory[] }>()
@@ -123,7 +124,7 @@ export default function HelpPage() {
           <div className="overflow-hidden rounded-[24px] border border-neutral-800 bg-neutral-950/80">
             <img
               src="/images/help_center.png"
-              alt="BlockTrade help center"
+              alt={`${siteName} help center`}
               className="h-60 w-full object-cover"
             />
           </div>

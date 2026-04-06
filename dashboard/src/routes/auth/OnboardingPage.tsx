@@ -265,10 +265,11 @@ export default function OnboardingPage() {
       setStep(1)
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data) {
-        const data = err.response.data
+        const data = err.response.data as { error?: string; message?: string } | unknown[]
         if (Array.isArray(data)) setError(data.join(' '))
-        else if (typeof data === 'object' && data && 'message' in data) {
-          setError(String((data as { message: string }).message))
+        else if (typeof data === 'object' && data) {
+          const d = data as { error?: string; message?: string }
+          setError(d.error ?? d.message ?? 'Could not save your profile.')
         } else {
           setError('Could not save your profile.')
         }
@@ -295,8 +296,13 @@ export default function OnboardingPage() {
       })
       await authService.addAdminWallet()
       setStep(2)
-    } catch {
-      setError('Could not save currency. Try again.')
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const data = err.response.data as { error?: string; message?: string }
+        setError(data.error ?? data.message ?? 'Could not save currency. Try again.')
+      } else {
+        setError('Could not save currency. Try again.')
+      }
     } finally {
       setBusy(false)
     }

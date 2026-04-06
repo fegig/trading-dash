@@ -97,7 +97,7 @@ export default function AboutPage() {
           <div className="overflow-hidden rounded-[26px] border border-neutral-800 bg-neutral-950/80">
             <img
               src="/images/our_people.png"
-              alt="BlockTrade team"
+              alt={`${displayName} team`}
               className="h-84 w-full object-cover object-top"
             />
           </div>
@@ -168,7 +168,7 @@ export default function AboutPage() {
           <div className="overflow-hidden rounded-[24px] border border-neutral-800 bg-neutral-950/80">
             <img
               src="/images/our_mission.png"
-              alt="BlockTrade mission"
+              alt={`${displayName} mission`}
               className="h-64 w-full object-cover"
             />
           </div>
@@ -191,7 +191,7 @@ export default function AboutPage() {
           <div className="overflow-hidden rounded-[24px] border border-neutral-800 bg-neutral-950/80">
             <img
               src="/images/our_vision.png"
-              alt="BlockTrade vision"
+              alt={`${displayName} vision`}
               className="h-64 w-full object-cover"
             />
           </div>
@@ -243,7 +243,7 @@ export default function AboutPage() {
           <div className="overflow-hidden rounded-[24px] border border-neutral-800 bg-neutral-950/80">
             <img
               src="/images/our_people_2.png"
-              alt="BlockTrade team collaboration"
+              alt={`${displayName} team collaboration`}
               className="h-64 w-full object-cover"
             />
           </div>

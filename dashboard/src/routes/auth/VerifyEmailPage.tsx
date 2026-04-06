@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
+import axios from 'axios'
 import * as authService from '@/services/authService'
 import NotFoundPage from '../NotFound'
 import {
@@ -15,6 +16,7 @@ export default function VerifyEmailPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const [resMsg, setResMsg] = useState<string | null>(null)
+  const [resendError, setResendError] = useState<string | null>(null)
   const [verifiedStatus, setVerifiedStatus] = useState(false)
 
   const userId = (location.state as { userId?: number | string } | null)?.userId
@@ -47,13 +49,24 @@ export default function VerifyEmailPage() {
     } | null
     if (!state?.email || state.userId == null) return
 
+    setResMsg(null)
+    setResendError(null)
+
     authService
       .sendVerificationEmail(state.email!, state.userId!, undefined, state.userName)
       .then((response) => {
         const d = response?.data as { ok?: boolean } | undefined
         if (d?.ok) setResMsg('Verification email sent.')
+        else setResendError('The email could not be sent. Try again in a moment.')
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        if (axios.isAxiosError(err) && err.response?.data) {
+          const data = err.response.data as { error?: string; message?: string }
+          setResendError(data.error ?? data.message ?? 'Could not resend the verification email.')
+        } else {
+          setResendError('Could not resend the verification email.')
+        }
+      })
   }
 
   if (location.state == null) {
@@ -160,6 +173,7 @@ export default function VerifyEmailPage() {
         </button>
 
         {resMsg ? <AuthAlert tone="success">{resMsg}</AuthAlert> : null}
+        {resendError ? <AuthAlert tone="danger">{resendError}</AuthAlert> : null}
       </div>
     </AuthPanel>
   )

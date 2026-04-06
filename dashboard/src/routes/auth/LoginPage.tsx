@@ -81,7 +81,8 @@ export default function LoginPage() {
         const data = response.data
         const user = data?.user as ApiUser | undefined
         if (!user) {
-          setError('Unable to sign in. Check your credentials and try again.')
+          const errData = data as { error?: string; message?: string } | undefined
+          setError(errData?.error ?? errData?.message ?? 'Unable to sign in. Check your credentials and try again.')
           return
         }
 
@@ -138,8 +139,8 @@ export default function LoginPage() {
       })
       .catch((err: unknown) => {
         if (axios.isAxiosError(err) && err.response?.data) {
-          const data = err.response.data as { message?: string }
-          setError(data.message ?? 'Sign-in failed.')
+          const data = err.response.data as { error?: string; message?: string }
+          setError(data.error ?? data.message ?? 'Sign-in failed.')
         } else {
           setError('Sign-in failed. Please try again.')
         }
