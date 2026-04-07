@@ -319,10 +319,11 @@ export const verificationSteps = mysqlTable(
   (t) => [index('vs_user_idx').on(t.userId)]
 )
 
+/** Slot ids (e.g. doc-passport) repeat per user — PK must be (user_id, id), not id alone. */
 export const verificationDocuments = mysqlTable(
   'verification_documents',
   {
-    id: varchar('id', { length: 64 }).primaryKey(),
+    id: varchar('id', { length: 64 }).notNull(),
     userId: int('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -336,7 +337,7 @@ export const verificationDocuments = mysqlTable(
     mimeType: varchar('mime_type', { length: 128 }),
     fileSize: int('file_size'),
   },
-  (t) => [index('vd_user_idx').on(t.userId)]
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('vd_user_idx').on(t.userId)]
 )
 
 export const verificationBenefits = mysqlTable(

@@ -1,8 +1,10 @@
 import { and, count, desc, eq, gt, gte } from 'drizzle-orm'
+import type { InferSelectModel } from 'drizzle-orm'
 import type { Env } from '../types/env'
 import { createDbContext, releaseDbContext } from '../db/client'
 import * as schema from '../db/schema'
 import { resolveUsdPerFiatUnit } from '../lib/wallet-ledger'
+import { selectTradingBotByIdForCatalog } from '../lib/trading-bots-query'
 
 const CC_DATA = 'https://min-api.cryptocompare.com/data'
 
@@ -54,15 +56,12 @@ export async function runBotCycle(env: Env): Promise<void> {
       .where(gt(schema.userBotSubscriptions.expiresAt, now))
 
     for (const sub of subs) {
-      const [bot] = await db
-        .select()
-        .from(schema.tradingBots)
-        .where(eq(schema.tradingBots.id, sub.botId))
-        .limit(1)
+      const bot = await selectTradingBotByIdForCatalog(db, sub.botId)
       if (!bot) continue
+      const b = bot as InferSelectModel<typeof schema.tradingBots>
 
-      const maxPerDay = numOr(bot.maxTradesPerDay, 4)
-      const minInterval = cadenceToMinIntervalSeconds(bot.cadence ?? '1h')
+      const maxPerDay = numOr(b.maxTradesPerDay, 4)
+      const minInterval = cadenceToMinIntervalSeconds(b.cadence ?? '1h')
 
       const [{ n: runsToday }] = await db
         .select({ n: count() })
@@ -86,9 +85,9 @@ export async function runBotCycle(env: Env): Promise<void> {
       const balanceUsd = Number(fiat.fiatRow.userBalance) * fiat.usdPerUnit
       if (!Number.isFinite(balanceUsd) || balanceUsd <= 0) continue
 
-      const pct = numOr(bot.tradeSizePctOfFiatBalance, 0.05)
-      const minU = numOr(bot.minTradeSizeUsd, 10)
-      const maxU = numOr(bot.maxTradeSizeUsd, 500)
+      const pct = numOr(b.tradeSizePctOfFiatBalance, 0.05)
+      const minU = numOr(b.minTradeSizeUsd, 10)
+      const maxU = numOr(b.maxTradeSizeUsd, 500)
 
       let investedUsd = balanceUsd * pct
       investedUsd = Math.min(investedUsd, maxU)

@@ -92,6 +92,13 @@
       "when": 1776000000000,
       "tag": "0012_wallet_transactions_pending_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1776100000000,
+      "tag": "0013_verification_documents_composite_pk",
+      "breakpoints": true
     }
   ]
 }

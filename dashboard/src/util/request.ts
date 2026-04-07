@@ -34,8 +34,16 @@ export const get = async <T = unknown>(
     return response?.data
   } catch (error: unknown) {
     if (error instanceof AxiosError) {
-      console.error('Error fetching data:', error.response?.data)
-      throw Object.assign(new Error('Failed to fetch data'), { cause: error })
+      const status = error.response?.status
+      const data = error.response?.data
+      console.error('Error fetching data:', data ?? (status != null ? `HTTP ${status}` : error.message))
+      const hint =
+        status != null
+          ? `HTTP ${status}`
+          : error.code === 'ERR_NETWORK'
+            ? 'Network error (check API is running and VITE_API_URL / dev proxy)'
+            : error.message || 'Request failed'
+      throw Object.assign(new Error(`Failed to fetch data (${hint})`), { cause: error })
     }
   }
 }

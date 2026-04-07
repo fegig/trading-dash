@@ -18,6 +18,7 @@ import { registerAdminSettingsRoutes } from './admin-settings'
 import { registerAdminFaqRoutes } from './admin-faq'
 import { registerAdminVerificationQueueRoutes } from './admin-verification-queue'
 import { registerAdminWalletPendingRoutes } from './admin-wallet-pending'
+import { selectAllTradingBotsCatalog } from '../lib/trading-bots-query'
 
 const admin = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
@@ -871,7 +872,7 @@ admin.post('/trades/create', requireAdmin, async (c) => {
 // ─── Bot Catalog Management ───────────────────────────────────────────────────
 
 admin.get('/bots', requireAdmin, async (c) => {
-  const rows = await c.var.db.select().from(schema.tradingBots)
+  const rows = await selectAllTradingBotsCatalog(c.var.db)
   return c.json({ data: rows })
 })
 

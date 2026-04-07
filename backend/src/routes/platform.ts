@@ -10,6 +10,7 @@ import { coincapIconUrl } from '../lib/coincap'
 import { provisionCoinForAllUsers } from '../services/wallet-provisioning'
 import { insertGlobalNotice } from '../lib/global-notices'
 import { spendUserFiatUsd } from '../lib/wallet-ledger'
+import { selectAllTradingBotsCatalog, selectTradingBotByIdForCatalog, tradingBotToCatalogJson } from '../lib/trading-bots-query'
 
 const DEFAULT_SUB_DAYS = 30
 const SUB_PERIOD_SEC = DEFAULT_SUB_DAYS * 86400
@@ -115,28 +116,8 @@ platform.post('/coins', async (c) => {
 })
 
 platform.get('/trading-bots', async (c) => {
-  const rows = await c.var.db.select().from(schema.tradingBots)
-  return c.json(
-    rows.map((b) => ({
-      id: b.id,
-      name: b.name,
-      strapline: b.strapline,
-      description: b.description,
-      strategy: b.strategy,
-      priceUsd: Number(b.priceUsd),
-      monthlyTarget: b.monthlyTarget,
-      winRate: b.winRate,
-      maxDrawdown: b.maxDrawdown,
-      markets: b.markets,
-      cadence: b.cadence,
-      guardrails: b.guardrails,
-      subscriptionDays: b.subscriptionDays ?? 30,
-      maxTradesPerDay: b.maxTradesPerDay ?? 4,
-      tradeSizePctOfFiatBalance: Number(b.tradeSizePctOfFiatBalance ?? 0.05),
-      minTradeSizeUsd: Number(b.minTradeSizeUsd ?? 10),
-      maxTradeSizeUsd: Number(b.maxTradeSizeUsd ?? 500),
-    }))
-  )
+  const rows = await selectAllTradingBotsCatalog(c.var.db)
+  return c.json(rows.map((b) => tradingBotToCatalogJson(b)))
 })
 
 platform.get('/copy-traders', async (c) => {
@@ -257,11 +238,7 @@ platform.post('/bot-subscriptions', requireUser, async (c) => {
     return c.json({ error: 'Another bot subscription is active. Cancel it before activating a new plan.' }, 409)
   }
 
-  const [bot] = await c.var.db
-    .select()
-    .from(schema.tradingBots)
-    .where(eq(schema.tradingBots.id, botId))
-    .limit(1)
+  const bot = await selectTradingBotByIdForCatalog(c.var.db, botId)
   if (!bot) return c.json({ error: 'Bot not found' }, 404)
 
   const price = Number(bot.priceUsd)

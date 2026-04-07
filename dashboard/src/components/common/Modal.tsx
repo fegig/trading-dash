@@ -95,7 +95,7 @@ const Modal: React.FC<ModalProps> = ({
                         <i className="fi fi-rr-cross text-neutral-500" />
                     </button>
                 </div>
-                <div className={`min-h-0 flex-1 flex flex-col ${isDrawer ? 'p-4 overflow-y-auto' : 'p-4 overflow-auto'}`}>
+                <div className={`min-h-0 flex-1 flex flex-col ${isDrawer ? 'p-4  overflow-y-auto scrollBar' : 'p-4 overflow-auto'}`}>
                     {children}
                 </div>
             </div>
