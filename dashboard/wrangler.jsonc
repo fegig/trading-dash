@@ -35,5 +35,13 @@
         }
     },
     
-    "route":"jfmcapitals.com"
+    "routes": [
+        {"custom_domain": true, "pattern": "jfmcapitals.com"}
+    ],
+    "observability": {
+        "logs": {
+            "enabled": true,
+            "invocation_logs": true
+        }
+    }
 }
