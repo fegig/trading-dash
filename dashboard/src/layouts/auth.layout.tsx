@@ -25,7 +25,7 @@ export default function AuthLayout() {
       />
 
       <AuthHeader />
-      <main className="relative flex flex-1 items-start px-4 py-8 pt-26 md:px-6 md:py-12 md:pt-28 lg:items-center">
+      <main className="relative flex flex-1 items-start px-4 py-8 pt-32 sm:pt-26 md:px-6 md:py-12 md:pt-28 lg:items-center">
         <div className="mx-auto w-full max-w-304">
           <Outlet />
         </div>

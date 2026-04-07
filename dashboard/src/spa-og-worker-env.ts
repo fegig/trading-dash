@@ -7,4 +7,5 @@ export type SpaOgWorkerEnv = {
   ASSETS: { fetch(input: Request | URL | string, init?: RequestInit): Promise<Response> }
   VITE_API_URL: string
   SITE_CONFIG_URL?: string
+  VITE_SITE_NAME_FALLBACK?: string
 }

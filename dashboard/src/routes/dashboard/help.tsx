@@ -59,7 +59,12 @@ export default function HelpPage() {
       )}
       <div className="text-xs text-neutral-600 space-y-1">
         <p className="font-medium text-neutral-500">Contact</p>
-        {loaded && (supportEmail || supportPhone) ? (
+        {!loaded ? (
+          <div className="flex gap-2 animate-pulse pt-0.5">
+            <div className="h-3.5 w-44 rounded bg-neutral-800/60" />
+            <div className="h-3.5 w-24 rounded bg-neutral-800/40" />
+          </div>
+        ) : (supportEmail || supportPhone) ? (
           <p className="text-neutral-400">
             {supportEmail ? (
               <a href={`mailto:${supportEmail}`} className="underline hover:text-neutral-200">
@@ -69,9 +74,9 @@ export default function HelpPage() {
             {supportEmail && supportPhone ? <span className="mx-2">·</span> : null}
             {supportPhone ? <span>{supportPhone}</span> : null}
           </p>
-        ) : loaded ? (
+        ) : (
           <p className="text-neutral-500">Support email and phone can be configured by an administrator.</p>
-        ) : null}
+        )}
       </div>
     </div>
   )

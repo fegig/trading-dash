@@ -16,8 +16,16 @@ export type SiteConfigSnapshot = {
   settingsUpdatedAt?: number
 }
 
-/** Matches previous hardcoded marketing name when API is unavailable. */
-export const SITE_NAME_FALLBACK = 'BlockTrade'
+const DEFAULT_SITE_NAME = 'BlockTrade'
+
+function siteNameFallbackFromEnv(): string {
+  const raw = import.meta.env.VITE_SITE_NAME_FALLBACK
+  const s = typeof raw === 'string' ? raw.trim() : ''
+  return s.length > 0 ? s : DEFAULT_SITE_NAME
+}
+
+/** Default label when site-config has no `siteName` (from `VITE_SITE_NAME_FALLBACK` in `.env`, else BlockTrade). */
+export const SITE_NAME_FALLBACK = siteNameFallbackFromEnv()
 
 type State = SiteConfigSnapshot & {
   loaded: boolean

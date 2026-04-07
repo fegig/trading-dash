@@ -74,7 +74,7 @@ export function LandingPairStrip() {
       >
         <div className="absolute inset-0 bg-linear-to-t from-neutral-950/30 from-5% to-transparent to-100% "/>
         <div className='h-80 w-full'>
-        <img src="/images/trading-dash.png" alt="Trading dashboard" className="w-full h-full object-cover" />
+        <img src="/images/trading-dash.png" alt="JFM Capitals" className="w-full h-full object-cover" />
 
         </div>
     {/* image of the trading dasboard comes here */}

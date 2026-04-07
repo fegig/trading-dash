@@ -22,6 +22,7 @@ export default function LandingHeader() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
   const siteName = useSiteConfigStore((s) => s.siteName)
   const siteLogoUrl = useSiteConfigStore((s) => s.siteLogoUrl)
+  const loaded = useSiteConfigStore((s) => s.loaded)
   const displayName = siteName?.trim() || SITE_NAME_FALLBACK
 
   useEffect(() => {
@@ -34,10 +35,16 @@ export default function LandingHeader() {
         <Link to="/" className="flex items-center gap-3">
           <span>
             <span className="flex items-center gap-2">
-              {siteLogoUrl ? (
-                <img src={siteLogoUrl} alt="" className="h-8 w-auto max-w-[120px] object-contain" />
-              ) : null}
-              <span className="block text-lg font-semibold tracking-tight text-neutral-50">{displayName}</span>
+              {!loaded ? (
+                <div className="h-6 w-28 rounded-lg bg-neutral-800/70 animate-pulse" />
+              ) : (
+                <>
+                  {siteLogoUrl ? (
+                    <img src={siteLogoUrl} alt="" className="h-8 w-auto max-w-[120px] object-contain" />
+                  ) : null}
+                  <span className="block text-lg font-semibold tracking-tight text-neutral-50">{displayName}</span>
+                </>
+              )}
             </span>
             <span className="block text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               Capital Operations

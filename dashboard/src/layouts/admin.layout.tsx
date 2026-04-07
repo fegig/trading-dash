@@ -108,6 +108,7 @@ function AdminLayout() {
   const user = useAuthStore((s) => s.user)
   const siteName = useSiteConfigStore((s) => s.siteName)
   const siteLogoUrl = useSiteConfigStore((s) => s.siteLogoUrl)
+  const siteConfigLoaded = useSiteConfigStore((s) => s.loaded)
   const displayName = siteName?.trim() || SITE_NAME_FALLBACK
   const [navOpen, setNavOpen] = useState(false)
 
@@ -142,16 +143,22 @@ function AdminLayout() {
               <i className="fi fi-rr-menu-burger text-lg" />
             </button>
             <div className="flex items-center gap-2">
-              {siteLogoUrl ? (
-                <img
-                  src={siteLogoUrl}
-                  alt=""
-                  className="h-8 w-auto max-w-[140px] object-contain"
-                />
-              ) : null}
-              <span className="text-xl md:text-2xl font-bold text-amber-400 shrink-0 tracking-tight">
-                {displayName}
-              </span>
+              {!siteConfigLoaded ? (
+                <div className="h-7 w-32 rounded-xl bg-amber-500/10 animate-pulse" />
+              ) : (
+                <>
+                  {siteLogoUrl ? (
+                    <img
+                      src={siteLogoUrl}
+                      alt=""
+                      className="h-8 w-auto max-w-[140px] object-contain"
+                    />
+                  ) : null}
+                  <span className="text-xl md:text-2xl font-bold text-amber-400 shrink-0 tracking-tight">
+                    {displayName}
+                  </span>
+                </>
+              )}
               <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase tracking-wider">
                 Admin
               </span>

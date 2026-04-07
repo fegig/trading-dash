@@ -4,8 +4,14 @@ import type { SpaOgWorkerEnv } from './spa-og-worker-env'
  * Runs ahead of static assets (`run_worker_first`). For known social crawlers or `?__og=1`,
  * returns minimal HTML with OG/Twitter meta from `GET /public/site-config` on the API Worker.
  * Set `SITE_CONFIG_URL` in wrangler vars to override (full URL); otherwise uses `VITE_API_URL` + `/public/site-config`.
+ * Set `VITE_SITE_NAME_FALLBACK` in wrangler `vars` to match dashboard `.env` when site-config has no `siteName`.
  */
-const SITE_NAME_FALLBACK = 'BlockTrade'
+const DEFAULT_SITE_NAME = 'BlockTrade'
+
+function siteNameFallback(env: SpaOgWorkerEnv): string {
+  const s = env.VITE_SITE_NAME_FALLBACK?.trim() ?? ''
+  return s.length > 0 ? s : DEFAULT_SITE_NAME
+}
 
 type SiteConfigJson = {
   siteName?: string
@@ -73,8 +79,8 @@ async function fetchSiteConfig(env: SpaOgWorkerEnv): Promise<FetchResult> {
   }
 }
 
-function buildOgHtml(pageUrl: string, cfg: SiteConfigJson | null): string {
-  const name = cfg?.siteName?.trim() || SITE_NAME_FALLBACK
+function buildOgHtml(pageUrl: string, cfg: SiteConfigJson | null, nameFallback: string): string {
+  const name = cfg?.siteName?.trim() || nameFallback
   const title = cfg?.ogTitle?.trim() || name
   const desc =
     cfg?.ogDescription?.trim() || `${name} — trading, wallet, and account workspace.`
@@ -129,7 +135,7 @@ export default {
     }
 
     const result = await fetchSiteConfig(env)
-    const html = buildOgHtml(url.toString(), result.cfg)
+    const html = buildOgHtml(url.toString(), result.cfg, siteNameFallback(env))
     const headers = new Headers({
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': result.cfg ? 'public, max-age=120, s-maxage=300' : 'no-store',

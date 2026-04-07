@@ -7,6 +7,7 @@ function Header() {
   const [navOpen, setNavOpen] = useState(false)
   const siteName = useSiteConfigStore((s) => s.siteName)
   const siteLogoUrl = useSiteConfigStore((s) => s.siteLogoUrl)
+  const loaded = useSiteConfigStore((s) => s.loaded)
   const displayName = siteName?.trim() || SITE_NAME_FALLBACK
 
   return (
@@ -27,10 +28,16 @@ function Header() {
             to="/dashboard"
             className="flex items-center gap-2 text-xl md:text-2xl font-bold text-green-400 shrink-0 tracking-tight hover:text-green-300 transition-colors"
           >
-            {siteLogoUrl ? (
-              <img src={siteLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
-            ) : null}
-            <span>{displayName}</span>
+            {!loaded ? (
+              <div className="h-7 w-32 rounded-xl bg-neutral-800/70 animate-pulse" />
+            ) : (
+              <>
+                {siteLogoUrl ? (
+                  <img src={siteLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
+                ) : null}
+                <span>{displayName}</span>
+              </>
+            )}
           </Link>
         </div>
 

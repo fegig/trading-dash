@@ -49,6 +49,7 @@ export default function HelpPage() {
   const [searchText, setSearchText] = useState('')
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
   const siteName = useSiteConfigStore((s) => s.siteName)
+  const displayName = siteName?.trim() || 'Help center'
   useEffect(() => {
     helpContentService
       .fetchFaqCategories<{ data?: FaqCategory[] }>()
@@ -124,7 +125,7 @@ export default function HelpPage() {
           <div className="overflow-hidden rounded-[24px] border border-neutral-800 bg-neutral-950/80">
             <img
               src="/images/help_center.png"
-              alt={`${siteName} help center`}
+              alt={`${displayName} help center`}
               className="h-60 w-full object-cover"
             />
           </div>

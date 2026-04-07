@@ -18,7 +18,8 @@
                 "VITE_API_KEY": "hdsuuj-489hjs-Hkdwse-0823kjhsd",
                 "VITE_APP_URL": "http://localhost:4000",
                 "VITE_APP_ENV": "development",
-                "SITE_CONFIG_URL": "http://localhost:8787/public/site-config"
+                "SITE_CONFIG_URL": "http://localhost:8787/public/site-config",
+                "VITE_SITE_NAME_FALLBACK": "JFM Capitals"
             }
         },
         "production": {
@@ -28,7 +29,8 @@
                 "VITE_API_KEY": "hdsuuj-489hjs-Hkdwse-0823kjhsd",
                 "VITE_APP_URL": "https://trading-dash.fegigtech.workers.dev",
                 "VITE_APP_ENV": "production",
-                "SITE_CONFIG_URL": "https://trading-dash-api.fegigtech.workers.dev/public/site-config"
+                "SITE_CONFIG_URL": "https://trading-dash-api.fegigtech.workers.dev/public/site-config",
+                "VITE_SITE_NAME_FALLBACK": "JFM Capitals"
             }
         }
     }
