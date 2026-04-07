@@ -24,12 +24,12 @@
         },
         "production": {
             "vars": {
-                "VITE_API_URL": "https://trading-dash-api.fegigtech.workers.dev",
-                "VITE_WS_URL": "wss://trading-dash-api.fegigtech.workers.dev",
+                "VITE_API_URL": "https://api.jfmcapitals.com",
+                "VITE_WS_URL": "wss://api.jfmcapitals.com",
                 "VITE_API_KEY": "hdsuuj-489hjs-Hkdwse-0823kjhsd",
-                "VITE_APP_URL": "https://trading-dash.fegigtech.workers.dev",
+                "VITE_APP_URL": "https://jfmcapitals.com",
                 "VITE_APP_ENV": "production",
-                "SITE_CONFIG_URL": "https://trading-dash-api.fegigtech.workers.dev/public/site-config",
+                "SITE_CONFIG_URL": "https://api.jfmcapitals.com/public/site-config",
                 "VITE_SITE_NAME_FALLBACK": "JFM Capitals"
             }
         }
