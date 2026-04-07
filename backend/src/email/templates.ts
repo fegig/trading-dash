@@ -6,7 +6,7 @@ export type EmailBranding = {
   appName?: string
   /** Public site root, no trailing slash — footer link */
   brandBaseUrl?: string
-  /** Absolute URL to logo image (set `EMAIL_LOGO_URL` in env) */
+  /** Absolute URL to logo image (`EMAIL_LOGO_URL` env or DB email logo via `getTransactionalEmailBranding`) */
   logoUrl?: string
 }
 

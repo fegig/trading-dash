@@ -5,6 +5,7 @@ import type { SpaOgWorkerEnv } from './spa-og-worker-env'
  * returns minimal HTML with OG/Twitter meta from `GET /public/site-config` on the API Worker.
  * Set `SITE_CONFIG_URL` in wrangler vars to override (full URL); otherwise uses `VITE_API_URL` + `/public/site-config`.
  * Set `VITE_SITE_NAME_FALLBACK` in wrangler `vars` to match dashboard `.env` when site-config has no `siteName`.
+ * `og:image` uses the app/site logo from site-config (`ogImageUrl` or `siteLogoUrl`), not the email logo.
  */
 const DEFAULT_SITE_NAME = 'BlockTrade'
 
@@ -17,6 +18,8 @@ type SiteConfigJson = {
   siteName?: string
   ogTitle?: string
   ogDescription?: string
+  /** Optional; when set, same as header logo in the app. */
+  siteLogoUrl?: string | null
   ogImageUrl?: string | null
   settingsUpdatedAt?: number
 }
@@ -85,7 +88,12 @@ function buildOgHtml(pageUrl: string, cfg: SiteConfigJson | null, nameFallback: 
   const desc =
     cfg?.ogDescription?.trim() || `${name} — trading, wallet, and account workspace.`
   const v = cfg?.settingsUpdatedAt
-  const ogImage = cfg?.ogImageUrl ? bustAssetUrl(cfg.ogImageUrl, v) : ''
+  /** Dashboard social preview uses the app header logo (`siteLogoUrl`), not the email-only asset. */
+  const rawImage =
+    (cfg?.ogImageUrl && String(cfg.ogImageUrl).trim()) ||
+    (cfg?.siteLogoUrl && String(cfg.siteLogoUrl).trim()) ||
+    ''
+  const ogImage = rawImage ? bustAssetUrl(rawImage, v) : ''
 
   const meta: string[] = [
     `<meta charset="UTF-8" />`,

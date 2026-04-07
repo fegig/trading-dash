@@ -26,7 +26,7 @@ export type Env = {
   EMAIL_LOGO_URL?: string
   /**
    * Public HTTPS origin of **this API Worker** (e.g. https://api.example.com).
-   * Required for email `<img src=".../public/branding/email-logo">` to work — do not use the SPA host.
+   * Required for email `<img src=".../public/branding/email-logo">` to resolve — do not use the SPA host.
    */
   BRANDING_PUBLIC_URL?: string
   /** Alias for BRANDING_PUBLIC_URL (email / crawler asset URLs). */

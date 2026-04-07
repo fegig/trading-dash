@@ -59,7 +59,7 @@ publicRoutes.get('/site-config', async (c) => {
     siteLogoUrl,
     emailLogoUrl,
     faviconUrl,
-    /** Same as site logo when set — for `og:image` */
+    /** Open Graph / social preview — same image as the dashboard header (`siteLogoUrl`). */
     ogImageUrl: siteLogoUrl,
     settingsUpdatedAt: cacheKey,
   })
