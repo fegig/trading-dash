@@ -33,5 +33,6 @@
                 "VITE_SITE_NAME_FALLBACK": "JFM Capitals"
             }
         }
-    }
+    },
+    "route":"jfmcapitals.com"
 }

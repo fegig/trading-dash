@@ -66,5 +66,6 @@
 			"enabled": true,
 			"invocation_logs": true
 		  }
-		}
+		},
+		"route": "api.jfmcapitals.com"
 }
