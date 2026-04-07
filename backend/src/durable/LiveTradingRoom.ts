@@ -1,6 +1,7 @@
 import { createDbContext, releaseDbContext } from '../db/client'
 import * as schema from '../db/schema'
 import type { Env } from '../types/env'
+import { fetchSpotUsdForBase } from '../lib/cc-prices'
 import { evaluateLiveTpslForPair } from '../lib/live-tpsl-eval'
 import { creditUserFiatUsd, spendUserFiatUsd } from '../lib/wallet-ledger'
 
@@ -63,10 +64,14 @@ export class LiveTradingRoom {
       (typeof this.ctx.id.name === 'string' ? this.ctx.id.name : '')
     try {
       this.ensureBook()
-      const mid =
+      const bookMid =
         this.asks.length > 0 && this.bids.length > 0
           ? (this.asks[0].price + this.bids[0].price) / 2
           : null
+      const baseSym = pairName.split(/[-/]/)[0]?.trim().toUpperCase() || ''
+      const spot =
+        baseSym.length > 0 ? await fetchSpotUsdForBase(this.env, baseSym) : null
+      const mid = spot ?? bookMid
       if (pairName && mid != null && mid > 0) {
         const ctxDb = await createDbContext(this.env.HYPERDRIVE.connectionString)
         try {
@@ -82,6 +87,7 @@ export class LiveTradingRoom {
           asks: this.asks,
           bids: this.bids,
           price: mid,
+          spotSource: spot != null ? 'external' : 'book',
         })
       }
     } finally {

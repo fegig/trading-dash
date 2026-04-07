@@ -294,7 +294,7 @@ export default function CopyTradingPage() {
         isOpen={detailModalOpen && !!selectedTrader}
         onClose={() => setDetailModalOpen(false)}
         title={selectedTrader?.name ?? 'Lead trader'}
-        className="!max-w-2xl w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
+        className="max-w-2xl! w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
       >
         {selectedTrader ? (
           <div className="space-y-5">

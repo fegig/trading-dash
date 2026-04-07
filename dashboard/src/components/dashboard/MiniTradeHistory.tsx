@@ -39,6 +39,12 @@ export default function MiniTradeHistory() {
     return () => window.removeEventListener(TRADE_REFRESH_EVENT, onRefresh)
   }, [loadTrades, userId])
 
+  /** Live desk: server updates marks via DO/cron; poll so PnL / TP–SL progress stays visible without a full reload. */
+  useEffect(() => {
+    const id = window.setInterval(() => void loadTrades(userId, true), 12_000)
+    return () => clearInterval(id)
+  }, [loadTrades, userId])
+
   const filteredHistory = useMemo(
     () => trades.filter((trade) => historyType[trade.status]),
     [historyType, trades]
@@ -56,7 +62,7 @@ export default function MiniTradeHistory() {
       <TradeHistoryFilter historyType={historyType} setHistoryType={setHistoryType} showAllTrades={true} />
 
       <div className="max-h-[500px] h-full overflow-y-auto scrollbar-none mt-4">
-        <div className="flex flex-col space-y-4 pb-4">
+        <div className="flex flex-col space-y-4 pb-4 h-full">
           {filteredHistory.length === 0 ? (
             <div className="gradient-background rounded-2xl p-6 text-center justify-center items-center flex flex-col text-neutral-500 flex-1">
               <i className="fi fi-rr-search-alt text-2xl mb-3 opacity-60" />

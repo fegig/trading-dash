@@ -23,7 +23,27 @@ function shouldCloseAtPrice(
   return false
 }
 
-/** Auto-close open live-desk trades when mid price touches stored TP/SL. Returns how many were closed. */
+function unrealizedPnlUsd(
+  option: 'buy' | 'sell',
+  entryPx: number,
+  midPrice: number,
+  invested: number,
+  fees: number
+): number {
+  if (!(entryPx > 0) || !(midPrice > 0) || !(invested > 0)) return 0
+  let pnlUsd = 0
+  if (option === 'buy') {
+    pnlUsd = invested * (midPrice / entryPx - 1) - fees
+  } else {
+    pnlUsd = invested * (entryPx / midPrice - 1) - fees
+  }
+  return Number(pnlUsd.toFixed(8))
+}
+
+/**
+ * Mark-to-market open live rows (marketPrice + pnl) then auto-close when `midPrice` hits TP/SL.
+ * `midPrice` should be a real spot quote (e.g. CryptoCompare) so the desk progresses with the market.
+ */
 export async function evaluateLiveTpslForPair(
   env: Env,
   db: Db,
@@ -45,6 +65,19 @@ export async function evaluateLiveTpslForPair(
 
   let closed = 0
   for (const t of rows) {
+    const entryPx = Number(t.entryPrice)
+    const invested = Number(t.invested)
+    const fees = Number(t.fees)
+    const pnlUsd = unrealizedPnlUsd(t.option, entryPx, midPrice, invested, fees)
+
+    await db
+      .update(schema.trades)
+      .set({
+        marketPrice: String(midPrice),
+        pnl: String(pnlUsd),
+      })
+      .where(eq(schema.trades.id, t.id))
+
     const sl = Number(t.sl)
     const tp = Number(t.tp)
     if (!(sl > 0) && !(tp > 0)) continue

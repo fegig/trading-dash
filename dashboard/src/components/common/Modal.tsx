@@ -76,7 +76,7 @@ const Modal: React.FC<ModalProps> = ({
                 className={`bg-neutral-900 scrollBar shadow-xl smooth flex flex-col ${
                     isDrawer
                         ? `h-full max-h-dvh w-[min(100%,20rem)] sm:w-88 rounded-none rounded-l-2xl border-l border-neutral-800 overflow-hidden ${className}`
-                        : `rounded-xl w-[90%] max-w-md max-h-[90vh] overflow-auto ${className}`
+                        : `rounded-xl w-[90%] max-w-md max-h-[90vh] overflow-auto scrollBar ${className}`
                 }`}
             >
                 <div className={`flex items-center justify-between shrink-0 p-4 border-b border-neutral-800 ${isDrawer ? 'bg-neutral-950/80' : ''}`}>
@@ -95,7 +95,7 @@ const Modal: React.FC<ModalProps> = ({
                         <i className="fi fi-rr-cross text-neutral-500" />
                     </button>
                 </div>
-                <div className={`min-h-0 flex-1 flex flex-col ${isDrawer ? 'p-4  overflow-y-auto scrollBar' : 'p-4 overflow-auto'}`}>
+                <div className={`min-h-0 flex-1 flex flex-col ${isDrawer ? 'p-4  overflow-y-auto scrollBar' : 'p-4 overflow-auto scrollBar'}`}>
                     {children}
                 </div>
             </div>

@@ -3,6 +3,7 @@ export { LiveTradingRoom } from './durable/LiveTradingRoom'
 import type { Env } from './types/env'
 import { createDbContext, releaseDbContext } from './db/client'
 import { runBotCycle } from './services/bot-engine'
+import { sweepLiveDeskTpsl } from './services/live-trading-cron'
 import { deleteExpiredDepositIntents } from './services/wallet-pending-cleanup'
 
 const app = createApp()
@@ -14,6 +15,7 @@ export default {
     ctx.waitUntil(
       (async () => {
         await runBotCycle(env)
+        await sweepLiveDeskTpsl(env)
         const dbCtx = await createDbContext(env.HYPERDRIVE.connectionString)
         try {
           await deleteExpiredDepositIntents(dbCtx.db)

@@ -42,6 +42,7 @@ import TradingBotPage from './routes/dashboard/trading-bot'
 import InvestmentsPage from './routes/dashboard/investments'
 import AffiliatePage from './routes/dashboard/affiliate'
 import SettingsPage from './routes/dashboard/settings'
+import ProfilePage from './routes/dashboard/profile'
 import VerificationPage from './routes/dashboard/verification'
 import HelpPageDash from './routes/dashboard/help'
 import LogoutPage from './routes/dashboard/logout'
@@ -82,6 +83,7 @@ function App() {
             <Route path="trading-bot" element={<TradingBotPage />} />
             <Route path="investments" element={<InvestmentsPage />} />
             <Route path="affiliate" element={<AffiliatePage />} />
+            <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="verification" element={<VerificationPage />} />
             <Route path="help" element={<HelpPageDash />} />

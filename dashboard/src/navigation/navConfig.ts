@@ -13,7 +13,7 @@ export type NavGroup = {
 export const navGroups: NavGroup[] = [
   {
     title: 'Overview',
-    items: [{ label: 'Dashboard', path: '/dashboard', iconClass: 'fi-rs-apps' }],
+    items: [{ label: 'Dashboard', path: '/dashboard', iconClass: 'fi-rs-apps', end: true }],
   },
   {
     title: 'Trade',
@@ -37,6 +37,7 @@ export const navGroups: NavGroup[] = [
   {
     title: 'Account',
     items: [
+      { label: 'Profile', path: '/dashboard/profile', iconClass: 'fi-rs-user', end: true },
       { label: 'Settings', path: '/dashboard/settings', iconClass: 'fi-rs-settings' },
       { label: 'Verification', path: '/dashboard/verification', iconClass: 'fi-rs-shield-check' },
       { label: 'Help', path: '/dashboard/help', iconClass: 'fi-rs-interrogation' },

@@ -84,3 +84,12 @@ export async function fetchUsdSpots(env: Env, symbols: string[]): Promise<Map<st
     return new Map()
   }
 }
+
+/** Single-asset spot vs USD (uses same CryptoCompare batch helper as the wallet). */
+export async function fetchSpotUsdForBase(env: Env, base: string): Promise<number | null> {
+  const sym = base.trim().toUpperCase()
+  if (!sym) return null
+  const m = await fetchUsdSpots(env, [sym])
+  const spot = m.get(sym)
+  return spot && spot.usd > 0 && Number.isFinite(spot.usd) ? spot.usd : null
+}
