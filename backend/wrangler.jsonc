@@ -67,6 +67,9 @@
 			"invocation_logs": true
 		  }
 		},
-		
-		"route": "api.jfmcapitals.com"
+
+		"routes": [
+			
+			{"custom_domain": true, "pattern": "api.jfmcapitals.com"},
+		]
 }
