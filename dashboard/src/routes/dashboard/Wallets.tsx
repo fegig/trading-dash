@@ -22,7 +22,9 @@ export default function Wallets() {
 
   const [fromAssetId, setFromAssetId] = useState('')
   const [toAssetId, setToAssetId] = useState('')
-  const [amount, setAmount] = useState('')
+  const [fromAmount, setFromAmount] = useState('')
+  const [toAmount, setToAmount] = useState('')
+  const [converting, setConverting] = useState(false)
 
   useEffect(() => {
     void loadWallet(true)
@@ -41,23 +43,45 @@ export default function Wallets() {
     assets.find((asset) => asset.walletId === resolvedToAssetId) ??
     assets.find((asset) => asset.walletId !== fromAsset?.walletId)
 
+  const fromPx = Number(fromAsset?.price ?? 0)
+  const toPx = Number(toAsset?.price ?? 0)
+
   const quotePreview = useMemo(() => {
-    const rawAmount = Number(amount)
+    const rawAmount = Number(fromAmount)
     if (!fromAsset || !toAsset || !Number.isFinite(rawAmount) || rawAmount <= 0) return null
-    const fromPx = Number(fromAsset.price)
-    const toPx = Number(toAsset.price)
+    if (!Number.isFinite(fromPx) || fromPx <= 0 || !Number.isFinite(toPx) || toPx <= 0) return null
     const usdGross = rawAmount * fromPx
     const feeUsd = usdGross * 0.0035
     const usdNet = usdGross - feeUsd
     const toAmountValue = usdNet / toPx
-    return {
-      usdGross,
-      feeUsd,
-      usdNet,
-      toAmountValue,
-      rate: fromPx / toPx,
+    return { usdGross, feeUsd, usdNet, toAmountValue, rate: fromPx / toPx }
+  }, [fromAmount, fromAsset, toAsset, fromPx, toPx])
+
+  const handleFromAmountChange = (value: string) => {
+    if (!/^\d*\.?\d*$/.test(value)) return
+    setFromAmount(value)
+    const raw = Number(value)
+    if (fromAsset && toAsset && raw > 0 && fromPx > 0 && toPx > 0) {
+      const computed = (raw * fromPx * (1 - 0.0035)) / toPx
+      setToAmount(Number(computed.toFixed(8)).toString())
+    } else {
+      setToAmount('')
     }
-  }, [amount, fromAsset, toAsset])
+  }
+
+  const handleToAmountChange = (value: string) => {
+    if (!/^\d*\.?\d*$/.test(value)) return
+    setToAmount(value)
+    const raw = Number(value)
+    if (fromAsset && toAsset && raw > 0 && fromPx > 0 && toPx > 0) {
+      // reverse: toAmount = fromAmount * fromPx * 0.9965 / toPx
+      //          fromAmount = toAmount * toPx / (fromPx * 0.9965)
+      const computed = (raw * toPx) / (fromPx * (1 - 0.0035))
+      setFromAmount(Number(computed.toFixed(8)).toString())
+    } else {
+      setFromAmount('')
+    }
+  }
 
   const scrollLeft = () => {
     scrollContainerRef.current?.scrollBy({ left: -320, behavior: 'smooth' })
@@ -72,14 +96,22 @@ export default function Wallets() {
       toast.error('Select both source and destination assets.')
       return
     }
+    const raw = Number(fromAmount)
+    if (!raw || raw <= 0) {
+      toast.error('Enter an amount to convert.')
+      return
+    }
+    setConverting(true)
     void (async () => {
-      const result = await convertAssets(fromAsset.walletId, toAsset.walletId, Number(amount))
+      const result = await convertAssets(fromAsset.walletId, toAsset.walletId, raw)
+      setConverting(false)
       if (!result.ok) {
         toast.error(result.message)
         return
       }
       toast.success(result.message)
-      setAmount('')
+      setFromAmount('')
+      setToAmount('')
     })()
   }
 
@@ -186,18 +218,41 @@ export default function Wallets() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">Amount</label>
-                  <input
-                    type="text"
-                    value={amount}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      if (/^\d*\.?\d*$/.test(value)) setAmount(value)
-                    }}
-                    placeholder="0.00"
-                    className="w-full mt-2 bg-neutral-900/80 text-sm text-neutral-100 border border-neutral-800"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      You send ({fromAsset?.coinShort ?? '—'})
+                    </label>
+                    <div className="relative mt-2">
+                      <input
+                        type="text"
+                        value={fromAmount}
+                        onChange={(e) => handleFromAmountChange(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-neutral-900/80 text-sm text-neutral-100 border border-neutral-800 pr-14"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500 pointer-events-none">
+                        {fromAsset?.coinShort}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      You receive ({toAsset?.coinShort ?? '—'})
+                    </label>
+                    <div className="relative mt-2">
+                      <input
+                        type="text"
+                        value={toAmount}
+                        onChange={(e) => handleToAmountChange(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-neutral-900/80 text-sm text-neutral-100 border border-neutral-800 pr-14"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500 pointer-events-none">
+                        {toAsset?.coinShort}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -267,9 +322,17 @@ export default function Wallets() {
               <button
                 type="button"
                 onClick={handleConvert}
-                className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
+                disabled={converting || !quotePreview}
+                className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Convert Funds
+                {converting ? (
+                  <>
+                    <i className="fi fi-rr-spinner animate-spin" />
+                    <span>Converting…</span>
+                  </>
+                ) : (
+                  'Convert Funds'
+                )}
               </button>
 
               <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">

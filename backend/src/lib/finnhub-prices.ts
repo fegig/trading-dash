@@ -76,7 +76,7 @@ export async function fetchFinnhubQuote(env: Env, symbol: string): Promise<Finnh
       open: typeof raw.o === 'number' && raw.o > 0 ? raw.o : raw.c,
       prevClose: typeof raw.pc === 'number' && raw.pc > 0 ? raw.pc : raw.c,
     }
-    await cachePut(env, cacheKey, JSON.stringify(quote), 60)
+    await cachePut(env, cacheKey, JSON.stringify(quote), 120)
     return quote
   } catch {
     return null
@@ -163,8 +163,8 @@ export async function fetchFinnhubCandles(
       volume: raw.v?.[i] ?? 0,
     }))
 
-    // Cache longer for older timeframes; shorter for recent data
-    const ttl = resolution === 'D' || resolution === 'W' ? 1800 : resolution === '60' ? 300 : 60
+    // TTLs must be ≥ 60 s (KV minimum). Use longer windows for slower-moving data.
+    const ttl = resolution === 'D' || resolution === 'W' ? 1800 : resolution === '60' ? 300 : 120
     await cachePut(env, cacheKey, JSON.stringify(candles), ttl)
     return candles
   } catch {

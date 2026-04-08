@@ -148,7 +148,9 @@ function Footer() {
     // Only fetch if we have the quote currency
     if (symbols?.QUOTE) {
       fetchCryptoPrices();
-      const interval = setInterval(fetchCryptoPrices, 30000);
+      // Same cadence as PairBanner (90s) — this batch call was the main driver of
+      // `/crypto/price?fsyms=BTC,ETH,BNB,SOL,ADA` (footer ticker, not the live chart).
+      const interval = setInterval(fetchCryptoPrices, 90000);
       return () => clearInterval(interval);
     }
   }, [pairs, symbols]);

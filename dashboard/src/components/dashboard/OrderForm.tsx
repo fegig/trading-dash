@@ -87,6 +87,7 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
     const [takeProfitPrice, setTakeProfitPrice] = useState('');
     const [stopLossPrice, setStopLossPrice] = useState('');
     const [maxLeverage] = useState(100); // Maximum leverage allowed
+    const [placing, setPlacing] = useState(false);
 
     // Add new state for TP/SL toggle
     const [tpslEnabled, setTpslEnabled] = useState(false);
@@ -237,6 +238,7 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
                     : price * (1 + LITE_SL_RATIO)
                 : undefined;
             const pair = `${symbol.BASE}-${symbol.QUOTE}`.toUpperCase();
+            setPlacing(true);
             void placeLiveOrder({
                 pair,
                 side: longShort === 'long' ? 'buy' : 'sell',
@@ -251,7 +253,8 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
                 .then(finishOrderResponse)
                 .catch(() => {
                     errorToast('Could not place order. Is the API running?');
-                });
+                })
+                .finally(() => setPlacing(false));
             return;
         }
 
@@ -332,6 +335,7 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
             tp = defaults.tp;
             sl = defaults.sl;
         }
+        setPlacing(true);
         void placeLiveOrder({
             pair,
             side: longShort === 'long' ? 'buy' : 'sell',
@@ -351,7 +355,8 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
             .then(finishOrderResponse)
             .catch(() => {
                 errorToast('Could not place order. Is the API running?');
-            });
+            })
+            .finally(() => setPlacing(false));
     };
 
     // Update the validateTPSL function to check if TP/SL is enabled
@@ -682,10 +687,18 @@ function OrderForm({ symbol, tradingMode = 'pro' }: OrderFormProps) {
                 ) : null}
                 <button
                     type="button"
-                    className="w-full bg-green-500 text-neutral-950 py-3 rounded-lg font-bold hover:bg-green-600 text-sm"
+                    className="w-full bg-green-500 text-neutral-950 py-3 rounded-lg font-bold hover:bg-green-600 text-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     onClick={handlePlaceOrder}
+                    disabled={placing}
                 >
-                    {tradingMode === 'lite' ? 'Place quick order' : 'Place Order'}
+                    {placing ? (
+                        <>
+                            <i className="fi fi-rr-spinner animate-spin" />
+                            <span>Placing…</span>
+                        </>
+                    ) : (
+                        tradingMode === 'lite' ? 'Place quick order' : 'Place Order'
+                    )}
                 </button>
             </div>
             {tradingMode === 'pro' ? (

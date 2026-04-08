@@ -345,9 +345,11 @@ const PairBanner = ({ setSymbol }: { setSymbol: (symbol: MarketData) => void }) 
                 if (!cancelled) await loadPrice(selectedInstrument);
             })();
         }, 0);
+        // Poll at 90 s — comfortably inside the 120 s backend cache window so
+        // repeat requests always hit KV rather than the upstream API.
         const intervalId = window.setInterval(() => {
             if (!cancelled) void loadPrice(selectedInstrument);
-        }, 30000);
+        }, 90000);
 
         return () => {
             cancelled = true;

@@ -60,10 +60,12 @@ export default function CopyTradingPage() {
 
   const [allocation, setAllocation] = useState('')
   const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
+  const [allocating, setAllocating] = useState(false)
   const nowSec = Math.floor(new Date().getTime() / 1000)
 
   useEffect(() => {
-    void Promise.all([loadCatalog(), loadWallet()])
+    void Promise.all([loadCatalog(), loadWallet()]).finally(() => setPageLoading(false))
   }, [loadCatalog, loadWallet])
 
   const selectedTrader = copyTraders.find((trader) => trader.id === selectedTraderId) ?? copyTraders[0]
@@ -87,8 +89,10 @@ export default function CopyTradingPage() {
 
   const handleAllocate = () => {
     if (!selectedTrader) return
+    setAllocating(true)
     void (async () => {
       const result = await followTrader(selectedTrader.id, Number(allocation || selectedTrader.minAllocation))
+      setAllocating(false)
       if (result.ok) {
         toast.success(result.message)
       } else {
@@ -156,7 +160,15 @@ export default function CopyTradingPage() {
         }
       />
 
-      <div className="space-y-4">
+      {pageLoading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="gradient-background rounded-2xl border border-neutral-800/40 h-[180px] animate-pulse" />
+          ))}
+        </div>
+      ) : null}
+
+      <div className="space-y-4" style={{ display: pageLoading ? 'none' : undefined }}>
           <div className="xl:hidden space-y-4">
             {traderRows.map(({ trader, following, alloc, traderAllocation, subLive }) => (
               <button
@@ -394,9 +406,17 @@ export default function CopyTradingPage() {
             <button
               type="button"
               onClick={handleAllocate}
-              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
+              disabled={allocating}
+              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Allocate from cash wallet
+              {allocating ? (
+                <>
+                  <i className="fi fi-rr-spinner animate-spin" />
+                  <span>Allocating…</span>
+                </>
+              ) : (
+                'Allocate from cash wallet'
+              )}
             </button>
           </div>
         ) : null}

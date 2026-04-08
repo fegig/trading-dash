@@ -67,9 +67,11 @@ export default function InvestmentsPage() {
   const [amount, setAmount] = useState('')
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [renderTimestamp] = useState(() => Math.floor(Date.now() / 1000))
+  const [pageLoading, setPageLoading] = useState(true)
+  const [investing, setInvesting] = useState(false)
 
   useEffect(() => {
-    void Promise.all([loadCatalog(), loadWallet()])
+    void Promise.all([loadCatalog(), loadWallet()]).finally(() => setPageLoading(false))
   }, [loadCatalog, loadWallet])
 
   const visibleInvestments = useMemo(
@@ -111,8 +113,10 @@ export default function InvestmentsPage() {
 
   const handleInvest = () => {
     if (!selectedInvestment) return
+    setInvesting(true)
     void (async () => {
       const result = await investProduct(selectedInvestment.id, Number(amount || selectedInvestment.minAmount))
+      setInvesting(false)
       if (result.ok) {
         toast.success(result.message)
       } else {
@@ -251,7 +255,15 @@ export default function InvestmentsPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
+      {pageLoading ? (
+        <div className="space-y-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="gradient-background rounded-2xl border border-neutral-800/40 h-[200px] animate-pulse" />
+          ))}
+        </div>
+      ) : null}
+
+      <div className="space-y-4" style={{ display: pageLoading ? 'none' : undefined }}>
           {visibleInvestments.map((investment) => {
             const activePosition = investmentPositions.find(
               (position) => position.productId === investment.id
@@ -326,7 +338,7 @@ export default function InvestmentsPage() {
         isOpen={detailModalOpen && !!selectedInvestment}
         onClose={() => setDetailModalOpen(false)}
         title={selectedInvestment?.name ?? 'Mandate'}
-        className="!max-w-2xl w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
+        className="max-w-2xl! w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
       >
         {selectedInvestment ? (
           <div className="space-y-5">
@@ -415,14 +427,26 @@ export default function InvestmentsPage() {
             <button
               type="button"
               onClick={handleInvest}
-              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300"
+              disabled={investing}
+              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Subscribe{' '}
-              {formatUsdAndAccountFiat(
-                Number(amount || selectedInvestment.minAmount),
-                displayCurrency
-              ).usd}{' '}
-              ({formatUsdAndAccountFiat(Number(amount || selectedInvestment.minAmount), displayCurrency).fiat})
+              {investing ? (
+                <>
+                  <i className="fi fi-rr-spinner animate-spin" />
+                  <span>Investing…</span>
+                </>
+              ) : (
+                <>
+                  <span>Subscribe</span>
+                  <span>
+                    {formatUsdAndAccountFiat(
+                      Number(amount || selectedInvestment.minAmount),
+                      displayCurrency
+                    ).usd}{' '}
+                    ({formatUsdAndAccountFiat(Number(amount || selectedInvestment.minAmount), displayCurrency).fiat})
+                  </span>
+                </>
+              )}
             </button>
           </div>
         ) : null}

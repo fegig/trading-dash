@@ -49,9 +49,11 @@ export default function TradingBotPage() {
   )
 
   const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
+  const [purchasing, setPurchasing] = useState(false)
 
   useEffect(() => {
-    void Promise.all([loadCatalog(), loadWallet()])
+    void Promise.all([loadCatalog(), loadWallet()]).finally(() => setPageLoading(false))
   }, [loadCatalog, loadWallet])
 
   const nowSec = Math.floor(new Date().getTime() / 1000)
@@ -80,8 +82,10 @@ export default function TradingBotPage() {
 
   const handlePurchase = () => {
     if (!selectedBot) return
+    setPurchasing(true)
     void (async () => {
       const result = await purchaseBot(selectedBot.id)
+      setPurchasing(false)
       if (result.ok) {
         toast.success(result.message)
       } else {
@@ -203,7 +207,15 @@ export default function TradingBotPage() {
         </section>
       ) : null}
 
-      <div className="space-y-4">
+      {pageLoading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="gradient-background rounded-2xl border border-neutral-800/40 h-[180px] animate-pulse" />
+          ))}
+        </div>
+      ) : null}
+
+      <div className="space-y-4" style={{ display: pageLoading ? 'none' : undefined }}>
           {bots.map((bot) => {
             const isActive = isBotActive(bot.id)
             const blockedByOther =
@@ -264,7 +276,7 @@ export default function TradingBotPage() {
         isOpen={detailModalOpen && !!selectedBot}
         onClose={() => setDetailModalOpen(false)}
         title={selectedBot?.name ?? 'Plan details'}
-        className="!max-w-2xl w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
+        className="max-w-2xl! w-[min(96vw,36rem)] max-h-[min(90vh,44rem)]"
       >
         {selectedBot ? (
           <div className="space-y-5">
@@ -351,14 +363,21 @@ export default function TradingBotPage() {
             <button
               type="button"
               onClick={handlePurchase}
-              disabled={selectedSubActive || !!anyOtherActive}
-              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-50 disabled:pointer-events-none"
+              disabled={selectedSubActive || !!anyOtherActive || purchasing}
+              className="w-full rounded-full bg-green-500/15 hover:bg-green-500/25 px-4 py-3 text-sm font-medium text-green-300 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
             >
-              {selectedSubActive
-                ? `${selectedBot.name} subscription active`
-                : anyOtherActive
-                  ? 'Another bot is already running'
-                  : `Purchase for ${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).usd} (${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).fiat})`}
+              {purchasing ? (
+                <>
+                  <i className="fi fi-rr-spinner animate-spin" />
+                  <span>Processing…</span>
+                </>
+              ) : selectedSubActive ? (
+                `${selectedBot.name} subscription active`
+              ) : anyOtherActive ? (
+                'Another bot is already running'
+              ) : (
+                `Purchase for ${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).usd} (${formatUsdAndAccountFiat(selectedBot.priceUsd, displayCurrency).fiat})`
+              )}
             </button>
           </div>
         ) : null}

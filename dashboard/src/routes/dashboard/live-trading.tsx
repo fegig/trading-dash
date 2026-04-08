@@ -44,6 +44,7 @@ function useLiveTradingWs(pair: string | null) {
     const [changePct24h, setChangePct24h] = useState<number | null>(null);
     const dealsRef = useRef<DealEntry[]>([]);
     const [recentDeals, setRecentDeals] = useState<DealEntry[]>([]);
+    const [wsConnected, setWsConnected] = useState(false);
 
     useEffect(() => {
         if (!pair) return;
@@ -72,6 +73,7 @@ function useLiveTradingWs(pair: string | null) {
             }
 
             ws.onopen = () => {
+                if (!cancelled) setWsConnected(true);
                 clearPing();
                 pingId = window.setInterval(() => {
                     if (ws?.readyState === WebSocket.OPEN) {
@@ -121,20 +123,21 @@ function useLiveTradingWs(pair: string | null) {
             };
 
             ws.onerror = () => { try { ws?.close(); } catch { /* ignore */ } };
-            ws.onclose = () => { clearPing(); ws = null; if (!cancelled) scheduleReconnect(); };
+            ws.onclose = () => { clearPing(); ws = null; if (!cancelled) { setWsConnected(false); scheduleReconnect(); } };
         };
 
         connect();
 
         return () => {
             cancelled = true;
+            setWsConnected(false);
             if (reconnectTimer != null) { clearTimeout(reconnectTimer); reconnectTimer = null; }
             clearPing();
             ws?.close();
         };
     }, [pair]);
 
-    return { asks, bids, price, changePct24h, recentDeals };
+    return { asks, bids, price, changePct24h, recentDeals, wsConnected };
 }
 
 function readStoredTradingMode(): 'lite' | 'pro' {
@@ -160,7 +163,7 @@ function LiveTrading() {
         ? `${symbol.BASE}-${symbol.QUOTE}`.toUpperCase()
         : null;
 
-    const { asks, bids, price, changePct24h, recentDeals } = useLiveTradingWs(pair);
+    const { asks, bids, price, changePct24h, recentDeals, wsConnected } = useLiveTradingWs(pair);
 
     const effectiveSymbol: MarketData = symbol ?? { BASE: 'BTC', QUOTE: 'USDT' };
 
@@ -168,10 +171,18 @@ function LiveTrading() {
         <div className="relative">
             <main className="grid grid-cols-12 lg:gap-6 gap-3">
                 <div className='col-span-8 space-y-4 max-lg:col-span-full'>
-                    <p className="text-[11px] text-neutral-500 leading-relaxed px-0.5 -mt-1">
-                        Market fills use the <span className="text-neutral-400">chart / banner price</span> so entry matches what you see.
-                        The book is a visual depth ladder; after you trade it re-aligns to your fill for server-side TP/SL checks.
-                    </p>
+                    <div className="flex items-center justify-between px-0.5 -mt-1">
+                        <p className="text-[11px] text-neutral-500 leading-relaxed">
+                            Market fills use the <span className="text-neutral-400">chart / banner price</span> so entry matches what you see.
+                            The book is a visual depth ladder; after you trade it re-aligns to your fill for server-side TP/SL checks.
+                        </p>
+                        {pair ? (
+                            <span className={`ml-3 shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium ${wsConnected ? 'bg-green-500/15 text-green-400' : 'bg-neutral-800 text-neutral-500'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-green-400 animate-pulse' : 'bg-neutral-600'}`} />
+                                {wsConnected ? 'Live' : 'Connecting…'}
+                            </span>
+                        ) : null}
+                    </div>
                     <PairBanner setSymbol={setSymbol} />
                     <ChartArea
                         symbol={effectiveSymbol}

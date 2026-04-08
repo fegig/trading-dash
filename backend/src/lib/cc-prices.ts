@@ -2,9 +2,11 @@ import type { Env } from '../types/env'
 
 const CC_DATA = 'https://min-api.cryptocompare.com/data'
 
-function apiKey(env: Env): string {
-  const k = env.CRYPTOCOMPARE_API_KEY
-  return typeof k === 'string' ? k.trim() : ''
+/** Returns all configured CryptoCompare keys in priority order (primary first). */
+function apiKeys(env: Env): string[] {
+  return [env.CRYPTOCOMPARE_API_KEY, env.CRYPTOCOMPARE_API_KEY_2]
+    .filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
+    .map((k) => k.trim())
 }
 
 async function cacheGet(env: Env, key: string): Promise<string | null> {
@@ -27,42 +29,82 @@ async function cachePut(env: Env, key: string, value: string, ttlSec: number): P
   }
 }
 
+function isCryptoCompareErrorBody(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false
+  return (data as { Response?: string }).Response === 'Error'
+}
+
+/**
+ * Cache-first fetch with automatic key fallback.
+ *
+ * `makeUrl` receives the API key and must return the full endpoint URL.
+ * Retries the next key on 429 / 401 / 5xx or JSON `Response: "Error"` (CC rate limit often uses HTTP 200).
+ */
 async function cachedFetchJson(
   env: Env,
   cacheKey: string,
   ttlSec: number,
-  url: string
+  makeUrl: (key: string) => string,
 ): Promise<unknown> {
   const hit = await cacheGet(env, cacheKey)
   if (hit) {
     try {
-      return JSON.parse(hit) as unknown
+      const parsed = JSON.parse(hit) as unknown
+      if (!isCryptoCompareErrorBody(parsed)) return parsed
     } catch {
-      /* refetch */
+      /* cache corrupt — refetch */
     }
   }
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`CryptoCompare HTTP ${res.status}`)
-  const data: unknown = await res.json()
-  await cachePut(env, cacheKey, JSON.stringify(data), ttlSec)
-  return data
+
+  const keys = apiKeys(env)
+  if (keys.length === 0) throw new Error('No CryptoCompare API key configured')
+
+  let lastErr: Error | null = null
+  for (const key of keys) {
+    try {
+      const res = await fetch(makeUrl(key))
+      if (res.status === 429 || res.status === 401 || res.status >= 500) {
+        lastErr = new Error(`CryptoCompare HTTP ${res.status}`)
+        continue
+      }
+      if (!res.ok) throw new Error(`CryptoCompare HTTP ${res.status}`)
+      const data: unknown = await res.json()
+      if (isCryptoCompareErrorBody(data)) {
+        const msg =
+          typeof (data as { Message?: string }).Message === 'string'
+            ? (data as { Message: string }).Message
+            : 'CryptoCompare error response'
+        lastErr = new Error(msg)
+        continue
+      }
+      await cachePut(env, cacheKey, JSON.stringify(data), ttlSec)
+      return data
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e))
+    }
+  }
+  throw lastErr ?? new Error('All CryptoCompare keys failed')
 }
 
 export type UsdSpot = { usd: number; changePct24h: number }
 
 /** Batch spot vs USD + 24h % change for wallet pricing (fiat ISO codes work for many pairs on CC). */
 export async function fetchUsdSpots(env: Env, symbols: string[]): Promise<Map<string, UsdSpot>> {
-  const key = apiKey(env)
   const uniq = [...new Set(symbols.map((s) => s.toUpperCase().trim()).filter(Boolean))]
   if (uniq.length === 0) return new Map()
-  if (!key) return new Map()
+  if (apiKeys(env).length === 0) return new Map()
 
   const fsyms = uniq.join(',')
   const cacheKey = `cc:walletusd:${fsyms}`
-  const url = `${CC_DATA}/pricemultifull?fsyms=${encodeURIComponent(fsyms)}&tsyms=USD&api_key=${encodeURIComponent(key)}`
 
+  // 120 s TTL — well above KV's 60 s minimum; fallback key used automatically on 429/5xx.
   try {
-    const data = (await cachedFetchJson(env, cacheKey, 45, url)) as {
+    const data = (await cachedFetchJson(
+      env,
+      cacheKey,
+      120,
+      (k) => `${CC_DATA}/pricemultifull?fsyms=${encodeURIComponent(fsyms)}&tsyms=USD&api_key=${encodeURIComponent(k)}`,
+    )) as {
       RAW?: Record<string, { USD?: { PRICE?: number; CHANGEPCT24HOUR?: number } }>
     }
     const out = new Map<string, UsdSpot>()

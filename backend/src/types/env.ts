@@ -17,6 +17,8 @@ export type Env = {
   API_KEY?: string
   /** Server-only; set in .dev.vars / Workers secrets */
   CRYPTOCOMPARE_API_KEY?: string
+  /** Optional second CryptoCompare key — used as automatic fallback when the primary key is rate-limited or returns an error. */
+  CRYPTOCOMPARE_API_KEY_2?: string
   /** Finnhub free API key — covers stocks, ETFs, forex, commodities (60 req/min). Sign up at finnhub.io */
   FINNHUB_API_KEY?: string
   SESSION_COOKIE_NAME: string

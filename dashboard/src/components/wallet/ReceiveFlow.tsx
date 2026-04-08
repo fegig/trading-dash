@@ -102,7 +102,14 @@ export default function ReceiveFlow({ coin, displayCurrency, onSuccess }: Props)
     ) : null
 
   if (step === 'address') {
-    return <Receive coin={coin} />
+    return (
+      <Receive
+        coin={coin}
+        nativeAmount={nativeAmount ?? undefined}
+        displayCurrency={displayCurrency}
+        unitUsd={unitUsd}
+      />
+    )
   }
 
   return (
@@ -185,7 +192,7 @@ export default function ReceiveFlow({ coin, displayCurrency, onSuccess }: Props)
         type="button"
         onClick={() => void handleContinue()}
         disabled={loading}
-        className="!rounded-full gradient-background hover:bg-neutral-800/50 text-xs smooth !px-4 !py-2 text-white font-medium flex items-center justify-center space-x-2 mx-auto"
+        className="rounded-full! gradient-background hover:bg-neutral-800/50 text-xs smooth px-4! py-2! text-white font-medium flex items-center justify-center space-x-2 mx-auto"
       >
         {loading ? (
           <>

@@ -6,9 +6,10 @@ import * as schema from '../db/schema'
 
 const CC_DATA = 'https://min-api.cryptocompare.com/data'
 
-function apiKey(env: Env): string {
-  const k = env.CRYPTOCOMPARE_API_KEY
-  return typeof k === 'string' ? k.trim() : ''
+function apiKeys(env: Env): string[] {
+  return [env.CRYPTOCOMPARE_API_KEY, env.CRYPTOCOMPARE_API_KEY_2]
+    .filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
+    .map((k) => k.trim())
 }
 
 async function cacheGet(env: Env, key: string): Promise<string | null> {
@@ -31,27 +32,62 @@ async function cachePut(env: Env, key: string, value: string, ttlSec: number): P
   }
 }
 
+/** CryptoCompare often returns HTTP 200 with `Response: "Error"` (rate limit, etc.) — never cache that. */
+function isCryptoCompareErrorBody(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false
+  const r = (data as { Response?: string; Message?: string }).Response
+  return r === 'Error'
+}
+
+/** Cache-first fetch; auto-switches to the second CC key on 429 / 401 / 5xx / JSON rate-limit errors. */
 async function cachedFetchJson(
   env: Env,
   cacheKey: string,
   ttlSec: number,
-  url: string
+  makeUrl: (key: string) => string,
 ): Promise<unknown> {
   const hit = await cacheGet(env, cacheKey)
   if (hit) {
     try {
-      return JSON.parse(hit) as unknown
+      const parsed = JSON.parse(hit) as unknown
+      if (isCryptoCompareErrorBody(parsed)) {
+        /* stale error in KV — ignore and refetch */
+      } else {
+        return parsed
+      }
     } catch {
-      /* refetch */
+      /* cache corrupt — refetch */
     }
   }
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`CryptoCompare HTTP ${res.status}`)
+
+  const keys = apiKeys(env)
+  if (keys.length === 0) throw new Error('No CryptoCompare API key configured')
+
+  let lastErr: Error | null = null
+  for (const key of keys) {
+    try {
+      const res = await fetch(makeUrl(key))
+      if (res.status === 429 || res.status === 401 || res.status >= 500) {
+        lastErr = new Error(`CryptoCompare HTTP ${res.status}`)
+        continue
+      }
+      if (!res.ok) throw new Error(`CryptoCompare HTTP ${res.status}`)
+      const data: unknown = await res.json()
+      if (isCryptoCompareErrorBody(data)) {
+        const msg =
+          typeof (data as { Message?: string }).Message === 'string'
+            ? (data as { Message: string }).Message
+            : 'CryptoCompare error response'
+        lastErr = new Error(msg)
+        continue
+      }
+      await cachePut(env, cacheKey, JSON.stringify(data), ttlSec)
+      return data
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e))
+    }
   }
-  const data: unknown = await res.json()
-  await cachePut(env, cacheKey, JSON.stringify(data), ttlSec)
-  return data
+  throw lastErr ?? new Error('All CryptoCompare keys failed')
 }
 
 function fmtNum(n: number): string {
@@ -98,14 +134,14 @@ type PriceRaw = {
 const crypto = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
 crypto.get('/price', async (c) => {
-  const key = apiKey(c.env)
-  if (!key) return c.json({ error: 'CryptoCompare API key not configured' }, 503)
+  if (apiKeys(c.env).length === 0) return c.json({ error: 'CryptoCompare API key not configured' }, 503)
   const fsyms = c.req.query('fsyms') ?? 'BTC'
   const tsyms = c.req.query('tsyms') ?? 'USD'
-  const cacheKey = `cc:price:${fsyms}:${tsyms}`
-  const url = `${CC_DATA}/pricemultifull?fsyms=${encodeURIComponent(fsyms)}&tsyms=${encodeURIComponent(tsyms)}&api_key=${encodeURIComponent(key)}`
+  // Shared cache key with fetchUsdSpots so both paths reuse one KV entry.
+  const cacheKey = `cc:walletusd:${fsyms.toUpperCase()}`
   try {
-    const data = await cachedFetchJson(c.env, cacheKey, 30, url)
+    const data = await cachedFetchJson(c.env, cacheKey, 120,
+      (k) => `${CC_DATA}/pricemultifull?fsyms=${encodeURIComponent(fsyms)}&tsyms=${encodeURIComponent(tsyms)}&api_key=${encodeURIComponent(k)}`)
     return c.json(data)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'upstream error'
@@ -114,8 +150,7 @@ crypto.get('/price', async (c) => {
 })
 
 crypto.get('/history', async (c) => {
-  const key = apiKey(c.env)
-  if (!key) return c.json({ error: 'CryptoCompare API key not configured' }, 503)
+  if (apiKeys(c.env).length === 0) return c.json({ error: 'CryptoCompare API key not configured' }, 503)
   const base = c.req.query('base') ?? 'BTC'
   const quote = c.req.query('quote') ?? 'USD'
   const interval = c.req.query('interval') ?? 'histominute'
@@ -125,9 +160,10 @@ crypto.get('/history', async (c) => {
       ? `/v2/${interval}`
       : '/v2/histominute'
   const cacheKey = `cc:hist:${base}:${quote}:${path}:${limit}`
-  const url = `${CC_DATA}${path}?fsym=${encodeURIComponent(base)}&tsym=${encodeURIComponent(quote)}&limit=${limit}&api_key=${encodeURIComponent(key)}`
   try {
-    const data = (await cachedFetchJson(c.env, cacheKey, 300, url)) as {
+    const data = (await cachedFetchJson(c.env, cacheKey, 300,
+      (k) => `${CC_DATA}${path}?fsym=${encodeURIComponent(base)}&tsym=${encodeURIComponent(quote)}&limit=${limit}&api_key=${encodeURIComponent(k)}`
+    )) as {
       Data?: { Data?: HistRow[] }
     }
     const rows = data.Data?.Data ?? []
@@ -139,13 +175,12 @@ crypto.get('/history', async (c) => {
 })
 
 crypto.get('/news', async (c) => {
-  const key = apiKey(c.env)
-  if (!key) return c.json({ error: 'CryptoCompare API key not configured' }, 503)
+  if (apiKeys(c.env).length === 0) return c.json({ error: 'CryptoCompare API key not configured' }, 503)
   const lang = c.req.query('lang') ?? 'EN'
   const cacheKey = `cc:news:${lang}`
-  const url = `${CC_DATA}/v2/news/?lang=${encodeURIComponent(lang)}&api_key=${encodeURIComponent(key)}`
   try {
-    const data = await cachedFetchJson(c.env, cacheKey, 600, url)
+    const data = await cachedFetchJson(c.env, cacheKey, 600,
+      (k) => `${CC_DATA}/v2/news/?lang=${encodeURIComponent(lang)}&api_key=${encodeURIComponent(k)}`)
     return c.json(data)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'upstream error'
@@ -154,8 +189,7 @@ crypto.get('/news', async (c) => {
 })
 
 crypto.get('/coin-detail', async (c) => {
-  const key = apiKey(c.env)
-  if (!key) return c.json({ error: 'CryptoCompare API key not configured' }, 503)
+  if (apiKeys(c.env).length === 0) return c.json({ error: 'CryptoCompare API key not configured' }, 503)
   const base = (c.req.query('base') ?? 'BTC').toUpperCase()
   const quote = (c.req.query('quote') ?? 'USDT').toUpperCase()
 
@@ -165,51 +199,45 @@ crypto.get('/coin-detail', async (c) => {
     .where(eq(schema.coins.id, base))
     .limit(1)
 
+  // Whole payload cached for 300 s so the 6-request burst only fires on a cold miss.
   const cacheKey = `cc:coindetail:${base}:${quote}`
   const hit = await cacheGet(c.env, cacheKey)
   if (hit) {
     try {
       return c.json(JSON.parse(hit) as unknown)
     } catch {
-      /* rebuild */
+      /* cache corrupt — rebuild */
     }
   }
 
-  const priceUrl = `${CC_DATA}/pricemultifull?fsyms=${encodeURIComponent(base)}&tsyms=${encodeURIComponent(quote)}&api_key=${encodeURIComponent(key)}`
-  const histMinuteUrl = `${CC_DATA}/v2/histominute?fsym=${encodeURIComponent(base)}&tsym=${encodeURIComponent(quote)}&limit=60&api_key=${encodeURIComponent(key)}`
-  const histHourUrl = `${CC_DATA}/v2/histohour?fsym=${encodeURIComponent(base)}&tsym=${encodeURIComponent(quote)}&limit=24&api_key=${encodeURIComponent(key)}`
-  const histWeekUrl = `${CC_DATA}/v2/histohour?fsym=${encodeURIComponent(base)}&tsym=${encodeURIComponent(quote)}&limit=168&api_key=${encodeURIComponent(key)}`
-  const histMonthUrl = `${CC_DATA}/v2/histoday?fsym=${encodeURIComponent(base)}&tsym=${encodeURIComponent(quote)}&limit=30&api_key=${encodeURIComponent(key)}`
-  const histYearUrl = `${CC_DATA}/v2/histoday?fsym=${encodeURIComponent(base)}&tsym=${encodeURIComponent(quote)}&limit=365&api_key=${encodeURIComponent(key)}`
+  // Each sub-request goes through cachedFetchJson so the fallback key is used
+  // automatically if the primary key is rate-limited on any one of them.
+  const makeHistUrl = (path: string, limit: number) =>
+    (k: string) => `${CC_DATA}${path}?fsym=${encodeURIComponent(base)}&tsym=${encodeURIComponent(quote)}&limit=${limit}&api_key=${encodeURIComponent(k)}`
 
   try {
-    const [priceRes, hm, hh, hw, hmth, hy] = await Promise.all([
-      fetch(priceUrl),
-      fetch(histMinuteUrl),
-      fetch(histHourUrl),
-      fetch(histWeekUrl),
-      fetch(histMonthUrl),
-      fetch(histYearUrl),
+    const [priceData, hmData, hhData, hwData, hmthData, hyData] = await Promise.all([
+      cachedFetchJson(c.env, `cc:walletusd:${base}`, 120,
+        (k) => `${CC_DATA}/pricemultifull?fsyms=${encodeURIComponent(base)}&tsyms=${encodeURIComponent(quote)}&api_key=${encodeURIComponent(k)}`),
+      cachedFetchJson(c.env, `cc:hist:${base}:${quote}:/v2/histominute:60`, 120, makeHistUrl('/v2/histominute', 60)),
+      cachedFetchJson(c.env, `cc:hist:${base}:${quote}:/v2/histohour:24`,   300, makeHistUrl('/v2/histohour',   24)),
+      cachedFetchJson(c.env, `cc:hist:${base}:${quote}:/v2/histohour:168`,  300, makeHistUrl('/v2/histohour',  168)),
+      cachedFetchJson(c.env, `cc:hist:${base}:${quote}:/v2/histoday:30`,    300, makeHistUrl('/v2/histoday',    30)),
+      cachedFetchJson(c.env, `cc:hist:${base}:${quote}:/v2/histoday:365`,   300, makeHistUrl('/v2/histoday',   365)),
     ])
-    if (!priceRes.ok) throw new Error(`price ${priceRes.status}`)
-    const priceJson = (await priceRes.json()) as { RAW?: Record<string, Record<string, PriceRaw>> }
+
+    const priceJson = priceData as { RAW?: Record<string, Record<string, PriceRaw>> }
     const coinInfo = priceJson.RAW?.[base]?.[quote]
     if (!coinInfo) {
       return c.json({ error: 'Price data not found' }, 404)
     }
 
-    const parseHist = async (r: Response) => {
-      const j = (await r.json()) as { Data?: { Data?: HistRow[] } }
-      return mapHist(j.Data?.Data ?? [])
-    }
+    const toRows = (d: unknown) =>
+      mapHist(((d as { Data?: { Data?: HistRow[] } }).Data?.Data) ?? [])
 
-    const [hChanges, dChanges, wChanges, mChanges, yChanges] = await Promise.all([
-      parseHist(hm),
-      parseHist(hh),
-      parseHist(hw),
-      parseHist(hmth),
-      parseHist(hy),
-    ])
+    const [hChanges, dChanges, wChanges, mChanges, yChanges] = [
+      toRows(hmData), toRows(hhData), toRows(hwData), toRows(hmthData), toRows(hyData),
+    ]
 
     const row = coinRow ?? {
       id: base,
@@ -245,7 +273,7 @@ crypto.get('/coin-detail', async (c) => {
       yChanges,
     }
 
-    await cachePut(c.env, cacheKey, JSON.stringify(payload), 60)
+    await cachePut(c.env, cacheKey, JSON.stringify(payload), 300)
     return c.json(payload)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'upstream error'
