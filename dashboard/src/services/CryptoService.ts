@@ -50,4 +50,27 @@ async function getCoinById(base: string, quote: string): Promise<CoinReturn> {
   return data as CoinReturn
 }
 
-export { getCoinById }
+/**
+ * Fetch OHLCV history for a non-crypto instrument (stock, ETF, forex, commodity)
+ * via the Finnhub candle endpoint.  Returns the same CoinReturn shape.
+ */
+async function getInstrumentHistory(
+  category: string,
+  base: string,
+  quote: string,
+): Promise<CoinReturn> {
+  const params: Record<string, string> = { category }
+  if (category === 'forex' || category === 'commodity') {
+    params.from = base
+    params.to   = quote
+  } else {
+    params.symbol = base
+  }
+  const data = await get(endpoints.prices.history, params)
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid instrument history response')
+  }
+  return data as CoinReturn
+}
+
+export { getCoinById, getInstrumentHistory }

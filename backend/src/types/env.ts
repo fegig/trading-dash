@@ -17,6 +17,8 @@ export type Env = {
   API_KEY?: string
   /** Server-only; set in .dev.vars / Workers secrets */
   CRYPTOCOMPARE_API_KEY?: string
+  /** Finnhub free API key — covers stocks, ETFs, forex, commodities (60 req/min). Sign up at finnhub.io */
+  FINNHUB_API_KEY?: string
   SESSION_COOKIE_NAME: string
   CORS_ORIGIN: string
   RESEND_FROM: string

@@ -1,19 +1,74 @@
 import { createDbContext, releaseDbContext } from '../db/client'
 import * as schema from '../db/schema'
 import type { Env } from '../types/env'
-import { fetchSpotUsdForBase } from '../lib/cc-prices'
+import { fetchUsdSpots } from '../lib/cc-prices'
+import { fetchFinnhubQuote, pairToFinnhubSymbol } from '../lib/finnhub-prices'
 import { evaluateLiveTpslForPair } from '../lib/live-tpsl-eval'
 import { creditUserFiatUsd, spendUserFiatUsd } from '../lib/wallet-ledger'
 
 type BookEntry = { price: number; quantity: number }
 
+// --- asset-category detection ---
+
+const KNOWN_CRYPTO = new Set([
+  'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'LINK',
+  'AVAX', 'UNI', 'LTC', 'BCH', 'ATOM', 'NEAR', 'FTM', 'ALGO', 'VET', 'ICP',
+  'SAND', 'MANA', 'AXS', 'TRX', 'SHIB', 'PEPE', 'TON', 'APT', 'ARB', 'OP',
+])
+
+const KNOWN_FIAT = new Set([
+  'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CHF', 'CAD', 'NZD', 'SEK', 'NOK', 'DKK',
+  'USDT', 'USDC',
+])
+
+const KNOWN_COMMODITY = new Set([
+  'XAU', 'XAG', 'WTI', 'BRENT', 'NG', 'COPPER', 'PLATINUM', 'PALLADIUM',
+])
+
+type PriceCategory = 'crypto' | 'forex' | 'commodity' | 'stock'
+
+function detectCategory(pair: string): PriceCategory {
+  const parts = pair.split(/[-/]/)
+  const base = (parts[0] ?? '').toUpperCase().trim()
+  const quote = (parts[1] ?? '').toUpperCase().trim()
+  if (KNOWN_CRYPTO.has(base)) return 'crypto'
+  if (KNOWN_COMMODITY.has(base)) return 'commodity'
+  if (KNOWN_FIAT.has(base) && KNOWN_FIAT.has(quote)) return 'forex'
+  return 'stock'
+}
+
+/** Fetch live mid price + changePct for any pair. */
+async function fetchPriceForPair(
+  env: Env,
+  pair: string
+): Promise<{ price: number; changePct24h: number } | null> {
+  const parts = pair.split(/[-/]/)
+  const base = (parts[0] ?? '').toUpperCase().trim()
+  const quote = (parts[1] ?? 'USD').toUpperCase().trim()
+  const category = detectCategory(pair)
+
+  if (category === 'crypto') {
+    const spotMap = await fetchUsdSpots(env, [base])
+    const spot = spotMap.get(base)
+    if (!spot || !spot.usd) return null
+    return { price: spot.usd, changePct24h: spot.changePct24h }
+  }
+
+  const finnhubSym = pairToFinnhubSymbol(base, quote === 'USDT' ? 'USD' : quote, category)
+  const quote_ = await fetchFinnhubQuote(env, finnhubSym)
+  if (!quote_ || !quote_.price) return null
+  return { price: quote_.price, changePct24h: quote_.changePct24h }
+}
+
+// --- order book seed ---
+
 function seedBookAround(mid: number): { asks: BookEntry[]; bids: BookEntry[] } {
   const tick = Math.max(mid * 0.0001, 0.01)
   const asks: BookEntry[] = []
   const bids: BookEntry[] = []
-  for (let i = 0; i < 10; i++) {
-    asks.push({ price: mid + (i + 1) * tick, quantity: 0.3 + i * 0.1 })
-    bids.push({ price: mid - (i + 1) * tick, quantity: 0.4 + i * 0.12 })
+  for (let i = 0; i < 50; i++) {
+    asks.push({ price: mid + (i + 1) * tick, quantity: +(0.3 + i * 0.08).toFixed(4) })
+    bids.push({ price: mid - (i + 1) * tick, quantity: +(0.4 + i * 0.09).toFixed(4) })
   }
   return { asks, bids }
 }
@@ -68,10 +123,11 @@ export class LiveTradingRoom {
         this.asks.length > 0 && this.bids.length > 0
           ? (this.asks[0].price + this.bids[0].price) / 2
           : null
-      const baseSym = pairName.split(/[-/]/)[0]?.trim().toUpperCase() || ''
-      const spot =
-        baseSym.length > 0 ? await fetchSpotUsdForBase(this.env, baseSym) : null
-      const mid = spot ?? bookMid
+
+      const priceData = pairName.length > 0 ? await fetchPriceForPair(this.env, pairName) : null
+      const mid = priceData?.price ?? bookMid
+      const changePct24h = priceData?.changePct24h ?? 0
+
       if (pairName && mid != null && mid > 0) {
         const ctxDb = await createDbContext(this.env.HYPERDRIVE.connectionString)
         try {
@@ -87,7 +143,8 @@ export class LiveTradingRoom {
           asks: this.asks,
           bids: this.bids,
           price: mid,
-          spotSource: spot != null ? 'external' : 'book',
+          changePct24h,
+          spotSource: priceData != null ? 'external' : 'book',
         })
       }
     } finally {

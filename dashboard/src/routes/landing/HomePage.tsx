@@ -117,8 +117,8 @@ export default function HomePage() {
 
               <div className="relative mt-4  rounded-[24px]  bg-neutral-950">
                 <img
-                  src="/images/desktop_page.png"
-                  alt="BlockTrade dashboard preview"
+                  src="/images/mobile_main.png"
+                  alt="mobile main preview"
                   className="h-76 w-full object-cover object-top md:h-92"
                 />
 
@@ -140,13 +140,7 @@ export default function HomePage() {
             </div>
 
             <div className="grid gap-4">
-              <div className="overflow-hidden rounded-[24px] ">
-                <img
-                  src="/images/mobile_pages.png"
-                  alt="BlockTrade mobile preview"
-                  className="h-full max-h-64 w-full rounded-[18px] object-cover object-top"
-                />
-              </div>
+            
 
               <div className="gradient-background rounded-3xl! p-4">
                 <div className="text-[10px] font-semibold  text-neutral-500">
@@ -244,9 +238,14 @@ export default function HomePage() {
           </div>
         </MarketingSurface>
 
-        <MarketingSurface className="p-6">
-          replace with an image of the mobile dashboard
-          
+        <MarketingSurface>
+        <div className="overflow-hidden rounded-[24px] ">
+                <img
+                  src="/images/mobile_pages.png"
+                  alt="mobile pages preview"
+                  className="h-full w-full rounded-[18px] object-center object-cover  "
+                />
+              </div>
 
         </MarketingSurface>
       </section>

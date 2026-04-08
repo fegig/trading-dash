@@ -143,5 +143,12 @@ export const endpoints = {
     orderBookWs: (pair: string) => `/live/ws/${encodeURIComponent(pair)}`,
     placeOrder: '/live/orders',
     cancelOrder: '/live/orders/cancel',
+    openOrders: (pair?: string) => pair ? `/live/orders?pair=${encodeURIComponent(pair)}` : '/live/orders',
+  },
+  prices: {
+    /** Unified market price proxy. Pass category + symbol/from/to/fsyms as needed. */
+    quote: '/prices',
+    /** OHLCV history for non-crypto instruments. Returns same shape as /crypto/coin-detail. */
+    history: '/prices/history',
   },
 } as const

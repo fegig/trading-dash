@@ -19,11 +19,14 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   loadedUserId: null,
   selectedTradeId: null,
   loadTrades: async (userId, force = false) => {
-    const { loadedUserId, loading } = get()
+    const { loadedUserId, loading, trades: existing } = get()
     if (!force && loading) return
-    if (!force && loadedUserId === userId && get().trades.length > 0) return
+    if (!force && loadedUserId === userId && existing.length > 0) return
 
-    set({ loading: true })
+    // Only block the UI with a loading skeleton on the very first fetch.
+    // Background refreshes (12-s poll, TRADE_REFRESH_EVENT) update silently.
+    if (existing.length === 0) set({ loading: true })
+
     const trades = await tradeService.getTradePositions(userId)
     set((state) => {
       const stillSelected =

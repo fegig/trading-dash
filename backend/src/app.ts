@@ -14,6 +14,7 @@ import { settingsRoutes } from './routes/settings'
 import { verificationRoutes } from './routes/verification-routes'
 import { liveRoutes } from './routes/live'
 import { cryptoRoutes } from './routes/crypto'
+import { pricesRoutes } from './routes/market-prices'
 import { setupRoutes } from './routes/setup' // TODO: remove after creating admin
 import { publicRoutes } from './routes/public-routes'
 
@@ -46,6 +47,7 @@ export function createApp() {
   app.route('/verification', verificationRoutes)
   app.route('/live', liveRoutes)
   app.route('/crypto', cryptoRoutes)
+  app.route('/prices', pricesRoutes)
   app.route('/setup', setupRoutes) // TODO: remove after creating admin
 
   return app

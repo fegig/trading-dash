@@ -79,7 +79,7 @@ export default function AllTradesPage() {
   return (
     <div className="space-y-6">
       <PageHero
-        backTo="/live-trading"
+        backTo="/dashboard/live-trading"
         backLabel="Back to Trading Desk"
         title="Trade history with setup context"
         description="Review every position with the same visual structure you use on the dashboard, then drill into full setup details, funding source, execution notes, and live risk mapping."

@@ -1,14 +1,30 @@
 import { Hono } from 'hono'
+import { and, desc, eq } from 'drizzle-orm'
 import { placeLiveOrderBodySchema, cancelLiveOrderBodySchema } from '@trading-dash/shared'
 import type { Env } from '../types/env'
 import type { AppVariables } from '../types/env'
 import { requireUser } from '../middleware/session'
+import * as schema from '../db/schema'
 
 function normalizePair(pair: string): string {
   return pair.replace(/\//g, '-').toUpperCase()
 }
 
 const live = new Hono<{ Bindings: Env; Variables: AppVariables }>()
+
+live.get('/orders', requireUser, async (c) => {
+  const pair = c.req.query('pair')
+  const userId = c.var.user!.id
+  const whereConditions = [eq(schema.liveOrders.userId, userId), eq(schema.liveOrders.status, 'open')]
+  if (pair) whereConditions.push(eq(schema.liveOrders.pair, normalizePair(pair)))
+  const orders = await c.var.db
+    .select()
+    .from(schema.liveOrders)
+    .where(and(...whereConditions))
+    .orderBy(desc(schema.liveOrders.createdAt))
+    .limit(50)
+  return c.json({ orders })
+})
 
 live.get('/ws/:pair', async (c) => {
   const pair = normalizePair(decodeURIComponent(c.req.param('pair')))

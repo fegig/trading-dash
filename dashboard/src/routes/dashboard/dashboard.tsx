@@ -29,7 +29,7 @@ function TwoFaBanner({ onDismiss }: { onDismiss: () => void }) {
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
-            to="/settings"
+            to="/dashboard/settings"
             className="rounded-full bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/25"
           >
             Enable 2FA in Settings
@@ -347,7 +347,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-8">
       {show2faBanner && !twoFaEnabled && (
         <TwoFaBanner onDismiss={dismiss2faBanner} />
       )}
