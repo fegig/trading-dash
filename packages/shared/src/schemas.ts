@@ -63,6 +63,12 @@ export const passwordResetBodySchema = z.object({
   email: z.string().email(),
 })
 
+export const passwordResetConfirmBodySchema = z.object({
+  token: z.string().min(1),
+  userId: z.string().min(1),
+  newPassword: z.string().min(8),
+})
+
 export const createTokenBodySchema = z
   .object({
     userId: z.union([z.string(), z.number()]).optional(),

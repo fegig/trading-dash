@@ -43,6 +43,14 @@ export async function requestPasswordReset(email: string) {
   return authPost(endpoints.auth.passwordReset, { email })
 }
 
+export async function confirmPasswordReset(payload: {
+  token: string
+  userId: string
+  newPassword: string
+}) {
+  return authPost<{ ok?: boolean }>(endpoints.auth.passwordResetConfirm, payload)
+}
+
 export async function registerUser(payload: {
   userId: string
   email: string

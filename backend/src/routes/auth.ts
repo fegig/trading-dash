@@ -5,6 +5,7 @@ import {
   verifyOTPBodySchema,
   registerBodySchema,
   passwordResetBodySchema,
+  passwordResetConfirmBodySchema,
   verifyTokenBodySchema,
   createTokenBodySchema,
   sendVerificationEmailBodySchema,
@@ -213,7 +214,49 @@ auth.post('/passwordReset', async (c) => {
   const resetUrl = `${base}/forgot?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(u.publicId)}`
   const branding = await getTransactionalEmailBranding(c.env, c.var.db)
   const tpl = passwordResetEmailHtml({ resetUrl, ...branding })
-  await sendEmail(c.env, email, tpl.subject, tpl.html)
+  const sent = await sendEmail(c.env, email, tpl.subject, tpl.html)
+  if (!sent.ok) {
+    return c.json({ error: sent.error || 'Could not send reset email' }, 503)
+  }
+
+  return c.json({ ok: true })
+})
+
+auth.post('/passwordResetConfirm', async (c) => {
+  const parsed = passwordResetConfirmBodySchema.safeParse(await c.req.json().catch(() => ({})))
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid body', details: parsed.error.flatten() }, 400)
+  }
+  const { token, userId, newPassword } = parsed.data
+
+  const urows = await c.var.db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.publicId, userId))
+    .limit(1)
+  const u = urows[0]
+  if (!u) return c.json({ error: 'Invalid or expired link' }, 400)
+
+  const now = Math.floor(Date.now() / 1000)
+  const trows = await c.var.db
+    .select()
+    .from(schema.authTokens)
+    .where(
+      and(
+        eq(schema.authTokens.token, token),
+        eq(schema.authTokens.userId, u.id),
+        eq(schema.authTokens.tokenType, 'reset')
+      )
+    )
+    .limit(1)
+  const tok = trows[0]
+  if (!tok || (tok.expiresAt != null && tok.expiresAt < now)) {
+    return c.json({ error: 'Invalid or expired link' }, 400)
+  }
+
+  const pwdHash = await hashPassword(newPassword)
+  await c.var.db.update(schema.users).set({ passwordHash: pwdHash }).where(eq(schema.users.id, u.id))
+  await c.var.db.delete(schema.authTokens).where(eq(schema.authTokens.id, tok.id))
 
   return c.json({ ok: true })
 })
