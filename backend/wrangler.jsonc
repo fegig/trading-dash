@@ -8,7 +8,7 @@
 	],
 	"vars": {
 		"SESSION_COOKIE_NAME": "td_session",
-		"RESEND_FROM": "Trading <no-reply@notify.codewithfegig.com>"
+		"RESEND_FROM": "Trading <no-reply@notify.jfmcapitals.com>"
 	},
 	"r2_buckets": [
 		{
