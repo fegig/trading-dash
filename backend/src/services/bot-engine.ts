@@ -5,8 +5,7 @@ import { createDbContext, releaseDbContext } from '../db/client'
 import * as schema from '../db/schema'
 import { resolveUsdPerFiatUnit } from '../lib/wallet-ledger'
 import { selectTradingBotByIdForCatalog } from '../lib/trading-bots-query'
-
-const CC_DATA = 'https://min-api.cryptocompare.com/data'
+import { fetchUsdSpots } from '../lib/cc-prices'
 
 function utcDayStartUnix(nowSec: number): number {
   const d = new Date(nowSec * 1000)
@@ -41,9 +40,6 @@ function numOr(v: unknown, fallback: number): number {
  * - Trade notional (`invested`) scales with user fiat balance (USD equivalent), clamped by bot min/max USD.
  */
 export async function runBotCycle(env: Env): Promise<void> {
-  const key = env.CRYPTOCOMPARE_API_KEY?.trim()
-  if (!key) return
-
   const ctx = await createDbContext(env.HYPERDRIVE.connectionString)
   try {
     const { db } = ctx
@@ -54,6 +50,22 @@ export async function runBotCycle(env: Env): Promise<void> {
       .select()
       .from(schema.userBotSubscriptions)
       .where(gt(schema.userBotSubscriptions.expiresAt, now))
+
+    // Pre-compute every base symbol referenced by active subscriptions so we
+    // can batch-fetch them through the cached CryptoCompare helper. This
+    // re-uses the `cc:walletusd:<BASE>` KV entries that the wallet /
+    // PairBanner / footer / live DO already keep warm, so the cron usually
+    // costs 0 CryptoCompare calls instead of one per subscription.
+    const bases: string[] = []
+    for (const sub of subs) {
+      const bot = await selectTradingBotByIdForCatalog(db, sub.botId)
+      if (!bot) continue
+      const markets = Array.isArray(bot.markets) ? (bot.markets as string[]) : []
+      const rawSym = markets[0] ?? 'BTC'
+      const base = rawSym.replace(/-.*$/, '').toUpperCase()
+      if (base) bases.push(base)
+    }
+    const spotMap = bases.length > 0 ? await fetchUsdSpots(env, bases) : new Map()
 
     for (const sub of subs) {
       const bot = await selectTradingBotByIdForCatalog(db, sub.botId)
@@ -101,17 +113,14 @@ export async function runBotCycle(env: Env): Promise<void> {
       const base = rawSym.replace(/-.*$/, '').toUpperCase()
       const quote = 'USDT'
 
-      const url = `${CC_DATA}/pricemultifull?fsyms=${encodeURIComponent(base)}&tsyms=${encodeURIComponent(quote)}&api_key=${encodeURIComponent(key)}`
-      const res = await fetch(url)
-      if (!res.ok) continue
-      const j = (await res.json()) as {
-        RAW?: Record<string, Record<string, { PRICE?: number; CHANGEPCT24HOUR?: number }>>
-      }
-      const raw = j.RAW?.[base]?.[quote]
-      if (raw?.PRICE == null) continue
+      // USD spot is close enough to USDT spot for the majors the bot trades,
+      // and the cached helper gives us key rotation + stampede protection
+      // plus a shared KV entry with the rest of the app.
+      const spot = spotMap.get(base)
+      if (!spot || !(spot.usd > 0)) continue
 
       const strategy = (bot.strategy || '').toLowerCase()
-      const chg = raw.CHANGEPCT24HOUR ?? 0
+      const chg = spot.changePct24h ?? 0
       let side: 'buy' | 'sell' = 'buy'
       if (strategy.includes('momentum')) {
         side = chg >= 0 ? 'buy' : 'sell'
@@ -121,7 +130,7 @@ export async function runBotCycle(env: Env): Promise<void> {
         side = chg >= 0 ? 'buy' : 'sell'
       }
 
-      const price = raw.PRICE
+      const price = spot.usd
       const tradeId = crypto.randomUUID()
       const pair = `${base}-${quote}`
       const moveFrac = Math.min(Math.abs(chg) / 100, 0.25)

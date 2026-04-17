@@ -19,6 +19,11 @@ export type Env = {
   CRYPTOCOMPARE_API_KEY?: string
   /** Optional second CryptoCompare key — used as automatic fallback when the primary key is rate-limited or returns an error. */
   CRYPTOCOMPARE_API_KEY_2?: string
+  /**
+   * Max outbound CryptoCompare HTTP calls per UTC minute (KV counter, default 150).
+   * Set lower in staging or raise if you have a paid CC plan.
+   */
+  CRYPTOCOMPARE_MAX_REQ_PER_MINUTE?: string | number
   /** Finnhub free API key — covers stocks, ETFs, forex, commodities (60 req/min). Sign up at finnhub.io */
   FINNHUB_API_KEY?: string
   SESSION_COOKIE_NAME: string

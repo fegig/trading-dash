@@ -1,3 +1,4 @@
+import { and, eq } from 'drizzle-orm'
 import { createDbContext, releaseDbContext } from '../db/client'
 import * as schema from '../db/schema'
 import type { Env } from '../types/env'
@@ -5,6 +6,14 @@ import { fetchUsdSpots } from '../lib/cc-prices'
 import { fetchFinnhubQuote, pairToFinnhubSymbol } from '../lib/finnhub-prices'
 import { evaluateLiveTpslForPair } from '../lib/live-tpsl-eval'
 import { creditUserFiatUsd, spendUserFiatUsd } from '../lib/wallet-ledger'
+
+// Alarm cadences. We keep the UI at ~10 s only while a client is actually
+// attached; when the desk is unattended (hibernated, offline user) we drop to
+// 60 s just to keep TP/SL honest on open trades. When nothing is attached and
+// no live trades remain, the alarm is deleted entirely so the DO stops
+// burning CryptoCompare quota.
+const ALARM_MS_ATTACHED = 10_000
+const ALARM_MS_IDLE_WITH_OPEN_TRADES = 60_000
 
 type BookEntry = { price: number; quantity: number }
 
@@ -80,7 +89,6 @@ function seedBook(): { asks: BookEntry[]; bids: BookEntry[] } {
 export class LiveTradingRoom {
   private asks: BookEntry[] = []
   private bids: BookEntry[] = []
-  private readonly sockets = new Set<WebSocket>()
 
   constructor(
     private ctx: DurableObjectState,
@@ -95,9 +103,15 @@ export class LiveTradingRoom {
     }
   }
 
+  /**
+   * Broadcast to every live client. We use the hibernation-safe
+   * `ctx.getWebSockets()` — the in-memory `this.sockets` set is wiped
+   * whenever the DO hibernates, which would otherwise make the alarm loop
+   * run forever while silently talking to nobody.
+   */
   private broadcast(obj: unknown) {
     const msg = JSON.stringify(obj)
-    for (const ws of this.sockets) {
+    for (const ws of this.ctx.getWebSockets()) {
       try {
         ws.send(msg)
       } catch {
@@ -112,11 +126,50 @@ export class LiveTradingRoom {
     })
   }
 
+  /** Are there any open live-desk trades for this pair that still need marking? */
+  private async hasOpenLiveTradesForPair(pairUpper: string): Promise<boolean> {
+    if (!pairUpper) return false
+    const ctxDb = await createDbContext(this.env.HYPERDRIVE.connectionString)
+    try {
+      const [row] = await ctxDb.db
+        .select({ id: schema.trades.id })
+        .from(schema.trades)
+        .where(
+          and(
+            eq(schema.trades.executionVenue, 'live'),
+            eq(schema.trades.status, 'open'),
+            eq(schema.trades.pair, pairUpper)
+          )
+        )
+        .limit(1)
+      return !!row
+    } catch {
+      return false
+    } finally {
+      await releaseDbContext(ctxDb)
+    }
+  }
+
   async alarm() {
     const stored = await this.ctx.storage.get<string>('pair')
     const pairName =
       (stored && stored.trim()) ||
       (typeof this.ctx.id.name === 'string' ? this.ctx.id.name : '')
+    const pairUpper = pairName.toUpperCase()
+
+    // Decide up-front whether there's any reason to keep polling external
+    // price feeds. Hibernation-safe socket list + a quick DB probe for open
+    // live trades on this pair. If neither exists, we simply stop the alarm
+    // loop — otherwise this DO would burn CryptoCompare quota every 10 s
+    // forever after the first WebSocket ever opened.
+    const attachedSockets = this.ctx.getWebSockets().length
+    const hasOpenTrades = attachedSockets > 0 ? true : await this.hasOpenLiveTradesForPair(pairUpper)
+
+    if (attachedSockets === 0 && !hasOpenTrades) {
+      await this.ctx.storage.deleteAlarm()
+      return
+    }
+
     try {
       this.ensureBook()
       const bookMid =
@@ -131,24 +184,29 @@ export class LiveTradingRoom {
       if (pairName && mid != null && mid > 0) {
         const ctxDb = await createDbContext(this.env.HYPERDRIVE.connectionString)
         try {
-          const n = await evaluateLiveTpslForPair(this.env, ctxDb.db, pairName.toUpperCase(), mid)
-          if (n > 0) {
-            this.broadcast({ type: 'trade_closed', pair: pairName.toUpperCase(), count: n })
+          const n = await evaluateLiveTpslForPair(this.env, ctxDb.db, pairUpper, mid)
+          if (n > 0 && attachedSockets > 0) {
+            this.broadcast({ type: 'trade_closed', pair: pairUpper, count: n })
           }
         } finally {
           await releaseDbContext(ctxDb)
         }
-        this.broadcast({
-          type: 'book_update',
-          asks: this.asks,
-          bids: this.bids,
-          price: mid,
-          changePct24h,
-          spotSource: priceData != null ? 'external' : 'book',
-        })
+        if (attachedSockets > 0) {
+          this.broadcast({
+            type: 'book_update',
+            asks: this.asks,
+            bids: this.bids,
+            price: mid,
+            changePct24h,
+            spotSource: priceData != null ? 'external' : 'book',
+          })
+        }
       }
     } finally {
-      await this.ctx.storage.setAlarm(Date.now() + 10_000)
+      // Fast cadence only while clients are attached; slower cadence when
+      // we're just babysitting open TP/SL for offline users.
+      const nextMs = attachedSockets > 0 ? ALARM_MS_ATTACHED : ALARM_MS_IDLE_WITH_OPEN_TRADES
+      await this.ctx.storage.setAlarm(Date.now() + nextMs)
     }
   }
 
@@ -169,7 +227,6 @@ export class LiveTradingRoom {
       const pair = new WebSocketPair()
       const [client, server] = Object.values(pair)
       this.ctx.acceptWebSocket(server)
-      this.sockets.add(server)
       server.send(
         JSON.stringify({
           type: 'snapshot',
@@ -376,6 +433,25 @@ export class LiveTradingRoom {
   }
 
   webSocketClose(ws: WebSocket) {
-    this.sockets.delete(ws)
+    try {
+      ws.close()
+    } catch {
+      /* ignore */
+    }
+    // If this was the last client and there are no open live trades for the
+    // pair, cancel any pending alarm so the DO can hibernate cleanly instead
+    // of looping on CryptoCompare forever.
+    void (async () => {
+      if (this.ctx.getWebSockets().length > 0) return
+      const stored = await this.ctx.storage.get<string>('pair')
+      const pairUpper = (stored ?? '').trim().toUpperCase()
+      const keep = await this.hasOpenLiveTradesForPair(pairUpper)
+      if (!keep) {
+        await this.ctx.storage.deleteAlarm()
+      } else {
+        // Switch to the slower idle cadence immediately.
+        await this.ctx.storage.setAlarm(Date.now() + ALARM_MS_IDLE_WITH_OPEN_TRADES)
+      }
+    })()
   }
 }
