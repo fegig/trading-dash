@@ -8,8 +8,7 @@
 	],
 	"vars": {
 		"SESSION_COOKIE_NAME": "td_session",
-		"RESEND_FROM": "JFM <no-reply@notify.jfmcapitals.com>",
-		"CRYPTOCOMPARE_MAX_REQ_PER_MINUTE": 80
+		"RESEND_FROM": "JFM <no-reply@notify.jfmcapitals.com>"
 	},
 	"r2_buckets": [
 		{

@@ -18,6 +18,7 @@ async function loadUserFromSessionId(
       currencyId: users.currencyId,
       verificationStatus: users.verificationStatus,
       role: users.role,
+      suspended: users.suspended,
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
@@ -32,6 +33,7 @@ async function loadUserFromSessionId(
         currencyId: row[0].currencyId,
         verificationStatus: row[0].verificationStatus,
         role: row[0].role ?? 'user',
+        suspended: row[0].suspended,
       }
     : null
 }
@@ -46,6 +48,7 @@ async function loadUserFromBearer(db: AppVariables['db'], token: string): Promis
       currencyId: users.currencyId,
       verificationStatus: users.verificationStatus,
       role: users.role,
+      suspended: users.suspended,
     })
     .from(authTokens)
     .innerJoin(users, eq(authTokens.userId, users.id))
@@ -66,6 +69,7 @@ async function loadUserFromBearer(db: AppVariables['db'], token: string): Promis
     currencyId: row[0].currencyId,
     verificationStatus: row[0].verificationStatus,
     role: row[0].role ?? 'user',
+    suspended: row[0].suspended,
   }
 }
 
@@ -96,6 +100,9 @@ export const requireUser = createMiddleware<{ Bindings: Env; Variables: AppVaria
   async (c, next) => {
     if (!c.var.user) {
       return c.json({ error: 'Unauthorized' }, 401)
+    }
+    if (c.var.user.suspended) {
+      return c.json({ error: 'Account suspended' }, 403)
     }
     await next()
   }

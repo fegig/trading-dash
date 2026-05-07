@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router'
 import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
+import LanguageSwitcher from '@/components/common/LanguageSwitcher'
 
 export default function AuthHeader() {
   const siteName = useSiteConfigStore((s) => s.siteName)
@@ -66,6 +67,7 @@ export default function AuthHeader() {
               <span className="hidden sm:inline">Create account</span>
             </NavLink>
           </div>
+          <LanguageSwitcher />
         </div>
       </nav>
     </header>

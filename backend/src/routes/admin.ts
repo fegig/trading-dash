@@ -111,6 +111,7 @@ admin.get('/users', requireAdmin, async (c) => {
           email: schema.users.email,
           verificationStatus: schema.users.verificationStatus,
           role: schema.users.role,
+          suspended: schema.users.suspended,
           createdAt: schema.users.createdAt,
           firstName: schema.userBios.firstName,
           lastName: schema.userBios.lastName,
@@ -133,6 +134,7 @@ admin.get('/users', requireAdmin, async (c) => {
           email: schema.users.email,
           verificationStatus: schema.users.verificationStatus,
           role: schema.users.role,
+          suspended: schema.users.suspended,
           createdAt: schema.users.createdAt,
           firstName: schema.userBios.firstName,
           lastName: schema.userBios.lastName,
@@ -155,6 +157,7 @@ admin.get('/users', requireAdmin, async (c) => {
       lastName: r.lastName ?? '',
       verificationStatus: r.verificationStatus,
       role: r.role,
+      suspended: r.suspended,
       createdAt: r.createdAt,
     })),
     total: Number(countRow?.count ?? 0),
@@ -391,6 +394,25 @@ admin.patch('/users/:id/role', requireAdmin, async (c) => {
   await c.var.db
     .update(schema.users)
     .set({ role })
+    .where(eq(schema.users.id, internalId))
+
+  return c.json({ ok: true })
+})
+
+/** PATCH /admin/users/:id/suspend */
+admin.patch('/users/:id/suspend', requireAdmin, async (c) => {
+  const publicId = c.req.param('id')
+  const internalId = await getInternalUserIdByPublicId(c.var.db, publicId)
+  if (internalId == null) return c.json({ error: 'Not found' }, 404)
+
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+  if (typeof body.suspended !== 'boolean') {
+    return c.json({ error: 'suspended must be a boolean' }, 400)
+  }
+
+  await c.var.db
+    .update(schema.users)
+    .set({ suspended: body.suspended })
     .where(eq(schema.users.id, internalId))
 
   return c.json({ ok: true })

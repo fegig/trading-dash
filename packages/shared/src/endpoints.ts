@@ -81,6 +81,7 @@ export const endpoints = {
     userBios: (id: string) => `/admin/users/${encodeURIComponent(id)}/bios`,
     userVerification: (id: string) => `/admin/users/${encodeURIComponent(id)}/verification`,
     userRole: (id: string) => `/admin/users/${encodeURIComponent(id)}/role`,
+    userSuspend: (id: string) => `/admin/users/${encodeURIComponent(id)}/suspend`,
     userFundFiat: (id: string) => `/admin/users/${encodeURIComponent(id)}/fund-fiat`,
     userFundAsset: (id: string) => `/admin/users/${encodeURIComponent(id)}/fund-asset`,
     userWalletAdjust: (id: string) => `/admin/users/${encodeURIComponent(id)}/wallet-adjust`,

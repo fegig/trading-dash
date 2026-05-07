@@ -25,6 +25,7 @@ export const users = mysqlTable(
     currencyId: int('currency_id'),
     verificationStatus: int('verification_status').notNull().default(0),
     role: varchar('role', { length: 20 }).notNull().default('user'),
+    suspended: boolean('suspended').notNull().default(false),
     refBy: varchar('ref_by', { length: 36 }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },

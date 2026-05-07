@@ -1,4 +1,5 @@
-import { BrowserRouter, Route, Routes } from 'react-router'
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router'
+import { useEffect } from 'react'
 import { ToastContainer } from 'react-toastify'
 import { AuthBootstrap } from './components/AuthBootstrap'
 import CookieConsent from './components/common/CookieConsent'
@@ -48,9 +49,46 @@ import HelpPageDash from './routes/dashboard/help'
 import LogoutPage from './routes/dashboard/logout'
 import LiveTrading from './routes/dashboard/live-trading'
 
+/** Loads GTranslate dropdown.js once for the entire app (defines window.doGTranslate). */
+function GTranslateLoader() {
+  const location = useLocation()
+  const isAdmin = location.pathname.startsWith('/admin')
+
+  useEffect(() => {
+    if (isAdmin) return
+
+    window.gtranslateSettings = {
+      default_language: 'en',
+      detect_browser_language: true,
+      wrapper_selector: '#gt-hidden-wrapper',
+    }
+    const script = document.createElement('script')
+    script.id = 'gtranslate-script'
+    script.src = 'https://cdn.gtranslate.net/widgets/latest/dropdown.js'
+    script.defer = true
+    document.head.appendChild(script)
+    return () => {
+      const s = document.getElementById('gtranslate-script')
+      if (s) document.head.removeChild(s)
+      delete window.gtranslateSettings
+    }
+  }, [isAdmin])
+
+  if (isAdmin) return null
+  return (
+    <div
+      id="gt-hidden-wrapper"
+      className="gtranslate_wrapper"
+      style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', visibility: 'hidden' }}
+      aria-hidden="true"
+    />
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <GTranslateLoader />
       <SmoothScroll />
       <CookieConsent />
       <AuthBootstrap>

@@ -155,6 +155,7 @@ auth.post('/verifyOTP', async (c) => {
     .limit(1)
   const u = urows[0]
   if (!u) return c.json({ ok: false }, 400)
+  if (u.suspended) return c.json({ error: 'Account suspended' }, 403)
 
   const now = Math.floor(Date.now() / 1000)
   const otpRows = await c.var.db
@@ -340,6 +341,7 @@ auth.post('/verifyEmailAndStartSession', async (c) => {
     .limit(1)
   const u = urows[0]
   if (!u) return c.json({ error: 'Invalid link' }, 400)
+  if (u.suspended) return c.json({ error: 'Account suspended' }, 403)
 
   const now = Math.floor(Date.now() / 1000)
   const trows = await c.var.db

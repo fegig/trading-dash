@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { useState } from "react"
 import { useSiteConfigStore, SITE_NAME_FALLBACK } from "../stores"
 import { MobileNavDrawer } from "./MobileNavDrawer"
+import LanguageSwitcher from "../components/common/LanguageSwitcher"
 
 function Header() {
   const [navOpen, setNavOpen] = useState(false)
@@ -42,6 +43,7 @@ function Header() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <LanguageSwitcher />
           <Link
             to="/dashboard/profile"
             className="gradient-background p-2! rounded-full! text-neutral-400 hover:text-green-400 transition-colors inline-flex items-center justify-center"

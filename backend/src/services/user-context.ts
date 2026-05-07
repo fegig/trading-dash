@@ -5,4 +5,5 @@ export type SessionUser = {
   currencyId: number | null
   verificationStatus: number
   role: string
+  suspended: boolean
 }

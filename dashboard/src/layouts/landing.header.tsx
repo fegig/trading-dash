@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useSiteConfigStore, SITE_NAME_FALLBACK } from '@/stores'
 import { paths } from '@/navigation/paths'
+import LanguageSwitcher from '@/components/common/LanguageSwitcher'
 
 const navItems = [
   { to: '/about', label: 'About' },
@@ -87,6 +88,7 @@ export default function LandingHeader() {
               </Link>
             </>
           )}
+          <LanguageSwitcher />
         </div>
 
         <button

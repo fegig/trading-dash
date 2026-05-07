@@ -26,6 +26,7 @@ export type AdminUserRow = {
   lastName: string
   verificationStatus: number
   role: string
+  suspended: boolean
   createdAt: string
 }
 
@@ -157,6 +158,10 @@ export async function patchAdminUserVerification(
 
 export async function patchAdminUserRole(id: string, role: 'user' | 'admin'): Promise<void> {
   await patch(endpoints.admin.userRole(id), { role })
+}
+
+export async function suspendAdminUser(id: string, suspended: boolean): Promise<void> {
+  await patch(endpoints.admin.userSuspend(id), { suspended })
 }
 
 export async function fundUserFiat(
