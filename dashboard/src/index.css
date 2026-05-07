@@ -64,3 +64,19 @@ html::-webkit-scrollbar-thumb:active, body::-webkit-scrollbar-thumb:active, .scr
   @apply transition-all duration-300
 }
 
+/* ─── Hide Google Translate toolbar injected at top of page ─────────────── */
+.goog-te-banner-frame,
+.goog-te-balloon-frame,
+.goog-te-ftab-float,
+#goog-gt-tt,
+.goog-tooltip,
+.goog-tooltip-content {
+  display: none !important;
+}
+body {
+  top: 0 !important;
+}
+.skiptranslate {
+  display: none !important;
+}
+

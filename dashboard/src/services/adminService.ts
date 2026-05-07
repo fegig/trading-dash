@@ -72,6 +72,7 @@ export type AdminUserDetail = {
     country: string
     currency_code: string
     currency_name: string
+    suspended: boolean
   }
   bios: Record<string, unknown>
   assets: AdminUserAsset[]

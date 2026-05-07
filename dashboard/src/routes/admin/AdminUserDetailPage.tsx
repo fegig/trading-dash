@@ -8,6 +8,7 @@ import {
   patchAdminUserRole,
   adjustUserWalletLedger,
   fundUserAsset,
+  suspendAdminUser,
   type AdminUserDetail,
   type AdminUserAsset,
 } from '../../services/adminService'
@@ -906,6 +907,7 @@ export default function AdminUserDetailPage() {
   const [detail, setDetail] = useState<AdminUserDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('profile')
+  const [suspendLoading, setSuspendLoading] = useState(false)
 
   const reload = useCallback(() => {
     if (!id) return
@@ -958,6 +960,27 @@ export default function AdminUserDetailPage() {
   const displayName =
     u.firstName || u.lastName ? `${u.firstName} ${u.lastName}`.trim() : u.email
 
+  const handleToggleSuspend = async () => {
+    if (!id) return
+    const next = !u.suspended
+    const confirmed = window.confirm(
+      next
+        ? `Suspend ${u.email}? They will not be able to log in.`
+        : `Unsuspend ${u.email}? They will regain login access.`
+    )
+    if (!confirmed) return
+    setSuspendLoading(true)
+    try {
+      await suspendAdminUser(id, next)
+      setDetail((prev) => prev ? { ...prev, user: { ...prev.user, suspended: next } } : prev)
+      toast.success(next ? 'Account suspended' : 'Account unsuspended')
+    } catch {
+      toast.error('Failed to update suspension')
+    } finally {
+      setSuspendLoading(false)
+    }
+  }
+
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: 'profile', label: 'Profile' },
     { id: 'wallet', label: 'Wallet', count: detail.assets.length },
@@ -978,15 +1001,34 @@ export default function AdminUserDetailPage() {
           <i className="fi fi-rr-arrow-left text-xs" />
           Users
         </Link>
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-white truncate">{displayName}</h1>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold text-white truncate">{displayName}</h1>
+            {u.suspended && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/15 text-red-400 border border-red-500/30 uppercase tracking-wider">
+                Suspended
+              </span>
+            )}
+            {u.role === 'admin' && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase tracking-wider">
+                Admin
+              </span>
+            )}
+          </div>
           <p className="text-sm text-neutral-400">{u.email}</p>
         </div>
-        {u.role === 'admin' && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase tracking-wider self-start mt-1">
-            Admin
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={handleToggleSuspend}
+          disabled={suspendLoading}
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${
+            u.suspended
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+              : 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
+          }`}
+        >
+          {suspendLoading ? '…' : u.suspended ? 'Unsuspend' : 'Suspend account'}
+        </button>
       </div>
 
       {/* Tabs */}

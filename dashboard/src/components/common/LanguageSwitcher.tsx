@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 
-declare global {
-  interface Window {
-    doGTranslate?: (langPair: string) => void
-    gtranslateSettings?: Record<string, unknown>
-  }
-}
-
 const LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'es', label: 'Español' },
@@ -24,29 +17,33 @@ const LANGUAGES = [
   { code: 'hi', label: 'हिन्दी' },
 ]
 
-// Module-level helpers — outside React scope to avoid compiler restrictions
 function getCurrentLang(): string {
   const match = document.cookie.match(/(?:^|;\s*)googtrans=\/[a-z-]+\/([a-z-]+)/i)
   return match?.[1] ?? 'en'
 }
 
+/**
+ * Programmatically switch language using Google Translate Element's hidden combo select.
+ * Falls back to setting the googtrans cookie + reload when the element isn't ready yet.
+ */
 function switchLanguage(code: string) {
-  if (typeof window.doGTranslate === 'function') {
-    window.doGTranslate(`en|${code}`)
+  const select = document.querySelector<HTMLSelectElement>('.goog-te-combo')
+  if (select) {
+    select.value = code
+    select.dispatchEvent(new Event('change'))
     return
   }
-  // Fallback: set cookie and reload
-  const exp = 'expires=Thu, 01 Jan 1970 00:00:00 UTC'
+  // Element not ready yet — use cookie + reload fallback
   const host = window.location.hostname
-  const pairs = [
-    `googtrans=; ${exp}; path=/`,
-    `googtrans=; ${exp}; domain=${host}; path=/`,
-  ]
+  const exp = 'expires=Thu, 01 Jan 1970 00:00:00 UTC'
+  ;[`googtrans=; ${exp}; path=/`, `googtrans=; ${exp}; domain=${host}; path=/`].forEach(
+    (c) => { document.cookie = c }
+  )
   if (code !== 'en') {
-    pairs.push(`googtrans=/en/${code}; path=/`)
-    pairs.push(`googtrans=/en/${code}; domain=${host}; path=/`)
+    ;[`googtrans=/en/${code}; path=/`, `googtrans=/en/${code}; domain=${host}; path=/`].forEach(
+      (c) => { document.cookie = c }
+    )
   }
-  pairs.forEach((c) => { document.cookie = c })
   window.location.reload()
 }
 

@@ -288,17 +288,20 @@ admin.get('/users/:id', requireAdmin, async (c) => {
     .where(eq(schema.userInvestmentPositions.userId, internalId))
 
   return c.json({
-    user: apiUserRow(
-      {
-        publicId: userRow.publicId,
-        email: userRow.email,
-        verificationStatus: userRow.verificationStatus,
-        currencyId: userRow.currencyId,
-        role: userRow.role,
-        bios,
-      },
-      fiat
-    ),
+    user: {
+      ...apiUserRow(
+        {
+          publicId: userRow.publicId,
+          email: userRow.email,
+          verificationStatus: userRow.verificationStatus,
+          currencyId: userRow.currencyId,
+          role: userRow.role,
+          bios,
+        },
+        fiat
+      ),
+      suspended: userRow.suspended,
+    },
     bios,
     assets: assets.map((a) => ({
       id: a.id,

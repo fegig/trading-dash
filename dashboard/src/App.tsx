@@ -49,37 +49,37 @@ import HelpPageDash from './routes/dashboard/help'
 import LogoutPage from './routes/dashboard/logout'
 import LiveTrading from './routes/dashboard/live-trading'
 
-/** Loads GTranslate dropdown.js once for the entire app (defines window.doGTranslate). */
-function GTranslateLoader() {
+/**
+ * Loads Google Translate Element (free, no domain registration needed) once for
+ * all non-admin routes. Defines window.google.translate.TranslateElement which
+ * powers the custom LanguageSwitcher via .goog-te-combo select.
+ */
+function GoogleTranslateLoader() {
   const location = useLocation()
   const isAdmin = location.pathname.startsWith('/admin')
 
   useEffect(() => {
     if (isAdmin) return
+    if (document.getElementById('google-translate-script')) return
 
-    window.gtranslateSettings = {
-      default_language: 'en',
-      detect_browser_language: true,
-      wrapper_selector: '#gt-hidden-wrapper',
+    ;(window as Record<string, unknown>).googleTranslateElementInit = () => {
+      const G = (window as Record<string, unknown>).google as { translate: { TranslateElement: new (opts: Record<string, unknown>, el: string) => void } } | undefined
+      if (!G) return
+      new G.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'gt-element')
     }
+
     const script = document.createElement('script')
-    script.id = 'gtranslate-script'
-    script.src = 'https://cdn.gtranslate.net/widgets/latest/dropdown.js'
-    script.defer = true
+    script.id = 'google-translate-script'
+    script.src = 'https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit'
+    script.async = true
     document.head.appendChild(script)
-    return () => {
-      const s = document.getElementById('gtranslate-script')
-      if (s) document.head.removeChild(s)
-      delete window.gtranslateSettings
-    }
   }, [isAdmin])
 
   if (isAdmin) return null
   return (
     <div
-      id="gt-hidden-wrapper"
-      className="gtranslate_wrapper"
-      style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', visibility: 'hidden' }}
+      id="gt-element"
+      style={{ position: 'fixed', top: -9999, left: -9999, width: 1, height: 1, overflow: 'hidden' }}
       aria-hidden="true"
     />
   )
@@ -88,7 +88,7 @@ function GTranslateLoader() {
 function App() {
   return (
     <BrowserRouter>
-      <GTranslateLoader />
+      <GoogleTranslateLoader />
       <SmoothScroll />
       <CookieConsent />
       <AuthBootstrap>
