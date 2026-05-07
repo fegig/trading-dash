@@ -62,8 +62,8 @@ function GoogleTranslateLoader() {
     if (isAdmin) return
     if (document.getElementById('google-translate-script')) return
 
-    ;(window as Record<string, unknown>).googleTranslateElementInit = () => {
-      const G = (window as Record<string, unknown>).google as { translate: { TranslateElement: new (opts: Record<string, unknown>, el: string) => void } } | undefined
+    ;(window as unknown as Record<string, unknown>).googleTranslateElementInit = () => {
+      const G = (window as unknown as Record<string, unknown>).google as { translate: { TranslateElement: new (opts: Record<string, unknown>, el: string) => void } } | undefined
       if (!G) return
       new G.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'gt-element')
     }
